@@ -1,0 +1,447 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Schema do sistema CET Automação
+// PROIBIDO: qualquer campo de diagnóstico médico, prontuário,
+// aptidão individual, CID ou exame de saúde do trabalhador.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// EMPRESA
+// =============================================================================
+model Empresa {
+  id                    String   @id @default(uuid())
+  // CNPJ normalizado: somente dígitos (14 chars)
+  cnpj                  String   @unique @db.VarChar(14)
+  razao_social          String?  @db.VarChar(255)
+  nome_fantasia         String?  @db.VarChar(255)
+  cnae_informado        String?  @db.VarChar(10)
+  atividade_real        String?  @db.VarChar(255)
+  cidade                String?  @db.VarChar(100)
+  uf                    String?  @db.Char(2)
+  trabalhadores_proprios  Int    @default(0)
+  trabalhadores_terceiros Int    @default(0)
+  unidades              Int      @default(1)
+  estados_atendidos     String[] @default([])
+  grau_risco            Int?     // 1 a 4
+  cliente_atual         Boolean  @default(false)
+  ploomes_id            String?  @db.VarChar(100)
+  criado_em             DateTime @default(now())
+  atualizado_em         DateTime @updatedAt
+
+  // Relações
+  contatos              Contato[]
+  leads                 Lead[]
+  negocios              Negocio[]
+  arquivos              Arquivo[]
+
+  @@index([cnpj])
+  @@map("empresas")
+}
+
+// =============================================================================
+// CONTATO
+// =============================================================================
+model Contato {
+  id             String   @id @default(uuid())
+  empresa_id     String?
+  nome           String   @db.VarChar(255)
+  cargo          String?  @db.VarChar(100)
+  // Formato E.164: +55XXXXXXXXXXX
+  telefone_e164  String   @unique @db.VarChar(20)
+  email          String?  @db.VarChar(255)
+  canal_preferido String   @default("whatsapp") @db.VarChar(20)
+  criado_em      DateTime @default(now())
+  atualizado_em  DateTime @updatedAt
+
+  // Relações
+  empresa        Empresa? @relation(fields: [empresa_id], references: [id])
+  leads          Lead[]
+  consentimentos Consentimento[]
+
+  @@index([telefone_e164])
+  @@index([empresa_id])
+  @@map("contatos")
+}
+
+// =============================================================================
+// LEAD
+// =============================================================================
+model Lead {
+  id               String   @id @default(uuid())
+  empresa_id       String?
+  contato_id       String
+  canal            String   @db.VarChar(20)   // whatsapp | instagram
+  campanha         String?  @db.VarChar(100)
+  palavra_chave    String?  @db.VarChar(100)
+  primeira_intencao String? @db.VarChar(500)
+  atendente_id     String?
+  // Protocolo legível: CET-2026-001234
+  protocolo        String   @unique @db.VarChar(30)
+  criado_em        DateTime @default(now())
+  atualizado_em    DateTime @updatedAt
+
+  // Relações
+  empresa          Empresa?  @relation(fields: [empresa_id], references: [id])
+  contato          Contato   @relation(fields: [contato_id], references: [id])
+  atendente        Usuario?  @relation(fields: [atendente_id], references: [id])
+  fichas           Ficha[]
+  pedidos          Pedido[]
+  mensagens        Mensagem[]
+
+  @@index([protocolo])
+  @@index([empresa_id])
+  @@index([contato_id])
+  @@map("leads")
+}
+
+// =============================================================================
+// CONSENTIMENTO LGPD
+// =============================================================================
+model Consentimento {
+  id            String   @id @default(uuid())
+  lead_id       String?
+  contato_id    String
+  versao_texto  String   @db.VarChar(50)
+  texto_hash    String   @db.VarChar(64)  // SHA-256 do texto
+  aceito_em     DateTime @default(now())
+  ip            String?  @db.VarChar(45)  // IPv4 ou IPv6
+  user_agent    String?  @db.Text
+  finalidade    String   @db.Text
+
+  // Relações
+  contato       Contato  @relation(fields: [contato_id], references: [id])
+
+  @@index([contato_id])
+  @@map("consentimentos")
+}
+
+// =============================================================================
+// FICHA (coleta progressiva)
+// =============================================================================
+model Ficha {
+  id              String    @id @default(uuid())
+  lead_id         String
+  status          String    @default("iniciada") @db.VarChar(20)
+  // Token único que permite o cliente retomar de onde parou
+  token_retomada  String    @unique @default(uuid())
+  respostas       Json      @default("{}")
+  bloco_atual     Int       @default(1)
+  concluida_em    DateTime?
+  criado_em       DateTime  @default(now())
+  atualizado_em   DateTime  @updatedAt
+
+  // Relações
+  lead            Lead      @relation(fields: [lead_id], references: [id])
+  documentos      DocumentoDeclarado[]
+  score_comercial ScoreComercial?
+  score_sst       ScoreSST?
+  rota            Rota?
+
+  @@index([lead_id])
+  @@index([token_retomada])
+  @@map("fichas")
+}
+
+// =============================================================================
+// DOCUMENTO DECLARADO (comercial — não armazena laudo nem resultado de exame)
+// =============================================================================
+model DocumentoDeclarado {
+  id              String    @id @default(uuid())
+  ficha_id        String
+  tipo            String    @db.VarChar(30)  // PGR|PCMSO|LTCAT|LIP|AET|PPP|OS|treinamento
+  possui          String    @db.VarChar(10)  // sim|nao|nao_sei
+  data_emissao    DateTime?
+  data_vencimento DateTime?
+  arquivo_id      String?
+
+  // Relações
+  ficha           Ficha     @relation(fields: [ficha_id], references: [id])
+  arquivo         Arquivo?  @relation(fields: [arquivo_id], references: [id])
+
+  @@index([ficha_id])
+  @@map("documentos_declarados")
+}
+
+// =============================================================================
+// ARQUIVO (upload de evidências — anti-vírus + metadata)
+// =============================================================================
+model Arquivo {
+  id              String   @id @default(uuid())
+  empresa_id      String?
+  ficha_id        String?
+  nome            String   @db.VarChar(255)
+  mime            String   @db.VarChar(100)
+  tamanho         Int      // bytes
+  storage_key     String   @db.VarChar(500)
+  checksum        String   @db.VarChar(64)  // SHA-256
+  status_antivirus String  @default("pendente") @db.VarChar(20)
+  enviado_por     String?  // usuario_id ou contato_id
+  criado_em       DateTime @default(now())
+
+  // Relações
+  empresa         Empresa? @relation(fields: [empresa_id], references: [id])
+  documentos      DocumentoDeclarado[]
+
+  @@index([empresa_id])
+  @@map("arquivos")
+}
+
+// =============================================================================
+// SCORE COMERCIAL
+// =============================================================================
+model ScoreComercial {
+  id              String   @id @default(uuid())
+  ficha_id        String   @unique
+  // Componentes (0-máximo por eixo)
+  porte_unidades  Int      @default(0)  // 0-30
+  complexidade    Int      @default(0)  // 0-25
+  urgencia        Int      @default(0)  // 0-20
+  potencial       Int      @default(0)  // 0-15
+  qualidade_dados Int      @default(0)  // 0-10
+  total           Int      @default(0)  // 0-100
+  faixa           String   @db.VarChar(20)  // alta|media|digital
+  versao_regras   String   @db.VarChar(50)
+  calculado_em    DateTime @default(now())
+
+  // Relações
+  ficha           Ficha    @relation(fields: [ficha_id], references: [id])
+
+  @@map("scores_comerciais")
+}
+
+// =============================================================================
+// SCORE SST
+// =============================================================================
+model ScoreSST {
+  id                    String   @id @default(uuid())
+  ficha_id              String   @unique
+  // Resultado por eixo com estados (conforme/parcial/nao_conforme/nao_comprovado/nao_aplicavel)
+  por_eixo              Json
+  total                 Int      @default(0)   // 0-100
+  classificacao         String   @db.VarChar(30) // critico|alto_risco|atencao|regular
+  itens_nao_aplicaveis  Json     @default("[]")
+  versao_regras         String   @db.VarChar(50)
+  calculado_em          DateTime @default(now())
+
+  // Relações
+  ficha                 Ficha    @relation(fields: [ficha_id], references: [id])
+
+  @@map("scores_sst")
+}
+
+// =============================================================================
+// ROTA (classificação final)
+// =============================================================================
+model Rota {
+  id              String   @id @default(uuid())
+  ficha_id        String   @unique
+  rota            String   @db.Char(1)      // A|B|C  (cliente_atual vira 'X')
+  rota_completa   String   @db.VarChar(20)  // A|B|C|cliente_atual
+  gatilho_critico Boolean  @default(false)
+  // Auditoria das regras que dispararam a classificação
+  motivos         Json
+  sla_minutos     Int
+  responsavel_id  String?
+  definida_em     DateTime @default(now())
+
+  // Relações
+  ficha           Ficha    @relation(fields: [ficha_id], references: [id])
+  responsavel     Usuario? @relation(fields: [responsavel_id], references: [id])
+
+  @@index([rota_completa])
+  @@index([gatilho_critico])
+  @@map("rotas")
+}
+
+// =============================================================================
+// PEDIDO (pagamento)
+// =============================================================================
+model Pedido {
+  id              String    @id @default(uuid())
+  lead_id         String
+  produto         String    @db.VarChar(20)  // triagem|essencial|completo
+  valor_centavos  Int
+  status          String    @default("criado") @db.VarChar(20)
+  asaas_customer_id String? @db.VarChar(100)
+  asaas_payment_id  String? @db.VarChar(100) @unique
+  checkout_url    String?   @db.Text
+  // Chave de idempotência — garante que o mesmo pedido não é criado duas vezes
+  idempotency_key String    @unique @db.VarChar(100)
+  pago_em         DateTime?
+  criado_em       DateTime  @default(now())
+  atualizado_em   DateTime  @updatedAt
+
+  // Relações
+  lead            Lead      @relation(fields: [lead_id], references: [id])
+  relatorio       Relatorio?
+
+  @@index([lead_id])
+  @@index([status])
+  @@map("pedidos")
+}
+
+// =============================================================================
+// RELATÓRIO (PDF gerado após pagamento confirmado)
+// Trava: um pedido → um relatório (relação @unique)
+// =============================================================================
+model Relatorio {
+  id              String    @id @default(uuid())
+  pedido_id       String    @unique  // garante: 1 pedido → 1 relatório
+  tipo            String    @db.VarChar(50)
+  arquivo_pdf_key String    @db.VarChar(500)
+  hash_conteudo   String    @db.VarChar(64)
+  gerado_em       DateTime  @default(now())
+  entregue_em     DateTime?
+  canal_entrega   String?   @db.VarChar(50)
+
+  // Relações
+  pedido          Pedido    @relation(fields: [pedido_id], references: [id])
+
+  @@map("relatorios")
+}
+
+// =============================================================================
+// NEGÓCIO (espelho Ploomes)
+// =============================================================================
+model Negocio {
+  id                    String    @id @default(uuid())
+  empresa_id            String
+  etapa_funil           String    @db.VarChar(100)
+  valor_estimado        Int?      // centavos
+  vendedor_id           String?
+  responsavel_tecnico_id String?
+  ploomes_deal_id       String?   @db.VarChar(100)
+  proxima_acao          String?   @db.Text
+  prazo_sla             DateTime?
+  criado_em             DateTime  @default(now())
+  atualizado_em         DateTime  @updatedAt
+
+  // Relações
+  empresa               Empresa   @relation(fields: [empresa_id], references: [id])
+
+  @@index([empresa_id])
+  @@index([etapa_funil])
+  @@map("negocios")
+}
+
+// =============================================================================
+// MENSAGEM (log WhatsApp/Instagram)
+// =============================================================================
+model Mensagem {
+  id          String   @id @default(uuid())
+  lead_id     String
+  direcao     String   @db.VarChar(10)  // entrada|saida
+  canal       String   @db.VarChar(20)
+  wamid       String?  @unique @db.VarChar(200)  // ID da Meta — deduplicação
+  template    String?  @db.VarChar(100)
+  conteudo    String   @db.Text
+  status      String   @db.VarChar(20)
+  erro        String?  @db.Text
+  criado_em   DateTime @default(now())
+
+  // Relações
+  lead        Lead     @relation(fields: [lead_id], references: [id])
+
+  @@index([lead_id])
+  @@index([wamid])
+  @@map("mensagens")
+}
+
+// =============================================================================
+// USUÁRIO (equipe CET)
+// =============================================================================
+model Usuario {
+  id            String   @id @default(uuid())
+  nome          String   @db.VarChar(255)
+  email         String   @unique @db.VarChar(255)
+  senha_hash    String   @db.VarChar(255)
+  papel         String   @db.VarChar(20)  // comercial|financeiro|tecnico|medico|admin
+  ativo         Boolean  @default(true)
+  criado_em     DateTime @default(now())
+  atualizado_em DateTime @updatedAt
+
+  // Relações
+  leads_atribuidos Lead[]
+  rotas_atribuidas Rota[]
+
+  @@index([email])
+  @@map("usuarios")
+}
+
+// =============================================================================
+// REGRA CONFIG (parâmetros de negócio versionados)
+// =============================================================================
+model RegraConfig {
+  id           String   @id @default(uuid())
+  chave        String   @db.VarChar(100)
+  valor        Json
+  versao       Int      @default(1)
+  alterado_por String?  // usuario_id
+  alterado_em  DateTime @default(now())
+
+  @@unique([chave, versao])
+  @@index([chave])
+  @@map("regras_config")
+}
+
+// =============================================================================
+// AUDITORIA
+// =============================================================================
+model Auditoria {
+  id          String   @id @default(uuid())
+  entidade    String   @db.VarChar(100)
+  entidade_id String   @db.VarChar(100)
+  acao        String   @db.VarChar(50)
+  antes       Json?
+  depois      Json?
+  usuario_id  String?
+  ip          String?  @db.VarChar(45)
+  criado_em   DateTime @default(now())
+
+  @@index([entidade, entidade_id])
+  @@index([usuario_id])
+  @@map("auditoria")
+}
+
+// =============================================================================
+// EVENTOS DE DOMÍNIO (Outbox Pattern)
+// =============================================================================
+model DomainEvent {
+  event_id      String    @id @default(uuid())
+  tipo          String    @db.VarChar(100)
+  payload       Json
+  status        String    @default("pendente") @db.VarChar(20)
+  tentativas    Int       @default(0)
+  processado_em DateTime?
+  erro          String?   @db.Text
+  criado_em     DateTime  @default(now())
+
+  @@index([status, criado_em])
+  @@index([tipo])
+  @@map("domain_events")
+}
+
+// =============================================================================
+// WEBHOOK RECEBIDO (idempotência de webhooks externos)
+// =============================================================================
+model WebhookRecebido {
+  id           String   @id @default(uuid())
+  origem       String   @db.VarChar(50)  // asaas|meta|stripe
+  assinatura   String?  @db.Text
+  // Hash SHA-256 do payload — chave de idempotência
+  payload_hash String   @unique @db.VarChar(64)
+  processado   Boolean  @default(false)
+  recebido_em  DateTime @default(now())
+
+  @@index([payload_hash])
+  @@map("webhooks_recebidos")
+}

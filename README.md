@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CET Automação — Sistema de Automação Comercial e Diagnóstico SST
 
-## Getting Started
-
-First, run the development server:
+## Subir em uma linha (desenvolvimento local)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# 1. Instale as dependências
+pnpm install
+
+# 2. Copie as variáveis de ambiente
+cp infra/.env.example .env
+# Edite .env com suas credenciais
+
+# 3. Suba a infraestrutura local (Postgres, Redis, Mailhog)
+pnpm docker:up
+
+# 4. Rode as migrations e o seed
+pnpm db:migrate
+pnpm db:seed
+
+# 5. Suba todos os apps em modo desenvolvimento
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Apps disponíveis
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| App | URL | Descrição |
+|-----|-----|-----------|
+| `apps/portal` | http://localhost:3000 | Ficha pública de coleta |
+| `apps/api` | http://localhost:3001 | API NestJS |
+| `apps/admin` | http://localhost:3002 | Painel interno |
+| Mailhog | http://localhost:8025 | Caixa de e-mails de dev |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comandos úteis
 
-## Learn More
+```bash
+# Testar todos os pacotes
+pnpm test
 
-To learn more about Next.js, take a look at the following resources:
+# Typecheck completo
+pnpm typecheck
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Banco de dados
+pnpm db:studio      # Abre Prisma Studio
+pnpm db:migrate     # Cria/aplica migrations (dev)
+pnpm db:seed        # Popula o banco com dados de teste
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Docker
+pnpm docker:up      # Sobe Postgres + Redis + Mailhog
+pnpm docker:down    # Derruba containers
+```
 
-## Deploy on Vercel
+## Documentação técnica
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [`PLANO.md`](./PLANO.md) — Decisões de arquitetura
+- [`ARQUITETURA.md`](./ARQUITETURA.md) — Diagrama de eventos
+- [`RUNBOOK.md`](./RUNBOOK.md) — O que fazer quando uma integração cair
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Stack
+
+- **API:** NestJS + TypeScript
+- **Banco:** PostgreSQL 16 + Prisma
+- **Filas:** BullMQ + Redis
+- **Frontend:** Next.js 14 (App Router)
+- **Testes:** Vitest + Playwright
+- **PDF:** Puppeteer
+- **Infra local:** Docker Compose
