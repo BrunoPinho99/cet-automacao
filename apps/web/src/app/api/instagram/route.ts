@@ -6,6 +6,10 @@ import { normalizarTelefone, gerarProtocolo } from '@/lib/validacoes';
 const INSTAGRAM_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || 'cet_instagram_2026';
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET || '';
 
+if (process.env.NODE_ENV === 'production' && !INSTAGRAM_APP_SECRET) {
+  throw new Error('FATAL: INSTAGRAM_APP_SECRET não está definido. O processo não pode subir sem segurança em produção.');
+}
+
 /**
  * GET /api/instagram
  * Validação do webhook pela Meta (challenge).
@@ -35,16 +39,24 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
 
     // Validação de assinatura
-    if (INSTAGRAM_APP_SECRET) {
+    if (process.env.NODE_ENV === 'production' || INSTAGRAM_APP_SECRET) {
       const signature = request.headers.get('x-hub-signature-256');
-      if (signature) {
-        const hmac = crypto.createHmac('sha256', INSTAGRAM_APP_SECRET);
-        hmac.update(rawBody);
-        const expectedSignature = `sha256=${hmac.digest('hex')}`;
-        if (signature !== expectedSignature) {
-          console.warn('⚠️ Assinatura do Instagram inválida');
-          return NextResponse.json({ received: true }, { status: 200 });
-        }
+      if (!signature) {
+        console.warn('⚠️ Assinatura do Instagram ausente — ignorando payload');
+        return NextResponse.json({ received: true }, { status: 200 });
+      }
+
+      const hmac = crypto.createHmac('sha256', INSTAGRAM_APP_SECRET);
+      hmac.update(rawBody);
+      const expectedBuffer = Buffer.from(`sha256=${hmac.digest('hex')}`, 'utf8');
+      const signatureBuffer = Buffer.from(signature, 'utf8');
+
+      if (
+        expectedBuffer.length !== signatureBuffer.length ||
+        !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
+      ) {
+        console.warn('⚠️ Assinatura do Instagram inválida — ignorando payload');
+        return NextResponse.json({ received: true }, { status: 200 });
       }
     }
 

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { BLOCOS_FICHA, TOTAL_BLOCOS } from '@/lib/blocos-ficha';
-import { calcularScoreComercial, classificarRota } from '@cet/core';
+import { calcularScoreComercial, classificarRota, calcularScoreSST } from '@cet/core';
 
 /**
  * POST /api/ficha
@@ -97,7 +97,9 @@ export async function GET(request: NextRequest) {
       include: {
         lead: {
           include: {
-            contato: true,
+            contato: {
+              include: { consentimentos: true }
+            },
             empresa: true,
           },
         },
@@ -113,6 +115,7 @@ export async function GET(request: NextRequest) {
 
     // Montar estrutura de retorno com o bloco atual
     const blocoAtual = BLOCOS_FICHA.find(b => b.numero === ficha.bloco_atual);
+    const precisaConsentimento = ficha.lead.contato.consentimentos.length === 0;
 
     return NextResponse.json({
       ficha_id: ficha.id,
@@ -121,9 +124,11 @@ export async function GET(request: NextRequest) {
       total_blocos: TOTAL_BLOCOS,
       respostas: ficha.respostas,
       bloco: blocoAtual ?? null,
+      precisa_consentimento: precisaConsentimento,
       lead: {
         protocolo: ficha.lead.protocolo,
         contato: ficha.lead.contato.nome,
+        contato_id: ficha.lead.contato.id,
       },
     });
   } catch (error) {
@@ -312,6 +317,19 @@ async function calcularScoresSeFinalizou(
         faixa: scoreComercialResult.faixa,
         versao_regras: 'v1.0.0',
       },
+    });
+
+    // Score SST
+    const scoreSstResult = calcularScoreSST(empresaInput, fichaInput);
+    await prisma.scoreSst.create({
+      data: {
+        ficha_id: fichaId,
+        total: scoreSstResult.total,
+        classificacao: scoreSstResult.classificacao,
+        por_eixo: scoreSstResult.por_eixo as unknown as import('@prisma/client').Prisma.InputJsonValue,
+        itens_nao_aplicaveis: scoreSstResult.itens_nao_aplicaveis,
+        versao_regras: scoreSstResult.versao_regras,
+      }
     });
 
     // Classificação de Rota

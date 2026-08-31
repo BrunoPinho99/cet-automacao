@@ -12,6 +12,7 @@ async function main() {
   // -------------------------------------------------------------------
   // 1. Usuários da equipe CET
   // -------------------------------------------------------------------
+  // @ts-ignore
   const { hash: bcrypt } = await import('bcryptjs').catch(() => {
     // Fallback simples se bcryptjs não estiver disponível nos seeds
     return { hash: (s: string) => Promise.resolve(`$2b$10$seed_hash_${s.slice(0, 10)}`) };

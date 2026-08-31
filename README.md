@@ -17,18 +17,19 @@ pnpm docker:up
 pnpm db:migrate
 pnpm db:seed
 
-# 5. Suba todos os apps em modo desenvolvimento
+# 5. Suba a aplicação web e API (Next.js 15)
 pnpm dev
 ```
 
-## Apps disponíveis
+## Estrutura do Monorepo
 
-| App | URL | Descrição |
+| Pacote/App | URL / Local | Descrição |
 |-----|-----|-----------|
-| `apps/portal` | http://localhost:3000 | Ficha pública de coleta |
-| `apps/api` | http://localhost:3001 | API NestJS |
-| `apps/admin` | http://localhost:3002 | Painel interno |
-| Mailhog | http://localhost:8025 | Caixa de e-mails de dev |
+| `apps/web` | http://localhost:3000 | Aplicação unificada Next.js 15 (Portal Ficha, Painel Admin, API Webhooks) |
+| `packages/core` | - | Motor de regras (SST, Rota, Comercial) puro em TypeScript |
+| `packages/db` | - | Prisma ORM, migrations, schemas do PostgreSQL |
+| `packages/shared` | - | Contratos, DTOs e utilitários compartilhados |
+| Mailhog | http://localhost:8025 | Caixa de e-mails de dev (Docker) |
 
 ## Comandos úteis
 
@@ -38,6 +39,9 @@ pnpm test
 
 # Typecheck completo
 pnpm typecheck
+
+# Lint completo
+pnpm lint
 
 # Banco de dados
 pnpm db:studio      # Abre Prisma Studio
@@ -52,15 +56,12 @@ pnpm docker:down    # Derruba containers
 ## Documentação técnica
 
 - [`PLANO.md`](./PLANO.md) — Decisões de arquitetura
-- [`ARQUITETURA.md`](./ARQUITETURA.md) — Diagrama de eventos
-- [`RUNBOOK.md`](./RUNBOOK.md) — O que fazer quando uma integração cair
+- [`DECISOES.md`](./DECISOES.md) — Registro de decisões (ADR)
 
 ## Stack
 
-- **API:** NestJS + TypeScript
+- **Framework:** Next.js 15 (App Router) + Tailwind CSS
 - **Banco:** PostgreSQL 16 + Prisma
 - **Filas:** BullMQ + Redis
-- **Frontend:** Next.js 14 (App Router)
 - **Testes:** Vitest + Playwright
-- **PDF:** Puppeteer
 - **Infra local:** Docker Compose

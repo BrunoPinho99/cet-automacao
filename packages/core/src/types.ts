@@ -9,6 +9,8 @@ export interface EmpresaInput {
   grau_risco?: number;
   cliente_atual?: boolean;
   ploomes_id?: string;  // indica cliente atual se presente
+  valor_estimado?: number;
+  riscos_especiais?: boolean;
 }
 
 export interface FichaInput {

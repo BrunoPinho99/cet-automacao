@@ -16,6 +16,7 @@
 
 export type EstadoConversa =
   | 'inicio'
+  | 'consentimento'
   | 'menu'
   | 'nome'
   | 'intencao'
@@ -38,11 +39,11 @@ export interface ContextoConversa {
 export const MENSAGENS = {
   BOAS_VINDAS: `👋 Olá! Bem-vindo à *CET — Clínica Especializada no Trabalho*!
 
-Somos referência em Saúde e Segurança do Trabalho em Araguaína/TO.
+Somos referência em Saúde e Segurança do Trabalho em Araguaína/TO.`,
 
-Como posso ajudar você hoje?`,
+  CONSENTIMENTO: `Para seguirmos com o seu atendimento e diagnóstico, precisamos tratar alguns dados da sua empresa. Você concorda com nossa Política de Privacidade?`,
 
-  MENU_PRINCIPAL: `Escolha uma das opções abaixo:`,
+  MENU_PRINCIPAL: `Ótimo! Como posso ajudar você hoje? Escolha uma das opções abaixo:`,
 
   PEDIR_NOME: `Para iniciarmos, por favor me informe seu *nome completo*:`,
 
@@ -84,11 +85,16 @@ Mas você pode preencher a ficha a qualquer momento:
 Se precisar de algo, estamos à disposição. Até logo! 👋`,
 } as const;
 
-// Opções do menu principal (botões interativos)
+// Opções do consentimento
+export const CONSENTIMENTO_BOTOES = [
+  { id: 'aceite_lgpd', titulo: 'Concordo' },
+  { id: 'falar_especialista', titulo: 'Falar com atendente' },
+] as const;
+
 export const MENU_BOTOES = [
   { id: 'diagnostico_sst', titulo: 'Diagnóstico SST' },
-  { id: 'falar_especialista', titulo: 'Falar com alguém' },
   { id: 'ja_sou_cliente', titulo: 'Já sou cliente' },
+  { id: 'falar_especialista', titulo: 'Falar com atendente' },
 ] as const;
 
 // Opções de intenção (lista interativa)

@@ -51,6 +51,10 @@ export function classificarRota(
     gatilhoCritico = true;
     motivos.push('fiscalização em andamento ou iminente');
   }
+  if (empresa.riscos_especiais) {
+    gatilhoCritico = true;
+    motivos.push('presença de riscos especiais/complexidade técnica (ex: espaço confinado, altura)');
+  }
 
   if (gatilhoCritico) {
     return {
@@ -70,6 +74,9 @@ export function classificarRota(
   }
   if ((empresa.estados_atendidos?.length ?? 0) >= config.A.min_estados) {
     motivos.push(`atuação em ${empresa.estados_atendidos.length} estados`);
+  }
+  if ((empresa.valor_estimado ?? 0) >= config.A.valor_estimado_min) {
+    motivos.push(`valor estimado de projeto alto (>= ${config.A.valor_estimado_min})`);
   }
 
   if (motivos.length > 0) {

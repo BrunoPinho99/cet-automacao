@@ -43,6 +43,17 @@ describe('classificarRota — Casos-ouro', () => {
     expect(resultado.gatilhoCritico).toBe(true);
   });
 
+  it('INVARIANTE: gatilho crítico (riscos especiais) força Rota A', () => {
+    const empresa: EmpresaInput = { ...empresaBase, trabalhadores_proprios: 5, riscos_especiais: true };
+    const ficha: FichaInput = { ...fichaBase };
+
+    const resultado = classificarRota(empresa, ficha);
+
+    expect(resultado.rota).toBe('A');
+    expect(resultado.gatilhoCritico).toBe(true);
+    expect(resultado.motivos).toContain('presença de riscos especiais/complexidade técnica (ex: espaço confinado, altura)');
+  });
+
   it('Empresa com 100+ trabalhadores cai em Rota A', () => {
     const empresa: EmpresaInput = {
       ...empresaBase,
@@ -89,6 +100,19 @@ describe('classificarRota — Casos-ouro', () => {
     const resultado = classificarRota(empresa, fichaBase);
 
     expect(resultado.rota).toBe('A');
+  });
+
+  it('Empresa com valor estimado alto cai em Rota A', () => {
+    const empresa: EmpresaInput = {
+      ...empresaBase,
+      valor_estimado: 600000,
+    };
+
+    const resultado = classificarRota(empresa, fichaBase);
+
+    expect(resultado.rota).toBe('A');
+    expect(resultado.gatilhoCritico).toBe(false);
+    expect(resultado.motivos).toContain('valor estimado de projeto alto (>= 500000)');
   });
 
   it('Empresa com 20 trabalhadores cai em Rota B', () => {

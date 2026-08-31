@@ -4,10 +4,9 @@
 A arquitetura foi desenhada para garantir resiliência, escalabilidade e manutenibilidade, isolando responsabilidades em um monorepo gerido pelo pnpm.
 
 **Stack Tecnológica:**
-* **Backend:** Node.js 20 LTS, NestJS (módulos, DI, guards RBAC).
+* **Backend e Frontend:** Next.js 15 (App Router) em um único app (`apps/web`), servindo as rotas de API e as interfaces web.
 * **Banco de Dados:** PostgreSQL 16 + Prisma (Migrations versionadas).
 * **Mensageria e Filas:** BullMQ + Redis (retentativas exponenciais, dead-letter queues).
-* **Frontend:** Next.js 14 (App Router) + Tailwind CSS (Duas aplicações: `portal` e `admin`).
 * **Testes:** Vitest (unidade/integração) e Playwright (E2E).
 * **Geração de PDF:** Puppeteer renderizando templates HTML.
 * **Infraestrutura Local:** Docker Compose (postgres, redis, mailhog).
@@ -37,10 +36,10 @@ O banco não armazenará dados de prontuário, exames ou aptidão individual. As
 O projeto será desenvolvido rigorosamente nas seguintes fases, com portões de verificação (Testes) antes de qualquer avanço:
 * **Fase 1 — Fundação:** Monorepo, Docker Compose, Prisma Schema, Seeds e CI (lint/testes).
 * **Fase 2 — Motor de Regras:** `packages/core` com lógica pura (TDD) para rotas, score e encaminhamento.
-* **Fase 3 — Ficha e Portal:** Next.js `portal` com ficha progressiva mobile-first, retomada de sessão e uploads.
+* **Fase 3 — Ficha e Portal:** Next.js (`apps/web`) com ficha progressiva mobile-first, retomada de sessão e uploads.
 * **Fase 4 — Canais:** Webhooks Meta, menu, templates e transbordo para humanos.
 * **Fase 5 — Pagamento:** Integração Asaas, travas financeiras rígidas e idempotência.
-* **Fase 6 — CRM, Relatório e Painéis:** Sincronia Ploomes (filas), geração de PDF (Puppeteer) e Next.js `admin`.
+* **Fase 6 — CRM, Relatório e Painéis:** Sincronia Ploomes (filas), geração de PDF (Puppeteer) e áreas administrativas.
 * **Fase 7 — Piloto:** Script de stress test com 100 jornadas simuladas com injeção de falhas para testar filas.
 
 ## 4. Riscos

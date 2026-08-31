@@ -16,6 +16,8 @@ interface FichaState {
   carregando: boolean;
   erro: string | null;
   concluida: boolean;
+  precisa_consentimento: boolean;
+  contato_id: string;
 }
 
 export default function FichaPage({
@@ -37,6 +39,8 @@ export default function FichaPage({
     carregando: true,
     erro: null,
     concluida: false,
+    precisa_consentimento: false,
+    contato_id: '',
   });
 
   const [respostasBloco, setRespostasBloco] = useState<Record<string, unknown>>({});
@@ -76,6 +80,8 @@ export default function FichaPage({
         contato: data.lead?.contato || '',
         carregando: false,
         concluida: data.status === 'concluida',
+        precisa_consentimento: data.precisa_consentimento || false,
+        contato_id: data.lead?.contato_id || '',
       }));
 
       // Pré-carregar respostas salvas do bloco atual
@@ -92,6 +98,7 @@ export default function FichaPage({
 
   useEffect(() => {
     if (resolvedParams?.token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       carregarFicha(resolvedParams.token);
     }
   }, [resolvedParams, carregarFicha]);
@@ -205,6 +212,52 @@ export default function FichaPage({
           <p className="text-sm text-slate-500">
             Você receberá o resultado pelo WhatsApp em breve.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Tela de Consentimento LGPD ---
+  if (state.precisa_consentimento) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h1 className="text-xl font-bold text-slate-800 mb-2">Privacidade e Dados</h1>
+          <p className="text-slate-600 mb-6 text-sm">
+            Para seguirmos com o seu diagnóstico SST, precisamos tratar alguns dados da sua empresa. Você concorda com nossa Política de Privacidade?
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={async () => {
+                try {
+                  setSalvando(true);
+                  const res = await fetch('/api/consentimento', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contato_id: state.contato_id })
+                  });
+                  if (res.ok) {
+                    setState(prev => ({ ...prev, precisa_consentimento: false }));
+                  } else {
+                    const data = await res.json();
+                    setState(prev => ({ ...prev, erro: data.erro }));
+                  }
+                } catch {
+                  setState(prev => ({ ...prev, erro: 'Erro ao registrar consentimento.' }));
+                } finally {
+                  setSalvando(false);
+                }
+              }}
+              disabled={salvando}
+              className="w-full bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl hover:bg-emerald-700 active:bg-emerald-800 transition disabled:opacity-50"
+            >
+              {salvando ? 'Processando...' : 'Concordo e quero continuar'}
+            </button>
+          </div>
+          {state.erro && (
+            <p className="text-sm text-red-600 mt-4">{state.erro}</p>
+          )}
         </div>
       </div>
     );

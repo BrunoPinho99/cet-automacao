@@ -19,11 +19,13 @@ import {
   type EstadoConversa,
   MENSAGENS,
   MENU_BOTOES,
+  CONSENTIMENTO_BOTOES,
   INTENCOES,
   MAX_TENTATIVAS_INVALIDAS,
   SESSAO_TIMEOUT_MS,
   dentroDoHorarioComercial,
 } from './fluxo-conversa';
+import { TEXTO_CONSENTIMENTO_V1, VERSAO_CONSENTIMENTO_ATUAL, getHashConsentimento } from '@cet/shared';
 
 // Cache em memória para sessões ativas (em produção, usar Redis)
 const sessoes = new Map<string, ContextoConversa>();
@@ -51,7 +53,7 @@ export async function processarMensagem(
   await marcarComoLida(wamid);
 
   // 3. Obter ou criar contexto de sessão
-  let ctx = obterSessao(telefone);
+  const ctx = obterSessao(telefone);
 
   // 4. Registrar mensagem de entrada
   let leadId = ctx.lead_id;
@@ -84,6 +86,10 @@ export async function processarMensagem(
   switch (ctx.estado) {
     case 'inicio':
       await tratarInicio(telefone, ctx);
+      break;
+
+    case 'consentimento':
+      await tratarConsentimento(telefone, ctx, idResposta);
       break;
 
     case 'menu':
@@ -158,18 +164,43 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa): Promise<vo
     }
   }
 
-  // Primeiro contato ou sem lead — enviar boas-vindas + menu
+  // Primeiro contato ou sem lead — enviar boas-vindas + consentimento
   await enviarTexto(telefone, MENSAGENS.BOAS_VINDAS);
   await enviarBotoes(
     telefone,
-    MENSAGENS.MENU_PRINCIPAL,
-    [...MENU_BOTOES],
-    'CET Automação',
+    MENSAGENS.CONSENTIMENTO,
+    [...CONSENTIMENTO_BOTOES],
+    'Política de Privacidade',
     'Escolha para continuar',
   );
 
-  ctx.estado = 'menu';
+  ctx.estado = 'consentimento';
   atualizarSessao(telefone, ctx);
+}
+
+async function tratarConsentimento(
+  telefone: string,
+  ctx: ContextoConversa,
+  resposta: string,
+): Promise<void> {
+  if (resposta === 'aceite_lgpd') {
+    // Registra o consentimento, se o contato já existe (o que só vai acontecer mais pra frente ou se buscar no banco de novo)
+    // Mas aqui o fluxo avança para o menu
+    await enviarBotoes(
+      telefone,
+      MENSAGENS.MENU_PRINCIPAL,
+      [...MENU_BOTOES],
+      'CET Automação',
+      'Escolha para continuar',
+    );
+    ctx.estado = 'menu';
+    atualizarSessao(telefone, ctx);
+  } else if (resposta === 'falar_especialista') {
+    await iniciarTransbordo(telefone, ctx);
+  } else {
+    // Erro de opção
+    await handleErro(telefone, ctx, MENSAGENS.ERRO_OPCAO);
+  }
 }
 
 async function tratarMenu(
@@ -257,6 +288,13 @@ async function tratarNome(
         nome: nomeFormatado,
         telefone_e164: telefone,
         canal_preferido: 'whatsapp',
+        consentimentos: {
+          create: {
+            versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
+            texto_hash: getHashConsentimento(),
+            finalidade: 'diagnostico_sst_whatsapp',
+          }
+        }
       },
     });
   } else {
@@ -264,6 +302,20 @@ async function tratarNome(
       where: { id: contato.id },
       data: { nome: nomeFormatado },
     });
+    // Se não tiver consentimento ainda, criamos
+    const jaTemConsentimento = await prisma.consentimento.findFirst({
+      where: { contato_id: contato.id }
+    });
+    if (!jaTemConsentimento) {
+      await prisma.consentimento.create({
+        data: {
+          contato_id: contato.id,
+          versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
+          texto_hash: getHashConsentimento(),
+          finalidade: 'diagnostico_sst_whatsapp',
+        }
+      });
+    }
   }
 
   ctx.contato_id = contato.id;
