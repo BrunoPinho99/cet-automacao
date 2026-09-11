@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @cet/web run build",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "outputDirectory": "apps/web/.next"
+}
