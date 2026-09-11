@@ -13,12 +13,12 @@ async function main() {
   // 1. Usuários da equipe CET
   // -------------------------------------------------------------------
   // @ts-ignore
-  const { hash: bcrypt } = await import('bcryptjs').catch(() => {
-    // Fallback simples se bcryptjs não estiver disponível nos seeds
-    return { hash: (s: string) => Promise.resolve(`$2b$10$seed_hash_${s.slice(0, 10)}`) };
+  const { hash: argon2Hash } = await import('argon2').catch(() => {
+    // Fallback simples se argon2 não estiver disponível nos seeds
+    return { hash: (s: string) => Promise.resolve(`$argon2id$v=19$m=65536,t=3,p=4$seed_hash_${s.slice(0, 10)}`) };
   });
 
-  const senhaHash = await bcrypt('Cet@2026!Dev', 10);
+  const senhaHash = await argon2Hash('Cet@2026!Dev');
 
   const admin = await prisma.usuario.upsert({
     where: { email: 'admin@cet.com.br' },

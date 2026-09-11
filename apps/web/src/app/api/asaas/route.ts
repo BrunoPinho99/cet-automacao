@@ -16,10 +16,12 @@ export async function POST(request: Request) {
     }
 
     // Compara tokens com timing safe para evitar timing attacks
-    const isTokenValid = crypto.timingSafeEqual(
-      Buffer.from(token),
-      Buffer.from(ASAAS_WEBHOOK_SECRET)
-    );
+    const bufferToken = Buffer.from(token);
+    const bufferSecret = Buffer.from(ASAAS_WEBHOOK_SECRET);
+
+    const isTokenValid = 
+      bufferToken.length === bufferSecret.length &&
+      crypto.timingSafeEqual(bufferToken, bufferSecret);
 
     if (!isTokenValid) {
       // Como boa prática, retornamos 200 no webhook se for inválido mas conhecido, 

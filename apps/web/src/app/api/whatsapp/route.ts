@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { processarMensagem } from '@/lib/orquestrador-whatsapp';
+import { prisma } from '@cet/db';
 
 const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'cet_seguranca_2026';
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET || '';
-
-if (process.env.NODE_ENV === 'production' && !WHATSAPP_APP_SECRET) {
-  throw new Error('FATAL: WHATSAPP_APP_SECRET não está definido. O processo não pode subir sem segurança em produção.');
-}
 
 /**
  * GET /api/whatsapp
@@ -28,10 +24,7 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/whatsapp
- * Recebe eventos do WhatsApp Cloud API e despacha para o orquestrador.
- * 
- * REGRA ABSOLUTA: Sempre retornar HTTP 200 — caso contrário, a Meta
- * desativa o webhook após falhas consecutivas.
+ * Recebe eventos do WhatsApp Cloud API e despacha para o banco e filas.
  */
 export async function POST(request: Request) {
   try {
@@ -41,8 +34,7 @@ export async function POST(request: Request) {
     if (process.env.NODE_ENV === 'production' || WHATSAPP_APP_SECRET) {
       const signature = request.headers.get('x-hub-signature-256');
       if (!signature) {
-        console.warn('⚠️ Assinatura do WhatsApp ausente — ignorando payload');
-        return NextResponse.json({ received: true }, { status: 200 });
+        return NextResponse.json({ received: true }, { status: 200 }); // Fail silent
       }
 
       const hmac = crypto.createHmac('sha256', WHATSAPP_APP_SECRET);
@@ -54,10 +46,28 @@ export async function POST(request: Request) {
         expectedBuffer.length !== signatureBuffer.length ||
         !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
       ) {
-        console.warn('⚠️ Assinatura do WhatsApp inválida — ignorando payload');
-        return NextResponse.json({ received: true }, { status: 200 });
+        return NextResponse.json({ received: true }, { status: 200 }); // Fail silent
       }
     }
+
+    // Validação de Idempotência pelo hash do Payload
+    const payloadHash = crypto.createHash('sha256').update(rawBody).digest('hex');
+    const webhookJaProcessado = await prisma.webhookRecebido.findUnique({
+      where: { payload_hash: payloadHash }
+    });
+
+    if (webhookJaProcessado) {
+      return NextResponse.json({ received: true, status: 'already_processed' }, { status: 200 });
+    }
+
+    // Registra Webhook
+    await prisma.webhookRecebido.create({
+      data: {
+        origem: 'meta',
+        payload_hash: payloadHash,
+        processado: false,
+      }
+    });
 
     const payload = JSON.parse(rawBody);
 
@@ -70,69 +80,93 @@ export async function POST(request: Request) {
           // Processar mensagens recebidas
           if (value.messages) {
             for (const message of value.messages) {
-              const from = message.from;
+              const telefone = message.from;
               const wamid = message.id;
-              const timestamp = message.timestamp;
 
-              let tipo: 'text' | 'interactive' | 'button' = 'text';
+              let tipo = 'text';
               let conteudo = '';
-              let interactiveId: string | undefined;
 
-              switch (message.type) {
-                case 'text':
-                  tipo = 'text';
-                  conteudo = message.text?.body || '';
-                  break;
-
-                case 'interactive':
-                  tipo = 'interactive';
-                  if (message.interactive?.type === 'button_reply') {
-                    interactiveId = message.interactive.button_reply?.id;
-                    conteudo = message.interactive.button_reply?.title || '';
-                  } else if (message.interactive?.type === 'list_reply') {
-                    interactiveId = message.interactive.list_reply?.id;
-                    conteudo = message.interactive.list_reply?.title || '';
-                  }
-                  break;
-
-                case 'button':
-                  tipo = 'button';
-                  interactiveId = message.button?.payload;
-                  conteudo = message.button?.text || '';
-                  break;
-
-                default:
-                  // Tipos não suportados: imagem, áudio, documento, etc.
-                  console.log(`[WhatsApp] Tipo não suportado: ${message.type} de ${from}`);
-                  continue;
+              if (message.type === 'text') {
+                conteudo = message.text?.body || '';
+              } else if (message.type === 'interactive') {
+                if (message.interactive?.type === 'button_reply') {
+                  conteudo = message.interactive.button_reply?.title || '';
+                } else if (message.interactive?.type === 'list_reply') {
+                  conteudo = message.interactive.list_reply?.title || '';
+                }
               }
 
-              console.log(`[WhatsApp] ${from} (${tipo}): ${conteudo} [wamid: ${wamid}]`);
-
-              // Despachar para o orquestrador (sem await para não bloquear o 200)
-              processarMensagem(from, wamid, tipo, conteudo, interactiveId).catch(err => {
-                console.error(`[WhatsApp] Erro no orquestrador para ${from}:`, err);
+              // Prevenção de duplicidade por WAMID
+              const mensagemExistente = await prisma.mensagem.findUnique({
+                where: { wamid }
               });
-            }
-          }
 
-          // Processar atualizações de status (delivered, read, failed)
-          if (value.statuses) {
-            for (const status of value.statuses) {
-              console.log(
-                `[WhatsApp Status] ${status.recipient_id}: ${status.status} [wamid: ${status.id}]`,
-              );
-              // Em produção: atualizar status da mensagem no banco
+              if (!mensagemExistente) {
+                // Tenta achar o contato. Cria se não existe.
+                let contato = await prisma.contato.findUnique({
+                  where: { telefone_e164: telefone },
+                  include: { leads: { orderBy: { criado_em: 'desc' }, take: 1 } }
+                });
+
+                if (!contato) {
+                  contato = await prisma.contato.create({
+                    data: {
+                      telefone_e164: telefone,
+                      nome: message.profile?.name || telefone,
+                    },
+                    include: { leads: true }
+                  });
+                }
+
+                let leadId = contato.leads && contato.leads.length > 0 ? contato.leads[0].id : null;
+
+                if (!leadId) {
+                  const lead = await prisma.lead.create({
+                    data: {
+                      contato_id: contato.id,
+                      canal: 'whatsapp',
+                      protocolo: `CET-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000)}`,
+                    }
+                  });
+                  leadId = lead.id;
+                }
+
+                // Cria a mensagem
+                await prisma.mensagem.create({
+                  data: {
+                    lead_id: leadId,
+                    direcao: 'entrada',
+                    canal: 'whatsapp',
+                    wamid: wamid,
+                    conteudo: conteudo,
+                    status: 'recebido'
+                  }
+                });
+
+                // Cria o DomainEvent (Outbox) para disparar menu inicial via worker
+                await prisma.domainEvent.create({
+                  data: {
+                    tipo: 'WHATSAPP_MENSAGEM_RECEBIDA',
+                    payload: { leadId, telefone, conteudo }
+                  }
+                });
+              }
             }
           }
         }
       }
     }
 
+    // Marca webhook como processado
+    await prisma.webhookRecebido.update({
+      where: { payload_hash: payloadHash },
+      data: { processado: true }
+    });
+
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error('[WhatsApp Webhook Error]', error);
-    // REGRA ABSOLUTA: sempre 200
+    // Sempre 200
     return NextResponse.json({ received: true }, { status: 200 });
   }
 }

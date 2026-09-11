@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@cet/db": ["../../packages/db/index.ts"],
+      "@cet/shared": ["../../packages/shared/src/index.ts"]
     }
   },
   "include": [

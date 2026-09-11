@@ -199,7 +199,7 @@ async function tratarConsentimento(
     await iniciarTransbordo(telefone, ctx);
   } else {
     // Erro de opção
-    await handleErro(telefone, ctx, MENSAGENS.ERRO_OPCAO);
+    await enviarTexto(telefone, MENSAGENS.ERRO_OPCAO);
   }
 }
 
@@ -331,7 +331,7 @@ async function tratarIntencao(
   intencao: string,
 ): Promise<void> {
   // Mapear IDs de intenção para texto legível
-  const todasIntencoes = INTENCOES.flatMap(s => s.itens);
+  const todasIntencoes = INTENCOES.flatMap(s => s.itens as any[]);
   const intencaoSelecionada = todasIntencoes.find(i => i.id === intencao);
 
   if (!intencaoSelecionada) {
@@ -431,7 +431,7 @@ async function iniciarTransbordo(telefone: string, ctx: ContextoConversa): Promi
   if (dentroDoHorarioComercial()) {
     await enviarTexto(telefone, MENSAGENS.TRANSBORDO);
   } else {
-    let msg = MENSAGENS.HORARIO_FORA;
+    let msg: string = MENSAGENS.HORARIO_FORA;
     if (ctx.ficha_token) {
       const link = `${process.env.SITE_URL || 'http://localhost:3000'}/ficha/${ctx.ficha_token}`;
       msg = msg.replace('{{link_ficha}}', link);

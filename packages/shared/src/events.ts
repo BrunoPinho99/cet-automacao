@@ -1,6 +1,13 @@
 // Eventos de domínio (Outbox Pattern)
 // Cada evento tem um tipo único e payload tipado.
 
+export const DomainEvents = {
+  PAGAMENTO_CONFIRMADO: 'pagamento.confirmado',
+  REGERAR_PDF: 'regerar_pdf',
+  SINCRONIZAR_EMPRESA: 'sincronizar_empresa',
+} as const;
+
+
 export type DomainEventType =
   | 'lead.recebido'
   | 'consentimento.registrado'

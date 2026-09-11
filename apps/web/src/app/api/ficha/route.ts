@@ -321,7 +321,7 @@ async function calcularScoresSeFinalizou(
 
     // Score SST
     const scoreSstResult = calcularScoreSST(empresaInput, fichaInput);
-    await prisma.scoreSst.create({
+    await prisma.scoreSST.create({
       data: {
         ficha_id: fichaId,
         total: scoreSstResult.total,
