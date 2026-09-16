@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { BLOCOS_FICHA, TOTAL_BLOCOS } from '../src/lib/blocos-ficha';
 
 describe('Blocos da Ficha', () => {
-  it('deve ter exatamente 5 blocos', () => {
-    expect(TOTAL_BLOCOS).toBe(5);
-    expect(BLOCOS_FICHA).toHaveLength(5);
+  it('deve ter exatamente 6 blocos', () => {
+    expect(TOTAL_BLOCOS).toBe(6);
+    expect(BLOCOS_FICHA).toHaveLength(6);
   });
 
-  it('blocos devem ter números sequenciais de 1 a 5', () => {
+  it('blocos devem ter números sequenciais de 1 a 6', () => {
     const numeros = BLOCOS_FICHA.map(b => b.numero);
-    expect(numeros).toEqual([1, 2, 3, 4, 5]);
+    expect(numeros).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('bloco 1 deve conter campo CNPJ obrigatório', () => {
@@ -35,9 +35,9 @@ describe('Blocos da Ficha', () => {
     });
   });
 
-  it('bloco 5 deve conter consentimento LGPD obrigatório', () => {
-    const bloco5 = BLOCOS_FICHA.find(b => b.numero === 5);
-    const consentimento = bloco5?.campos.find(c => c.id === 'consentimento_lgpd');
+  it('bloco 6 deve conter consentimento LGPD obrigatório', () => {
+    const bloco6 = BLOCOS_FICHA.find(b => b.numero === 6);
+    const consentimento = bloco6?.campos.find(c => c.id === 'consentimento_lgpd');
     expect(consentimento).toBeDefined();
     expect(consentimento?.obrigatorio).toBe(true);
     expect(consentimento?.tipo).toBe('booleano');

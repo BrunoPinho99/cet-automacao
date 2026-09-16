@@ -105,7 +105,7 @@ export async function processarSincroniaPloomes(empresaId: string) {
   if (!ploomesDealId) {
     const resDeal = await apiPloomes('/Deals', 'POST', {
       Title: `Implantação SST - ${empresa.cnpj}`,
-      ContactId: parseInt(ploomesContatoId),
+      ContactId: parseInt(ploomesContatoId as string),
       StageId: etapaAtual,
       Amount: pedido?.valor_centavos ? pedido.valor_centavos / 100 : 0
     });
@@ -160,8 +160,8 @@ export async function processarSincroniaPloomes(empresaId: string) {
 
     await apiPloomes('/Tasks', 'POST', {
       Title: tipoTarefa,
-      ContactId: parseInt(ploomesContatoId),
-      DealId: parseInt(ploomesDealId),
+      ContactId: parseInt(ploomesContatoId as string),
+      DealId: parseInt(ploomesDealId as string),
       DueDate: prazo.toISOString(),
       OwnerId: responsavelEquipeId
     });

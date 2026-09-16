@@ -52,6 +52,7 @@ export interface ConfigScoreSST {
 export interface ResultadoRota {
   rota: 'A' | 'B' | 'C' | 'cliente_atual';
   gatilhoCritico: boolean;
+  clienteAtual?: boolean;
   motivos: string[];
   slaMinutos: number;
 }

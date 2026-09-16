@@ -16,9 +16,9 @@ async function runTest() {
   if (!pedido) {
     const lead = await prisma.lead.findFirst() || await prisma.lead.create({
       data: {
-        nome: 'Lead Teste Idempotência',
-        email: 'idempotencia@teste.com',
-        telefone: '11999999999'
+        contato_id: 'test_contato_' + Date.now(),
+        canal: 'whatsapp',
+        protocolo: 'TEST-' + Date.now().toString().slice(-6)
       }
     });
 

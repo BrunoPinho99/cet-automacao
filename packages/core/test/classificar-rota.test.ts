@@ -149,7 +149,7 @@ describe('classificarRota — Casos-ouro', () => {
     expect(resultado.rota).toBe('C');
   });
 
-  it('Cliente atual vai para cliente_atual independentemente do porte', () => {
+  it('Cliente atual vai para cliente_atual independentemente do porte (sem gatilhos críticos)', () => {
     const empresa: EmpresaInput = {
       ...empresaBase,
       trabalhadores_proprios: 5,
@@ -160,6 +160,18 @@ describe('classificarRota — Casos-ouro', () => {
 
     expect(resultado.rota).toBe('cliente_atual');
   });
+
+  it('INVARIANTE: cliente atual com gatilho crítico (acidente) retorna Rota A com clienteAtual: true', () => {
+    const empresa: EmpresaInput = { ...empresaBase, cliente_atual: true };
+    const ficha: FichaInput = { ...fichaBase, tem_acidente_recente: true };
+
+    const resultado = classificarRota(empresa, ficha);
+
+    expect(resultado.rota).toBe('A');
+    expect(resultado.gatilhoCritico).toBe(true);
+    expect(resultado.clienteAtual).toBe(true);
+  });
+
 
   it('SLA da Rota A é 10 minutos', () => {
     const empresa: EmpresaInput = { ...empresaBase, trabalhadores_proprios: 200 };

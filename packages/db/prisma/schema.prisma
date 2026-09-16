@@ -145,6 +145,8 @@ model Ficha {
   score_comercial ScoreComercial?
   score_sst       ScoreSST?
   rota            Rota?
+  relatorio       Relatorio?
+  arquivos        Arquivo[]
 
   @@index([lead_id])
   @@index([token_retomada])
@@ -189,6 +191,7 @@ model Arquivo {
 
   // Relações
   empresa         Empresa? @relation(fields: [empresa_id], references: [id])
+  ficha           Ficha?   @relation(fields: [ficha_id], references: [id])
   documentos      DocumentoDeclarado[]
 
   @@index([empresa_id])
@@ -295,7 +298,8 @@ model Pedido {
 // =============================================================================
 model Relatorio {
   id              String    @id @default(uuid())
-  pedido_id       String    @unique  // garante: 1 pedido → 1 relatório
+  pedido_id       String?   @unique
+  ficha_id        String    @unique
   tipo            String    @db.VarChar(50)
   arquivo_pdf_key String    @db.VarChar(500)
   hash_conteudo   String    @db.VarChar(64)
@@ -304,7 +308,8 @@ model Relatorio {
   canal_entrega   String?   @db.VarChar(50)
 
   // Relações
-  pedido          Pedido    @relation(fields: [pedido_id], references: [id])
+  pedido          Pedido?   @relation(fields: [pedido_id], references: [id])
+  ficha           Ficha     @relation(fields: [ficha_id], references: [id])
 
   @@map("relatorios")
 }

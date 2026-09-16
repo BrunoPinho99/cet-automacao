@@ -207,6 +207,32 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
+    // Processar uploads (DocumentoDeclarado) se houver campos do tipo 'documento' neste bloco
+    const blocoInfo = BLOCOS_FICHA.find(b => b.numero === bloco);
+    if (blocoInfo) {
+      const camposDoc = blocoInfo.campos.filter(c => c.tipo === 'documento');
+      for (const campo of camposDoc) {
+        const arquivoId = respostas[campo.id];
+        if (arquivoId && typeof arquivoId === 'string') {
+          // Atualiza o arquivo para vinculá-lo à ficha e cria a declaração
+          await prisma.arquivo.update({
+            where: { id: arquivoId },
+            data: { ficha_id: ficha.id, empresa_id: ficha.lead.empresa_id }
+          });
+          
+          await prisma.documentoDeclarado.create({
+            data: {
+              ficha_id: ficha.id,
+              arquivo_id: arquivoId,
+              tipo_documento: campo.id, // ex: arquivo_pgr
+              nome_arquivo: campo.rotulo,
+              possui_documento: true,
+            }
+          });
+        }
+      }
+    }
+
     // Se o bloco 1 contém CNPJ e dados da empresa, atualizar a empresa
     if (bloco === 1 && respostas.cnpj && ficha.lead.empresa) {
       await prisma.empresa.update({
@@ -239,9 +265,14 @@ export async function PATCH(request: NextRequest) {
 
     // Se concluiu, disparar cálculo de scores (assíncrono)
     if (ehUltimoBloco) {
-      // TODO: Disparar motor de regras via BullMQ ou domain event
-      // Por enquanto, calcular de forma síncrona
-      await calcularScoresSeFinalizou(ficha.id, respostasNovas, ficha.lead.empresa);
+      // Calcular scores de forma síncrona
+      await calcularScoresSeFinalizou(
+        ficha.id, 
+        respostasNovas, 
+        ficha.lead.id, 
+        ficha.lead.empresa_id || undefined, 
+        ficha.lead.empresa
+      );
     }
 
     // Retornar próximo bloco
@@ -274,6 +305,8 @@ export async function PATCH(request: NextRequest) {
 async function calcularScoresSeFinalizou(
   fichaId: string,
   respostas: Record<string, unknown>,
+  leadId: string,
+  empresaId: string | undefined,
   empresa: { trabalhadores_proprios: number; trabalhadores_terceiros: number; unidades: number; estados_atendidos: string[]; grau_risco: number | null; cliente_atual: boolean; ploomes_id: string | null } | null,
 ) {
   try {
@@ -346,6 +379,19 @@ async function calcularScoresSeFinalizou(
     });
 
     console.log(`[Scores] Ficha ${fichaId}: Rota=${rotaResult.rota}, ScoreComercial=${scoreComercialResult.total}`);
+    
+    // Emitir evento para o Outbox (iniciar worker de PDF e outros fluxos)
+    if (empresaId) {
+      const { DomainEvents } = await import('@cet/shared');
+      await prisma.domainEvent.create({
+        data: {
+          tipo: 'ficha.concluida', // ou DomainEvents.FICHA_CONCLUIDA se exportado
+          payload: { ficha_id: fichaId, lead_id: leadId, empresa_id: empresaId } as import('@prisma/client').Prisma.InputJsonValue,
+          status: 'pendente',
+          versao: 1,
+        }
+      });
+    }
   } catch (error) {
     console.error(`[Scores] Erro ao calcular scores para ficha ${fichaId}:`, error);
     // Em produção: registrar DomainEvent com status=erro para reprocessamento

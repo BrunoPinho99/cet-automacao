@@ -2,36 +2,47 @@ import { Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { prisma } from '@cet/db';
 import { DomainEvents } from '@cet/shared';
-import { gerarPdfParaPedido } from './pdf-generator';
+import { gerarPdfParaFicha } from './pdf-generator';
 import { ploomesWorker } from './ploomes';
+import { startPublicador, stopPublicador } from './publicador';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
 
 console.log('🚀 Worker Iniciado. Conectando ao Redis em:', redisUrl);
 
-const worker = new Worker(
+// Inicia o publicador para ler DomainEvents do banco e publicar nas filas
+startPublicador();
+
+// Instancia um Worker (consumidor da fila 'relatorios-fila')
+const pdfWorker = new Worker(
   'relatorios-fila',
   async (job) => {
-    console.log(`[Worker] Recebido job ${job.id} de tipo ${job.name}`);
-    
-    // Processamento do evento pagamento.confirmado ou regerar_pdf
-    if (job.name === DomainEvents.PAGAMENTO_CONFIRMADO || job.name === DomainEvents.REGERAR_PDF) {
-      const { pedido_id, event_id } = job.data;
-      
-      if (!pedido_id) {
-        throw new Error('Faltam dados obrigatórios no payload do job.');
+    console.log(`[Worker] Novo job recebido: ${job.id}, Tipo: ${job.name}`);
+
+    // Em vez de "pagamento.confirmado", agora escutamos "ficha.concluida" ou processamos de forma agnóstica
+    if (job.name === 'ficha.concluida' || job.name === DomainEvents.PAGAMENTO_CONFIRMADO) {
+      const { ficha_id, pedido_id, event_id } = job.data as { ficha_id?: string; pedido_id?: string; event_id?: string };
+
+      if (!ficha_id && !pedido_id) {
+        throw new Error('Faltam dados obrigatórios no payload do job (ficha_id ou pedido_id).');
       }
 
-      console.log(`[Worker] Processando pedido ${pedido_id}${event_id ? `, event_id ${event_id}` : ''}`);
+      console.log(`[Worker] Processando ${ficha_id ? `ficha ${ficha_id}` : `pedido ${pedido_id}`}${event_id ? `, event_id ${event_id}` : ''}`);
       
-      await gerarPdfParaPedido(pedido_id);
+      if (ficha_id) {
+        await gerarPdfParaFicha(ficha_id);
+      } else if (pedido_id) {
+        // Se ainda for suportado:
+        // await gerarPdfParaPedido(pedido_id);
+        console.warn(`[Worker] Job tem pedido_id mas a lógica atual exige ficha_id. Ignorando.`);
+      }
     }
   },
   { connection }
 );
 
-worker.on('completed', (job) => {
+pdfWorker.on('completed', (job) => {
   console.log(`[Worker] Job ${job.id} concluído com sucesso`);
 });
 
@@ -42,6 +53,7 @@ worker.on('failed', (job, err) => {
 // Limpeza no desligamento (SIGTERM / SIGINT)
 const gracefulShutdown = async () => {
   console.log('Encerrando workers de forma graciosa...');
+  await stopPublicador();
   await worker.close();
   await ploomesWorker.close();
   process.exit(0);

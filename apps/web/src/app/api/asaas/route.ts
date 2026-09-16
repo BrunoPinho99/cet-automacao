@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
+import { DomainEvents } from '@cet/shared';
 import { env } from 'node:process';
 import crypto from 'node:crypto';
 
-const ASAAS_WEBHOOK_SECRET = env.ASAAS_WEBHOOK_SECRET || '';
-
 export async function POST(request: Request) {
+  const ASAAS_WEBHOOK_SECRET = env.ASAAS_WEBHOOK_SECRET || '';
   try {
     const rawBody = await request.text();
     const token = request.headers.get('asaas-access-token');
@@ -24,6 +24,11 @@ export async function POST(request: Request) {
       crypto.timingSafeEqual(bufferToken, bufferSecret);
 
     if (!isTokenValid) {
+      console.warn(JSON.stringify({ 
+        event: 'invalid_asaas_webhook', 
+        message: 'Assinatura inválida no webhook Asaas', 
+        token_provided: !!token 
+      }));
       // Como boa prática, retornamos 200 no webhook se for inválido mas conhecido, 
       // ou 401 se quisermos que eles parem. Retornaremos 200 para fail silence se o secret tiver sido trocado
       return NextResponse.json({ erro: 'Forbidden' }, { status: 200 }); 
@@ -32,24 +37,22 @@ export async function POST(request: Request) {
     // Idempotência: Gera hash do payload
     const payloadHash = crypto.createHash('sha256').update(rawBody).digest('hex');
 
-    // Verifica se este webhook já foi recebido (Idempotência Pura)
-    const webhookJaProcessado = await prisma.webhookRecebido.findUnique({
-      where: { payload_hash: payloadHash }
-    });
-
-    if (webhookJaProcessado) {
-      // Se já processou, apenas avisa o Asaas que está OK
-      return NextResponse.json({ received: true, status: 'already_processed' });
-    }
-
     // Registra o webhook como recebido
-    await prisma.webhookRecebido.create({
-      data: {
-        origem: 'asaas',
-        payload_hash: payloadHash,
-        processado: false,
+    try {
+      await prisma.webhookRecebido.create({
+        data: {
+          origem: 'asaas',
+          payload_hash: payloadHash,
+          processado: false,
+        }
+      });
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        // Se já processou (violação da constraint unique), apenas avisa o Asaas que está OK
+        return NextResponse.json({ received: true, status: 'already_processed' });
       }
-    });
+      throw e;
+    }
 
     const payload = JSON.parse(rawBody);
 
@@ -66,26 +69,27 @@ export async function POST(request: Request) {
         });
 
         if (pedido && pedido.status !== 'pago') {
-          await prisma.pedido.update({
-            where: { id: pedido.id },
-            data: { 
-              status: 'pago',
-              pago_em: new Date(),
-            }
-          });
-
-          // Padrão Outbox: Publica evento de domínio para gerar relatório
-          await prisma.domainEvent.create({
-            data: {
-              tipo: 'PAGAMENTO_CONFIRMADO',
-              payload: {
-                pedido_id: pedido.id,
-                lead_id: pedido.lead_id,
-                valor_centavos: pedido.valor_centavos,
-                payment_id: paymentId,
+          // Padrão Outbox: Atualiza pedido e publica evento de domínio na mesma transação
+          await prisma.$transaction([
+            prisma.pedido.update({
+              where: { id: pedido.id },
+              data: { 
+                status: 'pago',
+                pago_em: new Date(),
               }
-            }
-          });
+            }),
+            prisma.domainEvent.create({
+              data: {
+                tipo: DomainEvents.PAGAMENTO_CONFIRMADO,
+                payload: {
+                  pedido_id: pedido.id,
+                  lead_id: pedido.lead_id,
+                  valor_centavos: pedido.valor_centavos,
+                  payment_id: paymentId,
+                }
+              }
+            })
+          ]);
         }
       }
     }

@@ -32,16 +32,6 @@ export function classificarRota(
   const totalTrabalhadores =
     (empresa.trabalhadores_proprios ?? 0) + (empresa.trabalhadores_terceiros ?? 0);
 
-  // --- Cliente atual: preserva histórico e vai ao gerente de conta ---
-  if (empresa.cliente_atual) {
-    return {
-      rota: 'cliente_atual',
-      gatilhoCritico: false,
-      motivos: ['empresa identificada como cliente ativo na base'],
-      slaMinutos: config.sla.A, // mesmo SLA de A para preservar relacionamento
-    };
-  }
-
   // --- GATILHOS CRÍTICOS — forçam Rota A imediatamente ---
   if (ficha.tem_acidente_recente) {
     gatilhoCritico = true;
@@ -60,8 +50,19 @@ export function classificarRota(
     return {
       rota: 'A',
       gatilhoCritico: true,
+      clienteAtual: empresa.cliente_atual ? true : undefined,
       motivos,
       slaMinutos: config.sla.A,
+    };
+  }
+
+  // --- Cliente atual: preserva histórico e vai ao gerente de conta ---
+  if (empresa.cliente_atual) {
+    return {
+      rota: 'cliente_atual',
+      gatilhoCritico: false,
+      motivos: ['empresa identificada como cliente ativo na base'],
+      slaMinutos: config.sla.A, // mesmo SLA de A para preservar relacionamento
     };
   }
 
