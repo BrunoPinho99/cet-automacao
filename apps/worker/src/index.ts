@@ -5,6 +5,8 @@ import { DomainEvents } from '@cet/shared';
 import { gerarPdfParaFicha } from './pdf-generator';
 import { ploomesWorker } from './ploomes';
 import { startPublicador, stopPublicador } from './publicador';
+import { alertasWorker } from './alertas';
+import { setupRelatorioAgendado, relatoriosAgendadosWorker } from './relatorio-gestores';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
@@ -13,6 +15,9 @@ console.log('🚀 Worker Iniciado. Conectando ao Redis em:', redisUrl);
 
 // Inicia o publicador para ler DomainEvents do banco e publicar nas filas
 startPublicador();
+
+// Configura o job diário
+setupRelatorioAgendado();
 
 // Instancia um Worker (consumidor da fila 'relatorios-fila')
 const pdfWorker = new Worker(
@@ -56,6 +61,8 @@ const gracefulShutdown = async () => {
   await stopPublicador();
   await pdfWorker.close();
   await ploomesWorker.close();
+  await alertasWorker.close();
+  await relatoriosAgendadosWorker.close();
   process.exit(0);
 };
 

@@ -320,7 +320,7 @@ async function calcularScoresSeFinalizou(
   respostas: Record<string, unknown>,
   leadId: string,
   empresaId: string | undefined,
-  empresa: { trabalhadores_proprios: number; trabalhadores_terceiros: number; unidades: number; estados_atendidos: string[]; grau_risco: number | null; cliente_atual: boolean; ploomes_id: string | null } | null,
+  empresa: { trabalhadores_proprios: number; trabalhadores_terceiros: number; unidades: number; estados_atendidos: string[]; grau_risco: number | null; cliente_atual: boolean; ploomes_id: string | null; razao_social?: string | null; cnpj?: string | null } | null,
 ) {
   try {
     // Motor de regras importado estaticamente no topo do arquivo
@@ -437,6 +437,22 @@ async function calcularScoresSeFinalizou(
         data: {
           tipo: 'ficha.concluida', // ou DomainEvents.FICHA_CONCLUIDA se exportado
           payload: { ficha_id: fichaId, lead_id: leadId, empresa_id: empresaId } as import('@prisma/client').Prisma.InputJsonValue,
+          status: 'pendente',
+          versao: 1,
+        }
+      });
+
+      await prisma.domainEvent.create({
+        data: {
+          tipo: DomainEvents.ROTA_DEFINIDA,
+          payload: { 
+            ficha_id: fichaId, 
+            rota: rotaResult.rota === 'cliente_atual' ? 'X' : rotaResult.rota, 
+            empresa_id: empresaId,
+            razao_social: empresa.razao_social,
+            cnpj: empresa.cnpj,
+            trabalhadores: empresaInput.trabalhadores_proprios + empresaInput.trabalhadores_terceiros
+          } as import('@prisma/client').Prisma.InputJsonValue,
           status: 'pendente',
           versao: 1,
         }

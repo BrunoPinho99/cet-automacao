@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validarCNPJ, somenteDigitos, normalizarTelefone, gerarProtocolo } from '@/lib/validacoes';
+import { normalizarCnpj } from '@cet/shared';
 
 /**
  * POST /api/leads
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     // CNPJ é opcional neste ponto (pode chegar via WhatsApp sem CNPJ)
     let cnpjNormalizado: string | null = null;
     if (cnpj) {
-      cnpjNormalizado = somenteDigitos(cnpj);
+      cnpjNormalizado = normalizarCnpj(cnpj);
       if (!validarCNPJ(cnpjNormalizado)) {
         return NextResponse.json(
           { erro: 'CNPJ inválido. Verifique os dígitos.' },
