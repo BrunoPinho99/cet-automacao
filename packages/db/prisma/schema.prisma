@@ -350,10 +350,11 @@ model Mensagem {
   canal     String   @db.VarChar(20)
   wamid     String?  @unique @db.VarChar(200) // ID da Meta — deduplicação
   template  String?  @db.VarChar(100)
-  conteudo  String   @db.Text
-  status    String   @db.VarChar(20)
-  erro      String?  @db.Text
-  criado_em DateTime @default(now())
+  conteudo            String   @db.Text
+  status              String   @db.VarChar(20)
+  erro                String?  @db.Text
+  chave_idempotencia  String?  @unique @db.VarChar(100)
+  criado_em           DateTime @default(now())
 
   // Relações
   lead Lead @relation(fields: [lead_id], references: [id])
