@@ -78,3 +78,24 @@ Ações operacionais quando cada integração cair.
 3. Se há 2 linhas: cenário impossível pela arquitetura — investigar corrupção de dados
 4. Verificar `webhooks_recebidos` pelo `payload_hash` — idempotência deve ter bloqueado reprocessamento
 5. Abrir incidente e não apagar evidências antes de investigar
+
+---
+
+## Uploads e Antivírus
+
+**Contexto:** No MVP, não temos o ClamAV implementado. 
+
+**Mitigações ativas:**
+1. Arquivos são renomeados (hashes/UUID) e armazenados fora de diretórios expostos diretamente (`/public` etc).
+2. Validação por *Magic Bytes* garante que a extensão corresponda ao conteúdo (PDF, JPG, PNG).
+3. Todo download inclui `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff`.
+4. Os arquivos terão `status_antivirus: 'nao_verificado'`. Tenha cautela ao abri-los, pois vêm de usuários anônimos.
+
+---
+
+## E-mails em Produção
+
+**Contexto:** Utilizamos Nodemailer. No ambiente local/dev, usamos Mailhog.
+**Ação Necessária em Produção:**
+- É obrigatório configurar **SPF, DKIM e DMARC** no domínio de envio configurado pelas variáveis `SMTP_*`.
+- Sem essas configurações, os relatórios enviados aos gestores às 08h e 14h cairão em SPAM ou serão rejeitados sumariamente.

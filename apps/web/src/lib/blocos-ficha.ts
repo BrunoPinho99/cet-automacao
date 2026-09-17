@@ -12,6 +12,7 @@ export interface CampoFicha {
   opcoes?: string[];
   placeholder?: string;
   dica?: string;
+  documento?: string;
 }
 
 export interface BlocoFicha {
@@ -79,8 +80,8 @@ export const BLOCOS_FICHA: BlocoFicha[] = [
     titulo: 'Documentação Adicional',
     descricao: 'Envie evidências e documentos antigos (Opcional).',
     campos: [
-      { id: 'arquivo_pgr', tipo: 'documento', rotulo: 'Upload do PGR Atual ou Antigo', obrigatorio: false, dica: 'Apenas PDF, PNG ou JPG. Máximo 20MB.' },
-      { id: 'arquivo_pcmso', tipo: 'documento', rotulo: 'Upload do PCMSO Atual ou Antigo', obrigatorio: false, dica: 'Apenas PDF, PNG ou JPG. Máximo 20MB.' },
+      { id: 'arquivo_pgr', tipo: 'documento', rotulo: 'Upload do PGR Atual ou Antigo', obrigatorio: false, dica: 'Apenas PDF, PNG ou JPG. Máximo 20MB.', documento: 'PGR' },
+      { id: 'arquivo_pcmso', tipo: 'documento', rotulo: 'Upload do PCMSO Atual ou Antigo', obrigatorio: false, dica: 'Apenas PDF, PNG ou JPG. Máximo 20MB.', documento: 'PCMSO' },
       { id: 'data_ultimo_aso', tipo: 'data', rotulo: 'Data do último ASO realizado', obrigatorio: false },
     ],
   },

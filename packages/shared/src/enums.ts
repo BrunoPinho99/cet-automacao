@@ -87,7 +87,9 @@ export enum StatusConformidade {
 
 export enum StatusEvento {
   PENDENTE = 'pendente',
+  ENFILEIRADO = 'enfileirado',
   PROCESSADO = 'processado',
   FALHOU = 'falhou',
   MORTO = 'morto', // dead-letter após máx. tentativas
+  IGNORADO = 'ignorado',
 }

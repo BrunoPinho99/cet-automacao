@@ -54,7 +54,7 @@ describe('Upload API', () => {
 
   it('deve processar upload de arquivo pdf com sucesso', async () => {
     const formData = new FormData();
-    const blob = new Blob(['conteudo fake pdf'], { type: 'application/pdf' });
+    const blob = new Blob(['%PDF-1.4 conteudo fake pdf'], { type: 'application/pdf' });
     formData.append('file', blob, 'documento.pdf');
     
     const req = new NextRequest('http://localhost/api/upload', {

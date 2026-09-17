@@ -46,7 +46,7 @@ pdfWorker.on('completed', (job) => {
   console.log(`[Worker] Job ${job.id} concluído com sucesso`);
 });
 
-worker.on('failed', (job, err) => {
+pdfWorker.on('failed', (job, err) => {
   console.error(`[Worker] Job ${job?.id} falhou com erro:`, err.message);
 });
 
@@ -54,7 +54,7 @@ worker.on('failed', (job, err) => {
 const gracefulShutdown = async () => {
   console.log('Encerrando workers de forma graciosa...');
   await stopPublicador();
-  await worker.close();
+  await pdfWorker.close();
   await ploomesWorker.close();
   process.exit(0);
 };

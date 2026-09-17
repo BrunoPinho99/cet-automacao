@@ -5,6 +5,9 @@ export const DomainEvents = {
   PAGAMENTO_CONFIRMADO: 'pagamento.confirmado',
   REGERAR_PDF: 'regerar_pdf',
   SINCRONIZAR_EMPRESA: 'sincronizar_empresa',
+  ROTA_DEFINIDA: 'rota.definida',
+  FICHA_CONCLUIDA: 'ficha.concluida',
+  ALERTA_ROTA_A: 'alerta.rota_a',
 } as const;
 
 
@@ -27,7 +30,11 @@ export type DomainEventType =
   | 'producao.liberada'
   | 'entrega.confirmada'
   | 'renovacao.agendada'
-  | 'lead.encaminhado_humano';
+  | 'lead.encaminhado_humano'
+  | 'alerta.rota_a'
+  | 'regerar_pdf'
+  | 'sincronizar_empresa'
+  | 'WHATSAPP_MENSAGEM_RECEBIDA';
 
 export interface DomainEvent<T = Record<string, unknown>> {
   event_id: string;   // UUID único — garante idempotência

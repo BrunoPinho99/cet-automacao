@@ -18,6 +18,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   Leads
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/admin/eventos/mortos"
+                  className="text-gray-700 hover:text-blue-600 hover:bg-gray-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                >
+                  Fila Morta (Erros)
+                </Link>
+              </li>
             </ul>
           </nav>
           <div className="border-t p-4">

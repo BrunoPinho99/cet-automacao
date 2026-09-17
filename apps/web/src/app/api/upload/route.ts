@@ -31,6 +31,28 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Validação de Magic Bytes
+    let isContentValid = false;
+    if (buffer.length > 4) {
+      const hex = buffer.subarray(0, 4).toString('hex').toUpperCase();
+      if (file.type === 'application/pdf' && hex.startsWith('25504446')) {
+        isContentValid = true;
+      } else if (file.type === 'image/jpeg' && hex.startsWith('FFD8FF')) {
+        isContentValid = true;
+      } else if (file.type === 'image/png' && hex === '89504E47') {
+        isContentValid = true;
+      } else if (file.type === 'image/webp' && hex === '52494646') {
+        const webpHex = buffer.subarray(8, 12).toString('hex').toUpperCase();
+        if (webpHex === '57454250') {
+          isContentValid = true;
+        }
+      }
+    }
+
+    if (!isContentValid) {
+      return NextResponse.json({ erro: 'Conteúdo do arquivo não corresponde ao tipo declarado. Arquivo recusado por segurança.' }, { status: 400 });
+    }
+
     // Calcula checksum (SHA-256)
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
@@ -53,7 +75,7 @@ export async function POST(request: NextRequest) {
         tamanho: file.size,
         storage_key: storageKey,
         checksum: hash,
-        status_antivirus: 'pendente',
+        status_antivirus: 'nao_verificado',
       }
     });
 

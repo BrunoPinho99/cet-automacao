@@ -8,6 +8,17 @@ const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
 
 const relatoriosQueue = new Queue('relatorios-fila', { connection });
 const ploomesQueue = new Queue('ploomes-fila', { connection });
+const alertasQueue = new Queue('alertas-fila', { connection });
+
+// Dicionário de filas por tipo de evento
+const FILAS: Record<string, Queue> = {
+  [DomainEvents.SINCRONIZAR_EMPRESA]: ploomesQueue,
+  [DomainEvents.PAGAMENTO_CONFIRMADO]: relatoriosQueue,
+  [DomainEvents.REGERAR_PDF]: relatoriosQueue,
+  [DomainEvents.FICHA_CONCLUIDA]: relatoriosQueue,
+  [DomainEvents.ROTA_DEFINIDA]: alertasQueue,
+  [DomainEvents.ALERTA_ROTA_A]: alertasQueue,
+};
 
 let isPublishing = false;
 
@@ -25,34 +36,41 @@ export async function publicarEventosPendentes() {
 
     for (const evento of eventos) {
       try {
-        // Roteamento de eventos para as filas correspondentes
-        if (evento.tipo === DomainEvents.SINCRONIZAR_EMPRESA) {
-          await ploomesQueue.add(evento.tipo, { ...evento.payload as any, event_id: evento.event_id }, { jobId: evento.event_id });
-        } else {
-          // Default para relatórios (PAGAMENTO_CONFIRMADO, REGERAR_PDF, etc)
-          await relatoriosQueue.add(evento.tipo, { ...evento.payload as any, event_id: evento.event_id }, { jobId: evento.event_id });
+        const queue = FILAS[evento.tipo];
+
+        if (!queue) {
+          console.warn(`[Publicador] Nenhuma fila mapeada para o evento ${evento.tipo}. Marcando como ignorado.`);
+          await prisma.domainEvent.update({
+            where: { event_id: evento.event_id },
+            data: { status: 'ignorado', processado_em: new Date() },
+          });
+          continue;
         }
 
-        // Marca como processado
+        // Enfileira na fila correta
+        await queue.add(evento.tipo, { ...evento.payload as any, event_id: evento.event_id }, { jobId: evento.event_id });
+
+        // Marca como enfileirado
         await prisma.domainEvent.update({
           where: { event_id: evento.event_id },
           data: {
-            status: 'processado',
+            status: 'enfileirado',
             processado_em: new Date(),
           },
         });
 
-        console.log(`[Publicador] Evento ${evento.event_id} (${evento.tipo}) publicado com sucesso.`);
+        console.log(`[Publicador] Evento ${evento.event_id} (${evento.tipo}) publicado com sucesso na fila ${queue.name}.`);
       } catch (err: any) {
         console.error(`[Publicador] Erro ao publicar evento ${evento.event_id}:`, err.message);
         
-        // Atualiza tentativas e status de erro se necessário
+        // Atualiza tentativas e marca morto se >= 5
+        const novasTentativas = evento.tentativas + 1;
         await prisma.domainEvent.update({
           where: { event_id: evento.event_id },
           data: {
-            tentativas: { increment: 1 },
+            tentativas: novasTentativas,
             erro: err.message,
-            status: evento.tentativas >= 2 ? 'falha' : 'pendente', // falha após 3 tentativas
+            status: novasTentativas >= 5 ? 'morto' : 'pendente',
           },
         });
       }

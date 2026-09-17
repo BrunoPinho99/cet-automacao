@@ -220,15 +220,28 @@ export async function PATCH(request: NextRequest) {
             data: { ficha_id: ficha.id, empresa_id: ficha.lead.empresa_id }
           });
           
-          await prisma.documentoDeclarado.create({
-            data: {
-              ficha_id: ficha.id,
-              arquivo_id: arquivoId,
-              tipo_documento: campo.id, // ex: arquivo_pgr
-              nome_arquivo: campo.rotulo,
-              possui_documento: true,
-            }
-          });
+          if (campo.documento) {
+            await prisma.documentoDeclarado.upsert({
+              where: {
+                ficha_id_tipo: {
+                  ficha_id: ficha.id,
+                  tipo: campo.documento,
+                }
+              },
+              update: {
+                arquivo_id: arquivoId,
+                possui: 'sim',
+                tem_evidencia: true,
+              },
+              create: {
+                ficha_id: ficha.id,
+                arquivo_id: arquivoId,
+                tipo: campo.documento,
+                possui: 'sim',
+                tem_evidencia: true,
+              }
+            });
+          }
         }
       }
     }
@@ -334,7 +347,44 @@ async function calcularScoresSeFinalizou(
       tem_fiscalizacao: (bloco4 as Record<string, unknown>)?.tem_fiscalizacao === true,
       prazo_urgente: (bloco4 as Record<string, unknown>)?.prazo_urgente === true,
       objetivo_principal: (bloco4 as Record<string, unknown>)?.objetivo_principal as string | undefined,
+      documentos: {} as Record<string, import('@cet/core/src/types').DocumentoInput>,
     };
+
+    // Extrair "possui" do bloco 3
+    if (bloco3) {
+      const mapaBloco3: Record<string, string> = {
+        doc_pgr: 'PGR',
+        doc_pcmso: 'PCMSO',
+        doc_ltcat: 'LTCAT',
+        doc_lip: 'LIP',
+        doc_aet: 'AET',
+        doc_ppp: 'PPP',
+        doc_os: 'OS',
+        doc_treinamentos: 'treinamento',
+      };
+      for (const [key, value] of Object.entries(bloco3)) {
+        const tipo = mapaBloco3[key];
+        if (tipo && typeof value === 'string') {
+          let possui: 'sim' | 'nao' | 'nao_sei' = 'nao_sei';
+          if (value.startsWith('Sim')) possui = 'sim';
+          else if (value === 'Não possui') possui = 'nao';
+          
+          fichaInput.documentos[tipo] = { possui, tem_evidencia: false };
+        }
+      }
+    }
+
+    // Sobrepor com os documentos efetivamente enviados via upload (DocumentoDeclarado)
+    const documentosDeclarados = await prisma.documentoDeclarado.findMany({
+      where: { ficha_id: fichaId },
+    });
+
+    for (const doc of documentosDeclarados) {
+      fichaInput.documentos[doc.tipo] = {
+        possui: doc.possui as 'sim' | 'nao' | 'nao_sei',
+        tem_evidencia: doc.tem_evidencia,
+      };
+    }
 
     // Score Comercial
     const scoreComercialResult = calcularScoreComercial(empresaInput, fichaInput);
