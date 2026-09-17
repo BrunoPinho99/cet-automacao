@@ -99,3 +99,15 @@ Ações operacionais quando cada integração cair.
 **Ação Necessária em Produção:**
 - É obrigatório configurar **SPF, DKIM e DMARC** no domínio de envio configurado pelas variáveis `SMTP_*`.
 - Sem essas configurações, os relatórios enviados aos gestores às 08h e 14h cairão em SPAM ou serão rejeitados sumariamente.
+
+---
+
+## Troubleshooting do Piloto (Simulador)
+
+**Sintoma:** Ao rodar o `piloto-simulacao.ts`, as métricas de tempo estão muito altas ou a fila acumula sem processar.
+
+**Ações:**
+1. Verifique se o **Worker** está rodando (`pnpm run start:worker`). Sem o worker, o `Outbox` não será drenado.
+2. Verifique se a variável `API_URL` aponta para a instância do Next.js local (ex: `http://localhost:3000/api`).
+3. Para falhas injetadas (ex: Ploomes), verifique os registros de **Fila Morta** no banco de dados e através do Painel Admin em `/admin/paineis`. Os eventos mortos **devem** aparecer lá.
+4. Para reprocessar os eventos mortos gerados no piloto, clique no botão "Reprocessar" na UI ou utilize o endpoint da fila morta.

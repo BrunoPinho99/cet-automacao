@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         tempo_medio_processamento_ms: Math.round(mediaMs)
       }
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

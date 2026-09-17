@@ -19,6 +19,22 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: cet_postgres_test
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cet_secret}
+      POSTGRES_DB: cet_automacao_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cet}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     container_name: cet_redis

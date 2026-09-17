@@ -44,8 +44,8 @@ export default function PortalClientePage({
           // Relatório pronto, parar polling
           if (intervalId) clearInterval(intervalId);
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError((err as Error).message);
       } finally {
         setLoading(false);
       }

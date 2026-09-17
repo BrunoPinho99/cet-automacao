@@ -6,8 +6,8 @@ import { Activity, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 type SaudeResponse = {
   filas?: {
-    relatorios: any;
-    ploomes: any;
+    relatorios: { waiting: number; active: number; completed: number };
+    ploomes: { waiting: number; active: number; completed: number };
   };
   outbox?: {
     dead_events: number;
@@ -33,17 +33,26 @@ export default function PainelSaudePage() {
       if (!res.ok) throw new Error(json.error || 'Erro ao carregar dados');
       setData(json);
       setError(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDados();
-    const interval = setInterval(fetchDados, 5000);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval>;
+    
+    // Start fetching and set interval only after initial mount
+    const startPolling = async () => {
+      await fetchDados();
+      interval = setInterval(fetchDados, 5000);
+    };
+    
+    startPolling();
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
   if (loading && !data) {

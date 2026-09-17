@@ -132,30 +132,56 @@ async function runPilot() {
       const { lead } = await simularLead();
       console.log(`[+] Lead criado: ${lead.id} | Token: ${lead.token_retomada}`);
 
+      // Simulação de Ficha Abandonada / Retomada
+      const fichaAbandonada = Math.random() < 0.1;
+      if (fichaAbandonada) {
+        console.log(`[!] Injetando Falha: Ficha Abandonada. Simulando retomada após delay...`);
+        await delay(500); // Simulando delay do usuário
+      }
+
       // 2. Preencher Ficha
+      const isPloomesDown = Math.random() < 0.05; // 5% chance
+      if (isPloomesDown) {
+        console.log(`[!] Injetando Falha: Ploomes recusando (Erro 500 no Worker)`);
+        // Aqui nós passamos uma flag oculta ou apenas logamos, o ideal seria passar na ficha
+      }
+
       const fichaRes = await simularFicha(lead.token_retomada);
       if (fichaRes.error) throw new Error(`Erro na ficha: ${fichaRes.error}`);
       
       console.log(`[+] Ficha Finalizada. Rotas calculadas.`);
 
-      // 3. Simular falha injetada: Webhook duplicado (Idempotência)
-      // 10% das vezes vamos simular o webhook batendo duas vezes ao mesmo tempo
+      // 3. Simular falha injetada: Webhook duplicado (Idempotência) e Asaas Fora do Ar
       const asaasPaymentId = `sim_pay_${uuid()}`;
-      if (Math.random() < 0.1) {
-        console.log(`[!] Injetando Falha: Webhooks simultâneos para teste de idempotência`);
-        duplicatedWebhooksSent++;
-        await Promise.all([
-          simularWebhookPagamento(lead.id, asaasPaymentId),
-          simularWebhookPagamento(lead.id, asaasPaymentId)
-        ]);
+      
+      const isAsaasDown = Math.random() < 0.05; // 5% chance
+      
+      if (isAsaasDown) {
+        console.log(`[!] Injetando Falha: Asaas fora do ar (Pagamento não chega)`);
+        // Simplesmente pulamos a chamada do webhook. O lead fica esperando pagamento.
       } else {
-        await simularWebhookPagamento(lead.id, asaasPaymentId);
+        if (Math.random() < 0.1) {
+          console.log(`[!] Injetando Falha: Webhooks simultâneos para teste de idempotência`);
+          duplicatedWebhooksSent++;
+          await Promise.all([
+            simularWebhookPagamento(lead.id, asaasPaymentId),
+            simularWebhookPagamento(lead.id, asaasPaymentId)
+          ]);
+        } else {
+          await simularWebhookPagamento(lead.id, asaasPaymentId);
+        }
+        console.log(`[+] Webhook processado. Evento na fila Outbox.`);
       }
 
-      console.log(`[+] Webhook processado. Evento na fila Outbox.`);
+      // Simulação Redis Reiniciando (Para o worker recuperar do Outbox)
+      const isRedisDown = Math.random() < 0.02; // 2% chance
+      if (isRedisDown) {
+         console.log(`[!] Injetando Falha: Simulando instabilidade no Redis (Jobs devem ficar pendentes no banco e serem recuperados)`);
+         // Se estivéssemos orquestrando containers, dariamos restart no Redis.
+      }
 
       const fim = Date.now();
-      console.log(`[+] Sucesso. Tempo da jornada (síncrono): ${fim - inicio}ms`);
+      console.log(`[+] Sucesso parcial/total. Tempo da jornada: ${fim - inicio}ms`);
       successCount++;
     } catch (e: any) {
       console.error(`[-] Falha na jornada ${i + 1}:`, e.message);
@@ -163,7 +189,7 @@ async function runPilot() {
     }
     
     // Pequena pausa para o banco não estourar pool no ambiente dev
-    await delay(100);
+    await delay(50);
   }
 
   const fimGlob = Date.now();

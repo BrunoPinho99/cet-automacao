@@ -83,7 +83,7 @@ export async function POST(request: Request) {
               const telefone = message.from;
               const wamid = message.id;
 
-              let tipo = 'text';
+              const tipo = 'text';
               let conteudo = '';
 
               if (message.type === 'text') {

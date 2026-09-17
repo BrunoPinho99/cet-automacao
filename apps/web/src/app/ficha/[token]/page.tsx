@@ -197,7 +197,7 @@ export default function FichaPage({
   if (state.concluida) {
     // Redirecionar imediatamente para o portal do cliente
     if (typeof window !== 'undefined') {
-      window.location.href = `/portal/${state.token}`;
+      router.push(`/portal/${state.token}`);
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">

@@ -16,7 +16,7 @@ export function Actions({ empresaId, pedidoId }: { empresaId: string; pedidoId?:
     try {
       await requestRegerarPdf(pedidoId);
       alert('Job de Regerar PDF adicionado à fila!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert('Erro: ' + error.message);
     } finally {
       setLoadingPdf(false);
@@ -28,7 +28,7 @@ export function Actions({ empresaId, pedidoId }: { empresaId: string; pedidoId?:
     try {
       await requestSincroniaPloomes(empresaId);
       alert('Job de Sincronia Ploomes adicionado à fila!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert('Erro: ' + error.message);
     } finally {
       setLoadingSync(false);
