@@ -183,7 +183,8 @@ async function tratarConsentimento(
   ctx: ContextoConversa,
   resposta: string,
 ): Promise<void> {
-  if (resposta === 'aceite_lgpd') {
+  const normalize = resposta.trim().toLowerCase();
+  if (normalize === 'aceite_lgpd' || normalize === '1' || normalize === 'concordo') {
     // Registra o consentimento, se o contato já existe (o que só vai acontecer mais pra frente ou se buscar no banco de novo)
     // Mas aqui o fluxo avança para o menu
     await enviarBotoes(
@@ -195,7 +196,7 @@ async function tratarConsentimento(
     );
     ctx.estado = 'menu';
     atualizarSessao(telefone, ctx);
-  } else if (resposta === 'falar_especialista') {
+  } else if (normalize === 'falar_especialista' || normalize === '2') {
     await iniciarTransbordo(telefone, ctx);
   } else {
     // Erro de opção
@@ -208,7 +209,15 @@ async function tratarMenu(
   ctx: ContextoConversa,
   resposta: string,
 ): Promise<void> {
-  switch (resposta) {
+  const normalize = resposta.trim().toLowerCase();
+  
+  // Mapear números para os IDs caso o usuário responda com número
+  let respostaFinal = normalize;
+  if (normalize === '1') respostaFinal = 'diagnostico_sst';
+  if (normalize === '2') respostaFinal = 'ja_sou_cliente';
+  if (normalize === '3') respostaFinal = 'falar_especialista';
+
+  switch (respostaFinal) {
     case 'diagnostico_sst':
       if (ctx.nome) {
         // Já sabemos o nome — ir direto para intenção
@@ -330,9 +339,19 @@ async function tratarIntencao(
   ctx: ContextoConversa,
   intencao: string,
 ): Promise<void> {
+  const normalize = intencao.trim().toLowerCase();
+  
   // Mapear IDs de intenção para texto legível
   const todasIntencoes = INTENCOES.flatMap(s => s.itens as any[]);
-  const intencaoSelecionada = todasIntencoes.find(i => i.id === intencao);
+  let intencaoSelecionada = todasIntencoes.find(i => i.id === normalize);
+  
+  // Mapear número indexado se for o fallback de lista enviada como texto
+  if (!intencaoSelecionada && /^\d+$/.test(normalize)) {
+    const idx = parseInt(normalize, 10) - 1;
+    if (idx >= 0 && idx < todasIntencoes.length) {
+      intencaoSelecionada = todasIntencoes[idx];
+    }
+  }
 
   if (!intencaoSelecionada) {
     ctx.tentativas_invalidas++;

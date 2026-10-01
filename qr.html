@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Conectar WhatsApp</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; background: #f0f0f0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; }
+        img { max-width: 300px; margin-top: 20px; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Escaneie o QR Code</h2>
+        <p>Aponte o WhatsApp do celular para a tela para parear a instância <b>cet_automacao</b></p>
+        <div id="status" class="loading">Carregando QR Code...</div>
+        <img id="qrcode" src="" style="display: none;" />
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080';
+        const API_KEY = 'cet_api_key_secreta_2026';
+        const INSTANCE_NAME = 'cet_automacao';
+
+        async function fetchQRCode() {
+            try {
+                const response = await fetch(`${API_URL}/instance/connect/${INSTANCE_NAME}`, {
+                    method: 'GET',
+                    headers: { 'apikey': API_KEY }
+                });
+                
+                const data = await response.json();
+                
+                if (data.instance?.state === 'open') {
+                    document.getElementById('status').innerText = '✅ WhatsApp Conectado com sucesso!';
+                    document.getElementById('qrcode').style.display = 'none';
+                    return;
+                }
+
+                if (data.qrcode?.base64) {
+                    document.getElementById('status').innerText = 'Aguardando leitura... (Atualiza a cada 10s)';
+                    document.getElementById('qrcode').src = data.qrcode.base64;
+                    document.getElementById('qrcode').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar QR Code:', error);
+                document.getElementById('status').innerText = 'Erro ao buscar o QR Code. A API está rodando?';
+            }
+        }
+
+        // Busca imediatamente e depois a cada 10 segundos
+        fetchQRCode();
+        setInterval(fetchQRCode, 10000);
+    </script>
+</body>
+</html>

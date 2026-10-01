@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cet-worker
+    env: node
+    region: ohio
+    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install && pnpm --filter @cet/worker run build
+    startCommand: pnpm --filter @cet/worker run start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

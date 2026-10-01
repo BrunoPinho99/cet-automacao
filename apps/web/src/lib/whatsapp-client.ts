@@ -1,13 +1,10 @@
 /**
- * Cliente para a WhatsApp Cloud API (Meta).
- * Envio de mensagens de texto, interativas (botões/listas) e templates.
- * 
- * Docs: https://developers.facebook.com/docs/whatsapp/cloud-api
+ * Cliente para a Evolution API.
  */
 
-const WHATSAPP_API_URL = 'https://graph.facebook.com/v21.0';
-const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || '';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080';
+const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cet_automacao';
+const API_KEY = process.env.EVOLUTION_API_KEY || '';
 
 interface EnvioResult {
   sucesso: boolean;
@@ -15,58 +12,45 @@ interface EnvioResult {
   erro?: string;
 }
 
-/**
- * Envia requisição genérica para a API do WhatsApp.
- */
-async function enviarParaWhatsApp(payload: Record<string, unknown>): Promise<EnvioResult> {
-  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
-    console.warn('[WhatsApp] Credenciais não configuradas — mensagem não enviada.');
-    return { sucesso: false, erro: 'Credenciais não configuradas' };
+export async function enviarMensagemWhatsApp(numeroDestino: string, texto: string) {
+  // Limpa caracteres especiais mantendo apenas dígitos (ex: 5511999999999)
+  const numeroLimpo = numeroDestino.replace(/\D/g, '');
+
+  const response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${INSTANCE_NAME}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: API_KEY,
+    },
+    body: JSON.stringify({
+      number: numeroLimpo,
+      text: texto,
+      delay: 1200, // Simula digitação para reduzir risco de bloqueio
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Erro ao enviar mensagem via Evolution API: ${errorData}`);
   }
 
-  try {
-    const res = await fetch(
-      `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      },
-    );
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error('[WhatsApp] Erro no envio:', JSON.stringify(data));
-      return { sucesso: false, erro: data.error?.message || 'Erro desconhecido' };
-    }
-
-    const wamid = data.messages?.[0]?.id;
-    return { sucesso: true, wamid };
-  } catch (error) {
-    console.error('[WhatsApp] Erro de rede:', error);
-    return { sucesso: false, erro: 'Erro de conexão com a API' };
-  }
+  return response.json();
 }
 
 /**
  * Envia mensagem de texto simples.
  */
 export async function enviarTexto(para: string, texto: string): Promise<EnvioResult> {
-  return enviarParaWhatsApp({
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
-    to: para,
-    type: 'text',
-    text: { body: texto },
-  });
+  try {
+    const res = await enviarMensagemWhatsApp(para, texto);
+    return { sucesso: true, wamid: res.key?.id };
+  } catch (err: any) {
+    return { sucesso: false, erro: err.message };
+  }
 }
 
 /**
- * Envia mensagem interativa com botões (máximo 3 botões).
+ * Envia mensagem interativa com botões (fallback para texto).
  */
 export async function enviarBotoes(
   para: string,
@@ -75,28 +59,17 @@ export async function enviarBotoes(
   cabecalho?: string,
   rodape?: string,
 ): Promise<EnvioResult> {
-  return enviarParaWhatsApp({
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
-    to: para,
-    type: 'interactive',
-    interactive: {
-      type: 'button',
-      ...(cabecalho ? { header: { type: 'text', text: cabecalho } } : {}),
-      body: { text: corpo },
-      ...(rodape ? { footer: { text: rodape } } : {}),
-      action: {
-        buttons: botoes.map(b => ({
-          type: 'reply',
-          reply: { id: b.id, title: b.titulo },
-        })),
-      },
-    },
-  });
+  const texto = [
+    cabecalho, 
+    corpo, 
+    botoes.map((b, i) => `${i+1}. ${b.titulo}`).join('\n'), 
+    rodape
+  ].filter(Boolean).join('\n\n');
+  return enviarTexto(para, texto);
 }
 
 /**
- * Envia mensagem interativa com lista de opções (até 10 itens por seção).
+ * Envia mensagem interativa com lista de opções (fallback para texto).
  */
 export async function enviarLista(
   para: string,
@@ -109,34 +82,25 @@ export async function enviarLista(
   cabecalho?: string,
   rodape?: string,
 ): Promise<EnvioResult> {
-  return enviarParaWhatsApp({
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
-    to: para,
-    type: 'interactive',
-    interactive: {
-      type: 'list',
-      ...(cabecalho ? { header: { type: 'text', text: cabecalho } } : {}),
-      body: { text: corpo },
-      ...(rodape ? { footer: { text: rodape } } : {}),
-      action: {
-        button: botaoTexto,
-        sections: secoes.map(s => ({
-          title: s.titulo,
-          rows: s.itens.map(item => ({
-            id: item.id,
-            title: item.titulo,
-            ...(item.descricao ? { description: item.descricao } : {}),
-          })),
-        })),
-      },
-    },
-  });
+  let textoLista = secoes.map(s => {
+    let secaoText = `*${s.titulo}*\n`;
+    secaoText += s.itens.map((item, i) => `- ${item.titulo}${item.descricao ? ': ' + item.descricao : ''}`).join('\n');
+    return secaoText;
+  }).join('\n\n');
+
+  const texto = [
+    cabecalho, 
+    corpo, 
+    textoLista,
+    `Responda digitando a opção desejada.`,
+    rodape
+  ].filter(Boolean).join('\n\n');
+  
+  return enviarTexto(para, texto);
 }
 
 /**
- * Envia template pré-aprovado (HSM).
- * Usado para iniciar conversas (fora da janela de 24h).
+ * Envia template pré-aprovado (fallback para texto em dev).
  */
 export async function enviarTemplate(
   para: string,
@@ -144,38 +108,13 @@ export async function enviarTemplate(
   idioma: string = 'pt_BR',
   componentes?: Array<Record<string, unknown>>,
 ): Promise<EnvioResult> {
-  return enviarParaWhatsApp({
-    messaging_product: 'whatsapp',
-    to: para,
-    type: 'template',
-    template: {
-      name: nomeTemplate,
-      language: { code: idioma },
-      ...(componentes ? { components: componentes } : {}),
-    },
-  });
+  return enviarTexto(para, `[Template: ${nomeTemplate}]`);
 }
 
 /**
- * Marca mensagem como lida (blue ticks).
+ * Marca mensagem como lida. (Na Evolution API isso pode ser configurado no webhook ou chamando endpoint próprio)
  */
 export async function marcarComoLida(wamid: string): Promise<void> {
-  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) return;
-
-  try {
-    await fetch(`${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        status: 'read',
-        message_id: wamid,
-      }),
-    });
-  } catch (error) {
-    console.error('[WhatsApp] Erro ao marcar como lida:', error);
-  }
+  // A Evolution API pode ter autoRead configurado globalmente ou ter endpoint: /chat/markMessageAsRead
+  // Fica como no-op por enquanto
 }

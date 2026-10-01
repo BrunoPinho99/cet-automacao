@@ -55,6 +55,22 @@ pdfWorker.on('failed', (job, err) => {
   console.error(`[Worker] Job ${job?.id} falhou com erro:`, err.message);
 });
 
+// ============================================================================
+// DUMMY SERVER (TRUQUE DO RENDER)
+// ============================================================================
+// Como o Render não tem mais "Background Worker" de graça, subimos um servidor
+// HTTP bobo apenas para ele achar que é um Web Service comum e nos dar o Free Tier.
+import http from 'http';
+
+const port = process.env.PORT || 10000;
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('Worker rodando e ouvindo as filas (Modo Gratuito)!');
+});
+server.listen(port, () => {
+  console.log(`🌍 Dummy server escutando na porta ${port} para manter o Render feliz.`);
+});
+
 // Limpeza no desligamento (SIGTERM / SIGINT)
 const gracefulShutdown = async () => {
   console.log('Encerrando workers de forma graciosa...');
@@ -63,6 +79,7 @@ const gracefulShutdown = async () => {
   await ploomesWorker.close();
   await alertasWorker.close();
   await relatoriosAgendadosWorker.close();
+  server.close();
   process.exit(0);
 };
 
