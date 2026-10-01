@@ -21,7 +21,8 @@
     "db:studio": "pnpm --filter @cet/db studio",
     "docker:up": "docker compose -f infra/docker-compose.yml up -d",
     "docker:down": "docker compose -f infra/docker-compose.yml down",
-    "prepare": "husky"
+    "prepare": "husky",
+    "postinstall": "pnpm --filter @cet/db run generate"
   },
   "devDependencies": {
     "husky": "^9.1.7",

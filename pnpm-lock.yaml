@@ -111,10 +111,16 @@ importers:
       puppeteer:
         specifier: ^22.12.0
         version: 22.15.0(supports-color@7.2.0)(typescript@5.9.3)
+      uuid:
+        specifier: ^14.0.2
+        version: 14.0.2
     devDependencies:
       '@types/node':
         specifier: ^20.14.9
         version: 20.19.43
+      '@types/uuid':
+        specifier: ^11.0.0
+        version: 11.0.0
       ts-node-dev:
         specifier: ^2.0.0
         version: 2.0.0(@types/node@20.19.43)(typescript@5.9.3)
@@ -1436,6 +1442,10 @@ packages:
 
   '@types/strip-json-comments@0.0.30':
     resolution: {integrity: sha512-7NQmHra/JILCd1QqpSzl8+mJRc8ZHz3uDm8YV1Ks9IhK0epEiTw8aIErbvH9PI+6XbqhyIQy3462nEsn7UVzjQ==}
+
+  '@types/uuid@11.0.0':
+    resolution: {integrity: sha512-HVyk8nj2m+jcFRNazzqyVKiZezyhDKrGUA3jlEcg/nZ6Ms+qHwocba1Y/AaVaznJTAM9xpdFSh+ptbNrhOGvZA==}
+    deprecated: This is a stub types definition. uuid provides its own type definitions, so you do not need this installed.
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -3796,6 +3806,10 @@ packages:
   urlpattern-polyfill@10.0.0:
     resolution: {integrity: sha512-H/A06tKD7sS1O1X2SshBVeA5FLycRpjqiBeqGKmBwBDBy28EnRjORxTNe269KSSr5un5qyWi1iL61wLxpd+ZOg==}
 
+  uuid@14.0.2:
+    resolution: {integrity: sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ==}
+    hasBin: true
+
   v8-compile-cache-lib@3.0.1:
     resolution: {integrity: sha512-wa7YjyUGfNZngI/vtK0UHAN+lgDCxBPCylVXGp0zu59Fz5aiGtNXaq3DhIov063MorB+VfufLh3JlF2KdTK3xg==}
 
@@ -4947,6 +4961,10 @@ snapshots:
   '@types/strip-bom@3.0.0': {}
 
   '@types/strip-json-comments@0.0.30': {}
+
+  '@types/uuid@11.0.0':
+    dependencies:
+      uuid: 14.0.2
 
   '@types/yauzl@2.10.3':
     dependencies:
@@ -7697,6 +7715,8 @@ snapshots:
       punycode: 2.3.1
 
   urlpattern-polyfill@10.0.0: {}
+
+  uuid@14.0.2: {}
 
   v8-compile-cache-lib@3.0.1: {}
 

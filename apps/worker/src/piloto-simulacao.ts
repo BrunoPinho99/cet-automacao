@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@cet/db';
 import { v4 as uuid } from 'uuid';
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 const NUM_JORNADAS = 100;
 const API_URL = process.env.API_URL || 'http://localhost:3000/api';
@@ -97,9 +97,10 @@ async function simularWebhookPagamento(leadId: string, asaasPaymentId: string) {
     data: {
       lead_id: leadId,
       produto: 'diagnostico_pago',
-      valor: 199.9,
+      valor_centavos: 19990,
       status: 'pendente',
       asaas_payment_id: asaasPaymentId,
+      idempotency_key: `sim_${asaasPaymentId}`
     }
   });
 
