@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @cet/web run build",
-  "installCommand": "pnpm install",
+  "installCommand": "pnpm install --ignore-scripts && pnpm --filter @cet/db run generate",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next"
 }
