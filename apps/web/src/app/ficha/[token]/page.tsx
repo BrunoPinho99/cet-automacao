@@ -20,11 +20,14 @@ interface FichaState {
   contato_id: string;
 }
 
+import { useRouter } from 'next/navigation';
+
 export default function FichaPage({
   params,
 }: {
   params: Promise<{ token: string }>;
 }) {
+  const router = useRouter();
   const [resolvedParams, setResolvedParams] = useState<{ token: string } | null>(null);
   const [state, setState] = useState<FichaState>({
     ficha_id: null,

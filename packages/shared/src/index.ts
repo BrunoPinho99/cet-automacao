@@ -1,10 +1,10 @@
 // Enums e tipos centrais do domínio CET
 // Estes tipos são puro TypeScript/Zod — sem dependência de banco ou framework
 
-export * from './enums.js';
-export * from './validators.js';
-export * from './dtos.js';
-export * from './events.js';
-export * from './consentimento.js';
-export * from './email.js';
-export * from './cnpj.js';
+export * from './enums';
+export * from './validators';
+export * from './dtos';
+export * from './events';
+export * from './consentimento';
+export * from './email';
+export * from './cnpj';

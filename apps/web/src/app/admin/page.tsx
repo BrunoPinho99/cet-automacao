@@ -1,6 +1,8 @@
 import { prisma } from '@cet/db';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLeadsPage() {
   const leads = await prisma.lead.findMany({
     orderBy: { criado_em: 'desc' },
