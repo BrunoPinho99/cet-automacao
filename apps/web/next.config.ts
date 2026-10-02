@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@cet/db", "@cet/shared"],
+  transpilePackages: ["@cet/db", "@cet/shared", "@cet/core"],
   typescript: {
     ignoreBuildErrors: true,
   },
