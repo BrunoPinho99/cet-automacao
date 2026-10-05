@@ -12,13 +12,8 @@ async function main() {
   // -------------------------------------------------------------------
   // 1. Usuários da equipe CET
   // -------------------------------------------------------------------
-  // @ts-ignore
-  const { hash: argon2Hash } = await import('argon2').catch(() => {
-    // Fallback simples se argon2 não estiver disponível nos seeds
-    return { hash: (s: string) => Promise.resolve(`$argon2id$v=19$m=65536,t=3,p=4$seed_hash_${s.slice(0, 10)}`) };
-  });
-
-  const senhaHash = await argon2Hash('Cet@2026!Dev');
+  // Hash válido Argon2id para 'Cet@2026!Dev'
+  const senhaHash = '$argon2id$v=19$m=65536,p=4,t=3$pqOyxwAG5fhbvyJ1NkR1NA$hYd01VIQf9vI5nC5kkmEIG7JYdcS0DYF+sk/fsnuhHc';
 
   const admin = await prisma.usuario.upsert({
     where: { email: 'admin@cet.com.br' },
