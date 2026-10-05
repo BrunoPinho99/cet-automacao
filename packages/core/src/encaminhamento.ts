@@ -1,4 +1,4 @@
-import type { ResultadoScoreSST, ResultadoRota, AcaoEncaminhamento } from './types.js';
+import type { ResultadoScoreSST, ResultadoRota, AcaoEncaminhamento } from './types';
 
 /**
  * Define as ações de encaminhamento com base no score SST e na classificação de rota.

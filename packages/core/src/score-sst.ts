@@ -7,7 +7,7 @@ import type {
   ConfigScoreSST,
   FichaInput,
   EmpresaInput,
-} from './types.js';
+} from './types';
 
 // Versão das regras — usada para auditabilidade e recálculo
 export const VERSAO_REGRAS_SST = '1.0.0';

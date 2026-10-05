@@ -3,7 +3,7 @@ import type {
   FichaInput,
   ConfigRotas,
   ResultadoRota,
-} from './types.js';
+} from './types';
 
 const CONFIG_PADRAO: ConfigRotas = {
   A: { min_trabalhadores: 100, min_unidades: 2, min_estados: 2, valor_estimado_min: 500_000 },

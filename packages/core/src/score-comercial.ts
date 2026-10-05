@@ -3,7 +3,7 @@ import type {
   FichaInput,
   ConfigScoreComercial,
   ResultadoScoreComercial,
-} from './types.js';
+} from './types';
 
 const CONFIG_PADRAO: ConfigScoreComercial = {
   porte_unidades: 30,

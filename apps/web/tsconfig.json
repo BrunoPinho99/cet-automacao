@@ -21,7 +21,10 @@
     "paths": {
       "@/*": ["./src/*"],
       "@cet/db": ["../../packages/db/index.ts"],
-      "@cet/shared": ["../../packages/shared/src/index.ts"]
+      "@cet/shared": ["../../packages/shared/src/index.ts"],
+      "@cet/shared/*": ["../../packages/shared/src/*"],
+      "@cet/core": ["../../packages/core/src/index.ts"],
+      "@cet/core/*": ["../../packages/core/src/*"]
     }
   },
   "include": [

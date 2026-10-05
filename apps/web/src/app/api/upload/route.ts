@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Cria nome único no storage local
     const extension = path.extname(file.name) || (file.type === 'application/pdf' ? '.pdf' : '.png');
     const storageKey = `${crypto.randomUUID()}${extension}`;
-    const filePath = path.join(process.cwd(), UPLOAD_DIR, storageKey);
+    const filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), UPLOAD_DIR, storageKey);
 
     // Garante que o diretório de uploads existe
     await fs.mkdir(path.dirname(filePath), { recursive: true });
