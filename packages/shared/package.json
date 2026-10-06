@@ -20,6 +20,7 @@
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "nodemailer": "^10.0.10",
     "zod": "^3.24.1"
   },

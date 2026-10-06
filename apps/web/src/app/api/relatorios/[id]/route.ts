@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@cet/db';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { obterOuGerarRelatorio } from '@/lib/relatorio-generator';
 
 export async function GET(
   request: Request,
@@ -9,33 +7,37 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const url = new URL(request.url);
+    const format = url.searchParams.get('format');
 
-    const relatorio = await prisma.relatorio.findUnique({
-      where: { id },
-    });
-
-    if (!relatorio) {
-      return NextResponse.json({ error: 'Relatório não encontrado' }, { status: 404 });
+    if (!id) {
+      return NextResponse.json({ error: 'ID do relatório ou ficha não informado' }, { status: 400 });
     }
 
-    const filepath = path.join(process.cwd(), '../../.pdfs', relatorio.arquivo_pdf_key);
-    
-    try {
-      const fileBuffer = await fs.readFile(filepath);
-      
-      return new NextResponse(fileBuffer, {
+    const { buffer, mime, key } = await obterOuGerarRelatorio(id);
+
+    // Se for visualização HTML direta no navegador
+    if (format === 'html' || mime === 'text/html') {
+      return new NextResponse(buffer, {
         headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="diagnostico_sst.pdf"`,
-          'Content-Length': fileBuffer.length.toString(),
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Length': buffer.length.toString(),
         },
       });
-    } catch (err) {
-      console.error(`Erro ao ler arquivo PDF ${filepath}:`, err);
-      return NextResponse.json({ error: 'Arquivo físico não encontrado ou não gerado' }, { status: 404 });
     }
-  } catch (error) {
+
+    // Se for download de PDF
+    const filename = key.endsWith('.pdf') ? key : `diagnostico_sst_${id}.html`;
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': mime,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': buffer.length.toString(),
+      },
+    });
+  } catch (error: unknown) {
     console.error('[GET /api/relatorios/[id]]', error);
-    return NextResponse.json({ error: 'Erro interno ao baixar relatório' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Erro interno ao obter relatório';
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

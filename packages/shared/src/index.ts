@@ -8,3 +8,5 @@ export * from './events';
 export * from './consentimento';
 export * from './email';
 export * from './cnpj';
+export * from './storage';
+

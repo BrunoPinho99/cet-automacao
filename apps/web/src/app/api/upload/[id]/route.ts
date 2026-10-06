@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import { env } from 'node:process';
-
-const UPLOAD_DIR = env.STORAGE_LOCAL_PATH || './uploads';
+import { downloadFileFromStorage } from '@cet/shared';
 
 export async function GET(
   request: NextRequest,
@@ -25,19 +21,16 @@ export async function GET(
       return new NextResponse('Arquivo não encontrado', { status: 404 });
     }
 
-    const filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), UPLOAD_DIR, arquivo.storage_key);
-
+    let fileBuffer: Buffer;
     try {
-      await fs.access(filePath);
+      const result = await downloadFileFromStorage('cet-uploads', arquivo.storage_key);
+      fileBuffer = result.buffer;
     } catch {
-      return new NextResponse('Arquivo não encontrado no disco', { status: 404 });
+      return new NextResponse('Arquivo não encontrado no storage', { status: 404 });
     }
-
-    const fileBuffer = await fs.readFile(/*turbopackIgnore: true*/ filePath);
 
     const headers = new Headers();
     headers.set('Content-Type', arquivo.mime);
-    // Força o download e proteção X-Content-Type-Options
     headers.set('Content-Disposition', `attachment; filename="${arquivo.nome}"`);
     headers.set('X-Content-Type-Options', 'nosniff');
 
@@ -45,6 +38,7 @@ export async function GET(
       status: 200,
       headers
     });
+
 
   } catch (error) {
     console.error('[GET /api/upload/[id]]', error);

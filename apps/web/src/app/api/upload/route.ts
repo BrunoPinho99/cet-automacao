@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
-import * as fs from 'node:fs/promises';
+import { uploadFileToStorage } from '@cet/shared';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { env } from 'node:process';
@@ -8,7 +8,6 @@ import { env } from 'node:process';
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const UPLOAD_MAX_SIZE_MB = parseInt(env.UPLOAD_MAX_SIZE_MB || '20', 10);
 const MAX_SIZE_BYTES = UPLOAD_MAX_SIZE_MB * 1024 * 1024;
-const UPLOAD_DIR = env.STORAGE_LOCAL_PATH || './uploads';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,22 +49,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (!isContentValid) {
-      return NextResponse.json({ erro: 'Conteúdo do arquivo não corresponde ao tipo declarado. Arquivo recusado por segurança.' }, { status: 400 });
+      return NextResponse.json({ erro: 'Conteúdo do arquivo não corresponde ao tipo declared. Arquivo recusado por segurança.' }, { status: 400 });
     }
 
     // Calcula checksum (SHA-256)
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    // Cria nome único no storage local
+    // Cria nome único
     const extension = path.extname(file.name) || (file.type === 'application/pdf' ? '.pdf' : '.png');
     const storageKey = `${crypto.randomUUID()}${extension}`;
-    const filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), UPLOAD_DIR, storageKey);
 
-    // Garante que o diretório de uploads existe
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    
-    // Salva o arquivo no disco
-    await fs.writeFile(filePath, buffer);
+    // Salva no storage (Supabase ou Local)
+    const uploadResult = await uploadFileToStorage({
+      bucket: 'cet-uploads',
+      key: storageKey,
+      buffer,
+      contentType: file.type,
+    });
 
     // Grava metadados no banco
     const arquivo = await prisma.arquivo.create({
@@ -73,11 +73,12 @@ export async function POST(request: NextRequest) {
         nome: file.name,
         mime: file.type,
         tamanho: file.size,
-        storage_key: storageKey,
+        storage_key: uploadResult.key,
         checksum: hash,
         status_antivirus: 'nao_verificado',
       }
     });
+
 
     return NextResponse.json({ 
       id: arquivo.id,
