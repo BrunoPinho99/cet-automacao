@@ -66,11 +66,20 @@ export async function uploadFileToStorage(options: UploadOptions): Promise<Uploa
   }
 
   // Fallback Local Disk
-  const relativeDir = options.bucket === 'cet-relatorios' ? '../../.pdfs' : './uploads';
-  const targetDir = path.join(/*turbopackIgnore: true*/ process.cwd(), relativeDir);
-  await fs.mkdir(targetDir, { recursive: true });
-  const filePath = path.join(/*turbopackIgnore: true*/ targetDir, options.key);
-  await fs.writeFile(/*turbopackIgnore: true*/ filePath, options.buffer);
+  try {
+    let targetDir;
+    if (process.env.VERCEL === '1') {
+      targetDir = path.join('/tmp', options.bucket);
+    } else {
+      const relativeDir = options.bucket === 'cet-relatorios' ? '../../.pdfs' : './uploads';
+      targetDir = path.join(/*turbopackIgnore: true*/ process.cwd(), relativeDir);
+    }
+    await fs.mkdir(targetDir, { recursive: true });
+    const filePath = path.join(/*turbopackIgnore: true*/ targetDir, options.key);
+    await fs.writeFile(/*turbopackIgnore: true*/ filePath, options.buffer);
+  } catch (err) {
+    console.warn('[Storage] Falha ao escrever fallback no disco local:', err);
+  }
 
   return {
     key: options.key,
@@ -102,13 +111,23 @@ export async function downloadFileFromStorage(
   }
 
   // Fallback Local Disk
-  const relativeDir = bucket === 'cet-relatorios' ? '../../.pdfs' : './uploads';
-  const filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relativeDir, key);
-  const buffer = await fs.readFile(/*turbopackIgnore: true*/ filePath);
+  try {
+    let filePath;
+    if (process.env.VERCEL === '1') {
+      filePath = path.join('/tmp', bucket, key);
+    } else {
+      const relativeDir = bucket === 'cet-relatorios' ? '../../.pdfs' : './uploads';
+      filePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relativeDir, key);
+    }
+    const buffer = await fs.readFile(/*turbopackIgnore: true*/ filePath);
 
-  return {
-    buffer,
-    provider: 'local',
-  };
+    return {
+      buffer,
+      provider: 'local',
+    };
+  } catch (err) {
+    console.warn('[Storage] Arquivo não encontrado no disco local:', err);
+    throw err;
+  }
 }
 
