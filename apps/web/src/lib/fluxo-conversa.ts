@@ -1,17 +1,11 @@
 /**
- * Máquina de estados do fluxo conversacional WhatsApp.
+ * Máquina de estados e mensagens oficiais da Assistente Digital da CET.
  * 
- * Estados:
- *   inicio        → Primeiro contato, envia menu principal
- *   menu          → Aguardando escolha do menu
- *   nome          → Pedindo nome do contato
- *   intencao      → Identificando intenção (via lista interativa)
- *   ficha_criada  → Lead + Ficha criados, link enviado
- *   transbordo    → Conversa transferida para humano
- *   encerrado     → Fluxo finalizado
+ * Objetivo:
+ * Triagem inicial de clientes no WhatsApp e Instagram, identificar necessidade,
+ * coletar consentimento LGPD e direcionar para Ficha Inteligente ou Atendente Humano.
  * 
- * Regra: se o contato já existe (dedup por telefone), pula direto para o menu.
- * Regra: se o contato já tem lead aberto, pergunta se quer continuar.
+ * Foco: Eliminar retrabalho e converter o atendimento em uma jornada rastreável.
  */
 
 export type EstadoConversa =
@@ -35,106 +29,194 @@ export interface ContextoConversa {
   ultima_interacao: Date;
 }
 
-// Mensagens padronizadas do bot
+// Mensagens EXATAS padronizadas da Assistente Digital CET
 export const MENSAGENS = {
-  BOAS_VINDAS: `👋 Olá! Bem-vindo à *CET — Clínica Especializada no Trabalho*!
+  // 1. Abertura Obrigatória (LGPD + Consentimento)
+  ABERTURA_OBRIGATORIA: `Olá! Sou a assistente digital da CET. Vou fazer algumas perguntas rápidas para identificar o que sua empresa precisa e encaminhar você ao setor certo. Seus dados serão usados para atendimento, diagnóstico e proposta. Para continuar, confirme: [CONCORDO] [FALAR COM ATENDENTE].`,
 
-Somos referência em Saúde e Segurança do Trabalho em Araguaína/TO.`,
+  // 2. Menu de Triagem Inicial (Exato 1 a 6)
+  MENU_TRIAGEM: `1- Quero saber se minha empresa está regular.
+2- Preciso fazer ou renovar documentos de SST.
+3- Preciso de ASO ou exames ocupacionais.
+4- Preciso enviar eSocial SST, PPP ou CAT.
+5- Já sou cliente e preciso de suporte.
+6- Quero falar com um especialista.`,
 
-  CONSENTIMENTO: `Para seguirmos com o seu atendimento e diagnóstico, precisamos tratar alguns dados da sua empresa. Você concorda com nossa Política de Privacidade?`,
+  // Pedido de Nome (para personalizar o atendimento e ficha)
+  PEDIR_NOME: `Para iniciarmos seu cadastro, por favor informe seu *nome completo*:`,
 
-  MENU_PRINCIPAL: `Ótimo! Como posso ajudar você hoje? Escolha uma das opções abaixo:`,
+  // Pergunta de intenção complementar (compatibilidade)
+  PEDIR_INTENCAO: `Qual é a principal necessidade da sua empresa hoje, {{nome}}?`,
 
-  PEDIR_NOME: `Para iniciarmos, por favor me informe seu *nome completo*:`,
-
-  PEDIR_INTENCAO: `Ótimo, {{nome}}! 😊
-
-Qual o motivo principal do seu contato?`,
-
+  // 3. Direcionamento para a Ficha Inteligente
   FICHA_CRIADA: `✅ Perfeito, {{nome}}!
-
 Seu atendimento foi registrado com o protocolo *{{protocolo}}*.
 
-📋 Para agilizar o diagnóstico, preencha a ficha da sua empresa neste link:
+📋 Preencha a Ficha Inteligente para avaliarmos CNPJ, porte e unidades da sua empresa:
 👉 {{link_ficha}}
 
-Você pode preencher aos poucos — seus dados ficam salvos!`,
+Você pode preencher no seu ritmo — seus dados ficam salvos!`,
 
-  RETOMAR_FICHA: `Olá, {{nome}}! 👋
-
-Você já tem um atendimento em andamento (protocolo *{{protocolo}}*).
-
-📋 Continue o preenchimento da ficha:
+  // Retomada de Ficha
+  RETOMAR_FICHA: `Olá, {{nome}}! Você já tem um atendimento em andamento (protocolo {{protocolo}}).
+Acesse o link para continuar de onde parou:
 👉 {{link_ficha}}`,
 
-  TRANSBORDO: `Entendido! 🤝
+  // Alerta de Ficha Incompleta / Abandono
+  FICHA_INCOMPLETA: `Sua avaliação ficou incompleta. Falta pouco para identificar as pendências. [CONTINUAR] [FALAR COM ESPECIALISTA]`,
 
-Vou transferir você para um dos nossos especialistas. Aguarde um momento, por favor.
+  // Gatilhos Críticos - Rota A (Transferência Humana Imediata)
+  ROTA_A_TRANSBORDO: `Pelo porte da empresa, sua análise será personalizada. Um especialista da CET continuará o atendimento. Protocolo: {{protocolo}}.`,
 
-📞 Se preferir, ligue para *(63) 3411-XXXX*.`,
+  // Diagnóstico e Pagamento - Rotas B e C
+  OFERTA_DIAGNOSTICO: `Sua triagem está pronta. Escolha: Essencial R$ 19,90 ou Completo R$ 29,90, com prioridades e plano. [ESSENCIAL] [COMPLETO]
 
-  ERRO_OPCAO: `Desculpe, não entendi sua resposta. Por favor, escolha uma das opções do menu.`,
+💡 *Regra de Crédito:* O valor pago vira crédito integral na contratação de serviços acima de R$ 500 realizados em até 7 dias.`,
 
-  HORARIO_FORA: `⏰ Nosso horário de atendimento humano é de segunda a sexta, das 8h às 18h.
+  // Pós-Venda e Relatório (após confirmação webhook Asaas)
+  RELATORIO_PRONTO: `Seu diagnóstico está pronto. Prioridade: {{prioridade}}. A CET pode regularizar e aplicar o crédito previsto. [QUERO RESOLVER] [FALAR COM TÉCNICO]`,
 
-Mas você pode preencher a ficha a qualquer momento:
+  // Transbordo genérico
+  TRANSBORDO_PADRAO: `Entendido! Estou transferindo seu atendimento para um especialista da equipe CET. Protocolo: {{protocolo}}. Aguarde um instante, por favor.`,
+
+  // Erro de opção
+  ERRO_OPCAO: `Por favor, digite o número de 1 a 6 ou confirme [CONCORDO] / [FALAR COM ATENDENTE].`,
+
+  // Fora do horário comercial
+  HORARIO_FORA: `⏰ Nosso horário de atendimento com especialistas humanos é de segunda a sexta, das 8h às 18h.
+Mas você pode preencher a Ficha Inteligente a qualquer momento:
 👉 {{link_ficha}}`,
 
-  DESPEDIDA: `Obrigado pelo contato! 🙏
+  // Despedida
+  DESPEDIDA: `A CET agradece seu contato! Se precisar de algo mais, basta nos mandar uma mensagem.`,
 
-Se precisar de algo, estamos à disposição. Até logo! 👋`,
+  // Aliases para compatibilidade de testes existentes
+  get BOAS_VINDAS() {
+    return this.ABERTURA_OBRIGATORIA;
+  },
+  get MENU_PRINCIPAL() {
+    return this.MENU_TRIAGEM;
+  },
+  get CONSENTIMENTO() {
+    return this.ABERTURA_OBRIGATORIA;
+  },
+  get TRANSBORDO() {
+    return this.TRANSBORDO_PADRAO;
+  },
 } as const;
 
-// Opções do consentimento
+// Botões de Consentimento
 export const CONSENTIMENTO_BOTOES = [
-  { id: 'aceite_lgpd', titulo: 'Concordo' },
-  { id: 'falar_especialista', titulo: 'Falar com atendente' },
+  { id: 'concordo', titulo: 'CONCORDO' },
+  { id: 'falar_atendente', titulo: 'FALAR COM ATENDENTE' },
 ] as const;
 
+// Menu Inicial de 6 opções oficiais
+export const MENU_OPCOES = [
+  { id: 'opt_1', numero: '1', titulo: 'Quero saber se minha empresa está regular', rota: 'ficha' },
+  { id: 'opt_2', numero: '2', titulo: 'Preciso fazer ou renovar documentos de SST', rota: 'ficha' },
+  { id: 'opt_3', numero: '3', titulo: 'Preciso de ASO ou exames ocupacionais', rota: 'ficha' },
+  { id: 'opt_4', numero: '4', titulo: 'Preciso enviar eSocial SST, PPP ou CAT', rota: 'ficha' },
+  { id: 'opt_5', numero: '5', titulo: 'Já sou cliente e preciso de suporte', rota: 'suporte' },
+  { id: 'opt_6', numero: '6', titulo: 'Quero falar com um especialista', rota: 'humano' },
+] as const;
+
+// Botões principais (compatibilidade com canais interativos de 3 botões)
 export const MENU_BOTOES = [
   { id: 'diagnostico_sst', titulo: 'Diagnóstico SST' },
   { id: 'ja_sou_cliente', titulo: 'Já sou cliente' },
-  { id: 'falar_especialista', titulo: 'Falar com atendente' },
+  { id: 'falar_especialista', titulo: 'Falar c/ atendente' },
 ] as const;
 
-// Opções de intenção (lista interativa)
+// Lista de intenções estruturada (para menus expansíveis do WhatsApp)
 export const INTENCOES = [
   {
-    titulo: 'Serviços SST',
+    titulo: 'Documentos e Programas',
     itens: [
-      { id: 'int_regularizar', titulo: 'Regularizar SST', descricao: 'PGR, PCMSO, LTCAT e outros laudos' },
-      { id: 'int_esocial', titulo: 'eSocial SST', descricao: 'Eventos S-2210, S-2220, S-2240' },
-      { id: 'int_treinamentos', titulo: 'Treinamentos NRs', descricao: 'CIPA, NR-35, NR-10, NR-33, etc.' },
-      { id: 'int_exames', titulo: 'Exames ocupacionais', descricao: 'Admissional, periódico, demissional' },
+      { id: 'int_regular', titulo: 'Regularidade da Empresa', descricao: 'Saber se a empresa cumpre todas as NRs' },
+      { id: 'int_pgr_pcmso', titulo: 'PGR e PCMSO', descricao: 'Elaborar ou renovar PGR / PCMSO' },
+      { id: 'int_ltcat', titulo: 'LTCAT e Laudos', descricao: 'Laudo técnico de condições ambientais' },
     ],
   },
   {
-    titulo: 'Outros',
+    titulo: 'Saúde e eSocial',
     itens: [
-      { id: 'int_cotacao', titulo: 'Solicitar cotação', descricao: 'Preciso de um orçamento' },
-      { id: 'int_outro', titulo: 'Outro assunto', descricao: 'Algo diferente' },
+      { id: 'int_aso', titulo: 'ASO / Exames Clínicos', descricao: 'Admissional, periódico, demissional' },
+      { id: 'int_esocial', titulo: 'eSocial SST e PPP', descricao: 'Envio de eventos e PPP eletrônico' },
+      { id: 'int_outro', titulo: 'Outro assunto', descricao: 'Falar diretamente com um especialista' },
     ],
   },
 ] as const;
 
 /**
- * Verifica se estamos dentro do horário comercial (seg-sex, 8h-18h, fuso Araguaína).
+ * Critérios Críticos da Rota A (Transferência Humana Imediata - SLA 10min)
+ */
+export const CRITERIOS_ROTA_A = {
+  MIN_TRABALHADORES: 100,
+  MIN_UNIDADES: 2,
+  TERMOS_URGENCIA: [
+    'acidente',
+    'acidente grave',
+    'óbito',
+    'fiscalização',
+    'fiscalizacao',
+    'auditor',
+    'mte',
+    'termo de notificação',
+    'notificacao',
+    'autuação',
+    'interdição',
+    'embargo',
+    'urgente',
+    'processo',
+  ],
+};
+
+/**
+ * Avalia se uma mensagem ou dados da empresa ativam os gatilhos críticos da Rota A.
+ */
+export function verificarGatilhoRotaA(params: {
+  texto?: string;
+  trabalhadores?: number;
+  unidades?: number;
+  multiplosEstados?: boolean;
+}): { ativa: boolean; motivo?: string } {
+  const { texto, trabalhadores, unidades, multiplosEstados } = params;
+
+  if (trabalhadores && trabalhadores >= CRITERIOS_ROTA_A.MIN_TRABALHADORES) {
+    return { ativa: true, motivo: `Empresa possui ${trabalhadores} trabalhadores (>= 100).` };
+  }
+
+  if (unidades && unidades >= CRITERIOS_ROTA_A.MIN_UNIDADES) {
+    return { ativa: true, motivo: `Empresa possui ${unidades} unidades (>= 2).` };
+  }
+
+  if (multiplosEstados) {
+    return { ativa: true, motivo: 'Empresa atua em mais de um estado.' };
+  }
+
+  if (texto) {
+    const textoLimpo = texto.toLowerCase();
+    for (const termo of CRITERIOS_ROTA_A.TERMOS_URGENCIA) {
+      if (textoLimpo.includes(termo)) {
+        return { ativa: true, motivo: `Menção a termo crítico: "${termo}".` };
+      }
+    }
+  }
+
+  return { ativa: false };
+}
+
+/**
+ * Verifica se estamos dentro do horário comercial (seg-sex, 8h-18h, fuso de Brasília/Araguaína).
  */
 export function dentroDoHorarioComercial(): boolean {
   const agora = new Date();
-  // Araguaína é UTC-3
   const horaLocal = new Date(agora.getTime() - 3 * 60 * 60 * 1000);
-  const dia = horaLocal.getUTCDay(); // 0=dom, 6=sáb
+  const dia = horaLocal.getUTCDay();
   const hora = horaLocal.getUTCHours();
   return dia >= 1 && dia <= 5 && hora >= 8 && hora < 18;
 }
 
-/**
- * Limite de tentativas inválidas antes de transbordo automático.
- */
 export const MAX_TENTATIVAS_INVALIDAS = 3;
-
-/**
- * Tempo de expiração da sessão (30 minutos de inatividade).
- */
 export const SESSAO_TIMEOUT_MS = 30 * 60 * 1000;

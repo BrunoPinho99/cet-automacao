@@ -2,106 +2,168 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
 import { processarMensagem } from '@/lib/orquestrador-whatsapp';
 
-export async function POST(req: NextRequest) {
+/**
+ * Validação de Webhook da Meta (Handshake GET)
+ */
+export async function GET(req: Request) {
   try {
-    const body = await req.json();
+    const { searchParams } = new URL(req.url);
+    const mode = searchParams.get('hub.mode');
+    const token = searchParams.get('hub.verify_token');
+    const challenge = searchParams.get('hub.challenge');
 
-    // Filtra apenas eventos de novas mensagens recebidas
-    if (body.event === 'messages.upsert') {
+    const expectedToken = process.env.WHATSAPP_VERIFY_TOKEN || 'cet_seguranca_2026';
+
+    if (mode === 'subscribe' && token === expectedToken) {
+      return new Response(challenge || '', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+
+    return new Response('Forbidden', { status: 403 });
+  } catch (error) {
+    console.error('[WhatsApp Webhook GET] Erro de validação:', error);
+    return new Response('Forbidden', { status: 403 });
+  }
+}
+
+/**
+ * Recebimento de Mensagens (POST - Compatível com Meta Cloud API e Evolution API)
+ */
+export async function POST(req: Request) {
+  try {
+    const rawBody = await req.text();
+    let body: any;
+
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Regra absoluta do WhatsApp Webhook: responder 200 OK mesmo com payload mal formatado
+      return new Response(JSON.stringify({ status: 'ok', warning: 'invalid_json' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 1. FORMATO META CLOUD API (whatsapp_business_account)
+    if (body.object === 'whatsapp_business_account' && Array.isArray(body.entry)) {
+      for (const entry of body.entry) {
+        if (!Array.isArray(entry.changes)) continue;
+
+        for (const change of entry.changes) {
+          const val = change.value;
+          if (!val) continue;
+
+          // Se for evento de atualização de status (delivered, sent, read)
+          if (Array.isArray(val.statuses)) {
+            for (const status of val.statuses) {
+              if (status.id && status.status) {
+                await prisma.mensagem
+                  .updateMany({
+                    where: { wamid: status.id },
+                    data: { status: status.status },
+                  })
+                  .catch(() => {});
+              }
+            }
+          }
+
+          // Se for evento de novas mensagens
+          if (Array.isArray(val.messages)) {
+            for (const msg of val.messages) {
+              const sender = msg.from;
+              const wamid = msg.id;
+              let tipoMensagem: 'text' | 'interactive' | 'button' = 'text';
+              let messageText = '';
+              let interactiveId: string | undefined;
+
+              if (msg.type === 'text') {
+                messageText = msg.text?.body || '';
+              } else if (msg.type === 'interactive') {
+                tipoMensagem = 'interactive';
+                if (msg.interactive?.type === 'button_reply') {
+                  tipoMensagem = 'button';
+                  interactiveId = msg.interactive.button_reply?.id;
+                  messageText = msg.interactive.button_reply?.title || '';
+                } else if (msg.interactive?.type === 'list_reply') {
+                  interactiveId = msg.interactive.list_reply?.id;
+                  messageText = msg.interactive.list_reply?.title || '';
+                }
+              }
+
+              if (sender && wamid) {
+                processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId).catch(err => {
+                  console.error('[Meta Webhook] Erro ao processar:', err);
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2. FORMATO EVOLUTION API (messages.upsert)
+    if (body.event === 'messages.upsert' && body.data) {
       const messageData = body.data;
 
       // Ignora mensagens enviadas pelo próprio bot
       if (messageData.key?.fromMe) {
-        return NextResponse.json({ status: 'ignored_from_me' });
+        return new Response(JSON.stringify({ status: 'ignored_from_me' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
-      // Extrai número do remetente (formato: 551199999999@s.whatsapp.net)
       const sender = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '');
-      
-      // Extrai o conteúdo do texto recebido
-      const messageText = 
-        messageData.message?.conversation || 
-        messageData.message?.extendedTextMessage?.text || 
+      const messageText =
+        messageData.message?.conversation ||
+        messageData.message?.extendedTextMessage?.text ||
         '';
-
       const wamid = messageData.key?.id;
 
-      if (messageText && sender && wamid) {
-        // Prevenção de duplicidade por WAMID
-        const mensagemExistente = await prisma.mensagem.findUnique({
-          where: { wamid }
-        });
+      if (sender && wamid) {
+        let tipoMensagem: 'text' | 'interactive' | 'button' = 'text';
+        let interactiveId: string | undefined;
 
-        if (!mensagemExistente) {
-          // Tenta achar o contato. Cria se não existe.
-          let contato = await prisma.contato.findUnique({
-            where: { telefone_e164: sender },
-            include: { leads: { orderBy: { criado_em: 'desc' }, take: 1 } }
-          });
-
-          if (!contato) {
-            contato = await prisma.contato.create({
-              data: {
-                telefone_e164: sender,
-                nome: messageData.pushName || sender,
-              },
-              include: { leads: true }
-            });
-          }
-
-          let leadId = contato.leads && contato.leads.length > 0 ? contato.leads[0].id : null;
-
-          if (!leadId) {
-            const lead = await prisma.lead.create({
-              data: {
-                contato_id: contato.id,
-                canal: 'whatsapp',
-                protocolo: `CET-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000)}`,
-              }
-            });
-            leadId = lead.id;
-          }
-
-          // Cria a mensagem
-          await prisma.mensagem.create({
-            data: {
-              lead_id: leadId,
-              direcao: 'entrada',
-              canal: 'whatsapp',
-              wamid: wamid,
-              conteudo: messageText,
-              status: 'recebido'
-            }
-          });
-
-          // Em vez de usar DomainEvent (Outbox), processa imediatamente via orquestrador
-          // para dar uma resposta instantânea pelo WhatsApp
-          
-          let tipoMensagem: 'text' | 'interactive' | 'button' = 'text';
-          let interactiveId = undefined;
-
-          if (messageData.message?.listResponseMessage) {
-            tipoMensagem = 'interactive';
-            interactiveId = messageData.message.listResponseMessage.singleSelectReply.selectedRowId;
-          } else if (messageData.message?.buttonsResponseMessage) {
-            tipoMensagem = 'button';
-            interactiveId = messageData.message.buttonsResponseMessage.selectedButtonId;
-          } else if (messageData.message?.templateButtonReplyMessage) {
-             tipoMensagem = 'button';
-             interactiveId = messageData.message.templateButtonReplyMessage.selectedId;
-          }
-
-          // Roda em background (não bloqueia o retorno 200 OK para a Evolution)
-          processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId).catch((err) => {
-             console.error('[Orquestrador] Erro ao processar mensagem:', err);
-          });
+        if (messageData.message?.listResponseMessage) {
+          tipoMensagem = 'interactive';
+          interactiveId = messageData.message.listResponseMessage.singleSelectReply?.selectedRowId;
+        } else if (messageData.message?.buttonsResponseMessage) {
+          tipoMensagem = 'button';
+          interactiveId = messageData.message.buttonsResponseMessage.selectedButtonId;
+        } else if (messageData.message?.templateButtonReplyMessage) {
+          tipoMensagem = 'button';
+          interactiveId = messageData.message.templateButtonReplyMessage.selectedId;
         }
+
+        processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId).catch(err => {
+          console.error('[Evolution Webhook] Erro ao processar:', err);
+        });
       }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    return NextResponse.json({ success: true });
+    // Qualquer outro formato reconhecido com 200 OK para evitar repetições desnecessárias
+    return new Response(JSON.stringify({ status: 'ignored' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('Erro ao processar webhook da Evolution API:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    console.error('[WhatsApp Webhook POST] Erro geral:', error);
+    // Sempre responder 200 para webhooks de mensageria
+    return new Response(JSON.stringify({ status: 'ok', handled_error: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
