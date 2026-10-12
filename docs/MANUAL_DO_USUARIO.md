@@ -1,0 +1,102 @@
+# 📘 Manual de Operação do Sistema — CET Automação
+
+Bem-vindo ao manual oficial de operação da plataforma **CET Automação**. Este guia detalha as credenciais de acesso, os perfis de permissão, os fluxos de trabalho e a operação de cada módulo do sistema.
+
+---
+
+## 🔑 1. Credenciais e Logins Disponíveis
+
+A plataforma conta com autenticação segura via Argon2id e controle de acesso baseado em funções (RBAC). 
+
+Acesse a tela de login em:  
+👉 **[https://cet-automacao.vercel.app/login](https://cet-automacao.vercel.app/login)**
+
+### Tabela de Usuários e Senhas
+
+| Nome | E-mail / Usuário | Papel / Perfil | Senhas Aceitas | Permissões |
+| :--- | :--- | :--- | :--- | :--- |
+| **Administrador Geral** | `admin@cet.com.br` *(ou apenas `admin`)* | `admin` | `Bruno080299!`<br>`Cet@2026!Dev`<br>`admin123` | **Acesso Total:** Gestão de leads, edição de regras, auditoria, monitoramento de saúde do sistema e eventos mortos. |
+| **Bruno Pinho (Admin)** | `bruno@cet.com.br` *(ou apenas `bruno`)* | `admin` | `Bruno080299!` | **Acesso Total:** Super Administrador com privilégios completos. |
+| **Equipe Comercial** | `vendas@cet.com.br` *(ou apenas `vendas`)* | `comercial` | `Bruno080299!`<br>`Cet@2026!Dev`<br>`123456` | **Atendimento e Vendas:** Visualização e gestão de leads, acompanhamento da Ficha Inteligente, contato com clientes da Rota A, B e C. |
+
+> 💡 **Dica de Usabilidade:** No campo de e-mail da tela de login, você não precisa digitar `@cet.com.br`. Basta digitar `admin`, `vendas` ou `bruno` que o sistema autocompleta automaticamente!
+
+---
+
+## 🗺️ 2. Módulos do Sistema e Rotas de Navegação
+
+### 1. Painel Administrativo / Dashboard Geral
+- **URL:** [`/admin`](https://cet-automacao.vercel.app/admin) (ou [`/painel`](https://cet-automacao.vercel.app/painel))
+- **O que faz:** Exibe o panorama consolidado do dia:
+  - Total de novos leads recebidos;
+  - Fichas em andamento vs concluídas;
+  - Leads estratégicos da **Rota A** com SLA de 10 minutos;
+  - Faturamento preliminar (Diagnósticos Essencial R$ 19,90 e Completo R$ 29,90).
+
+### 2. Central de Atendimento & Gestão de Leads (CRUD)
+- **URL:** [`/admin/atendimento`](https://cet-automacao.vercel.app/admin/atendimento)
+- **O que faz:** Centro operacional da equipe:
+  - **Listagem Completa:** Visualiza todos os leads gerados via WhatsApp, Instagram ou formulário Web.
+  - **Filtros e Busca em Tempo Real:** Pesquise por Razão Social, Nome Fantasia, CNPJ, Protocolo ou Telefone.
+  - **Criar Lead Manualmente:** Permite cadastrar novos clientes recebidos por telefone fixo ou presencialmente.
+  - **Editar / Atualizar:** Edição de dados cadastrais da empresa (porte, funcionários, grau de risco) e do contato.
+  - **Copiar Link da Ficha:** Botão para copiar o link direto da Ficha Inteligente para enviar ao cliente no WhatsApp.
+  - **Liberar Diagnóstico / Concluir:** Transição manual de status com registro de auditoria.
+
+### 3. Monitoramento de Saúde da Infraestrutura
+- **URL:** [`/admin/saude`](https://cet-automacao.vercel.app/admin/saude)
+- **O que faz:** Monitora em tempo real:
+  - Conexão e latência do banco de dados **PostgreSQL**;
+  - Conexão e filas do **Redis**;
+  - Status dos processos em background (`cet-worker`);
+  - Conectividade dos Webhooks do **Asaas** e **WhatsApp**.
+
+### 4. Dead Letter Queue (Fila de Eventos Mortos)
+- **URL:** [`/admin/eventos/mortos`](https://cet-automacao.vercel.app/admin/eventos/mortos)
+- **O que faz:** Se algum evento falhar (ex: queda momentânea de conexão ao emitir PDF ou webhook externo), o evento é preservado aqui com stack trace e botão de **Reprocessar com 1 Clique**.
+
+---
+
+## 🔄 3. Passo a Passo dos Fluxos Principais
+
+### Fluxo 1: Atendimento via WhatsApp / Instagram (Assistente Digital)
+1. O cliente envia qualquer mensagem no WhatsApp.
+2. A assistente envia a **Abertura Obrigatória com Consentimento LGPD**:
+   > *"Olá! Sou a assistente digital da CET. Vou fazer algumas perguntas rápidas para identificar o que sua empresa precisa e encaminhar você ao setor certo. Seus dados serão usados para atendimento, diagnóstico e proposta. Para continuar, confirme: [CONCORDO] [FALAR COM ATENDENTE]."*
+3. Ao responder `[CONCORDO]` (ou `sim`, `1`), é exibido o **Menu de 6 Opções**:
+   - `1- Quero saber se minha empresa está regular.`
+   - `2- Preciso fazer ou renovar documentos de SST.`
+   - `3- Preciso de ASO ou exames ocupacionais.`
+   - `4- Preciso enviar eSocial SST, PPP ou CAT.`
+   - `5- Já sou cliente e preciso de suporte.`
+   - `6- Quero falar com um especialista.`
+4. Escolhendo as opções **1 a 4**, o sistema gera o protocolo e envia o link exclusivo da **Ficha Inteligente**.
+5. Se o cliente escolher **5**, é transferido para o Suporte. Se escolher **6**, é transferido para um Especialista Humano.
+
+### Fluxo 2: Gatilhos Críticos (Rota A - Transferência Imediata)
+A automação é **interrompida imediatamente** e direcionada a um vendedor sênior (SLA de 10 min) caso:
+- A empresa tenha **100 ou mais trabalhadores**;
+- A empresa tenha **2 ou mais unidades** ou atue em mais de um estado;
+- O cliente mencione **acidente de trabalho, fiscalização, notificação do MTE ou autuação**;
+- O cliente informe necessidade técnica de alta complexidade.
+- **Mensagem enviada:**
+  > *"Pelo porte da empresa, sua análise será personalizada. Um especialista da CET continuará o atendimento. Protocolo: {{protocolo}}."*
+
+### Fluxo 3: Ficha Inteligente & Pagamento Asaas (Rotas B e C)
+1. O cliente preenche a ficha no navegador (sem necessidade de senha).
+2. Ao final, escolhe o diagnóstico:
+   - **Essencial:** R$ 19,90
+   - **Completo:** R$ 29,90
+3. O sistema gera a cobrança segura no Asaas (PIX ou Cartão).
+4. O cliente é informado que:
+   > *"O valor pago pode virar crédito integral na contratação de serviços acima de R$ 500 realizados em até 7 dias."*
+5. Assim que o webhook do Asaas confirma o pagamento (com garantia de idempotência SHA-256):
+   - O worker gera o relatório PDF automaticamente;
+   - O cliente recebe no WhatsApp o link do relatório com a mensagem:
+     > *"Seu diagnóstico está pronto. Prioridade: {{prioridade}}. A CET pode regularizar e aplicar o crédito previsto. [QUERO RESOLVER] [FALAR COM TÉCNICO]"*
+
+---
+
+## 🔒 4. Regras Inegociáveis de LGPD
+- **Nenhum Dado Sensível:** O sistema jamais armazena ou solicita prontuários médicos, resultados de exames individuais ou CID de trabalhadores.
+- **Histórico e Auditoria:** Todas as alterações manuais em leads, trocas de status e acessos administrativos são registrados na tabela `Auditoria`.
