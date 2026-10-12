@@ -514,7 +514,7 @@ export default function FichaPage({
                           Enviando...
                         </div>
                       )}
-                      {respostasBloco[campo.id] && !uploadingFiles[campo.id] && (
+                      {Boolean(respostasBloco[campo.id]) && !uploadingFiles[campo.id] && (
                         <div className="mt-2 text-sm text-emerald-700 bg-emerald-50 p-3 rounded-lg flex items-center justify-between border border-emerald-100">
                           <div className="flex items-center gap-2 overflow-hidden">
                             <span className="text-xl">📄</span>
