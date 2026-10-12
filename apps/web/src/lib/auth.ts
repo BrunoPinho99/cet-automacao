@@ -7,8 +7,9 @@ const key = new TextEncoder().encode(JWT_SECRET);
 const COOKIE_NAME = 'cet_admin_session';
 
 export async function signToken(payload: { userId: string; role: string; email: string }) {
-  return await new SignJWT(payload)
+  return await new SignJWT({ ...payload, sub: payload.userId })
     .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(payload.userId)
     .setIssuedAt()
     .setExpirationTime('8h')
     .sign(key);
@@ -17,7 +18,7 @@ export async function signToken(payload: { userId: string; role: string; email: 
 export async function verifyToken(token: string) {
   try {
     const { payload } = await jwtVerify(token, key);
-    return payload as { userId: string; role: string; email: string; exp?: number; iat?: number };
+    return payload as { userId: string; role: string; email: string; sub?: string; exp?: number; iat?: number };
   } catch (err) {
     return null;
   }
@@ -43,5 +44,12 @@ export async function getSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return await verifyToken(token);
+  const verified = await verifyToken(token);
+  if (!verified) return null;
+  const userId = verified.userId || verified.sub || '';
+  return {
+    ...verified,
+    userId,
+    sub: verified.sub || userId,
+  };
 }

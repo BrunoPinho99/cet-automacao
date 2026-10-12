@@ -1,17 +1,13 @@
 import { prisma } from '@cet/db';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth';
 import AtendimentoClient from './AtendimentoClient';
 
 export default async function AtendimentoPage() {
-  const token = cookies().get('cet_admin_session')?.value;
-  if (!token) redirect('/login');
+  const session = await getSession();
+  if (!session) redirect('/login');
   
-  const payload = await verifyToken(token);
-  if (!payload || !payload.sub) redirect('/login');
-  
-  const usuarioLogadoId = payload.sub;
+  const usuarioLogadoId = session.userId || session.sub;
 
   const leads = await prisma.lead.findMany({
     where: {

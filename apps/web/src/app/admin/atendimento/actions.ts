@@ -6,15 +6,12 @@ import { revalidatePath } from 'next/cache';
 import { registrarAuditoria } from '@/lib/auditoria';
 import { randomUUID } from 'crypto';
 
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 async function getUsuarioLogado() {
-  const token = cookies().get('cet_admin_session')?.value;
-  if (!token) throw new Error('Não autenticado');
-  const payload = await verifyToken(token);
-  if (!payload || !payload.sub) throw new Error('Token inválido');
-  return payload.sub;
+  const session = await getSession();
+  if (!session) throw new Error('Não autenticado');
+  return session.userId || session.sub;
 }
 
 export async function assumirAtendimento(leadId: string) {

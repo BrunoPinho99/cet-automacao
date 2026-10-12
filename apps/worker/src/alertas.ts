@@ -1,8 +1,7 @@
 import { Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { prisma } from '@cet/db';
-import { DomainEvents } from '@cet/shared';
-import { enviarEmail } from '@cet/shared/src/email'; // Assume barrel ou path direto
+import { DomainEvents, enviarEmail } from '@cet/shared';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });

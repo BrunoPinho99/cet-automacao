@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
 import { getRelatoriosQueue, getPloomesQueue } from '@/lib/queues';
 
+import { getSession } from '@/lib/auth';
+
 export async function GET(request: Request) {
-  // Autenticação simples baseada no Header ou sessão gestor
   const role = request.headers.get('role');
   const authHeader = request.headers.get('authorization');
+  const session = await getSession();
   
-  if (role !== 'gestor' && authHeader !== 'Bearer cet-saude-secret') {
-    return NextResponse.json({ error: 'Acesso Negado. Requer nível Gestor.' }, { status: 403 });
+  const isGestor = role === 'gestor' || authHeader === 'Bearer cet-saude-secret' || session?.role === 'admin';
+  
+  if (!isGestor) {
+    return NextResponse.json({ error: 'Acesso Negado. Requer nível Gestor ou Administrador.' }, { status: 403 });
   }
 
   try {

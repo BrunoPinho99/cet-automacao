@@ -44,3 +44,6 @@ playwright-report/
 *.ntvs*
 *.njsproj
 *.sln
+
+# Vercel
+.vercel

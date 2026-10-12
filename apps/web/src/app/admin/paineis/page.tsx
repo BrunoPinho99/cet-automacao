@@ -1,21 +1,17 @@
 import { prisma } from '@cet/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, BarChart3, Users, Briefcase, ShieldAlert, LineChart } from 'lucide-react';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { verifyToken } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { podeAcessarRota } from '@/lib/rbac';
 
 export const revalidate = 60; // Cache for 60 seconds
 
 export default async function PaineisPage() {
-  const token = cookies().get('cet_admin_session')?.value;
-  if (!token) redirect('/login');
-  
-  const payload = await verifyToken(token);
-  if (!payload || !payload.sub) redirect('/login');
+  const session = await getSession();
+  if (!session) redirect('/login');
 
-  if (!podeAcessarRota('/admin/paineis', payload.role)) {
+  if (!podeAcessarRota('/admin/paineis', session.role)) {
     redirect('/admin/forbidden');
   }
 
