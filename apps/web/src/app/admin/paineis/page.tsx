@@ -70,13 +70,13 @@ export default async function PaineisPage() {
   const getMax = (arr: { value: number }[]) => Math.max(...arr.map(a => a.value), 1);
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-        <BarChart3 className="w-8 h-8 text-blue-600" />
+    <div className="space-y-6 w-full">
+      <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <BarChart3 className="w-7 h-7 text-blue-600" />
         Painéis Gerenciais
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         
         {/* Painel de Captação */}
         <Card className="col-span-1 shadow-sm">
