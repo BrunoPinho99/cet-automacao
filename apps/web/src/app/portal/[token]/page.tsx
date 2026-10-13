@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { infoPorte } from '@/lib/porte';
 
 export default function PortalClientePage({
   params,
@@ -111,20 +112,20 @@ export default function PortalClientePage({
             </div>
           </div>
 
-          {/* Rota */}
+          {/* Porte da Empresa */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-            <h2 className="text-lg font-medium text-slate-500 uppercase tracking-wider mb-2">Rota Recomendada</h2>
-            <div className="text-4xl font-black text-blue-600 mb-4">
-              Rota {data.rota?.rota || '-'}
+            <h2 className="text-lg font-medium text-slate-500 uppercase tracking-wider mb-2">Porte da Empresa</h2>
+            <div className="text-3xl font-extrabold text-blue-600 mb-2">
+              {infoPorte(data.rota?.rota).nome}
             </div>
             {data.rota?.gatilho_critico && (
-              <p className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                ⚠️ Identificado gatilho crítico de urgência
+              <p className="text-xs text-blue-700 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 mt-2">
+                Atendimento prioritário indicado para o perfil da empresa
               </p>
             )}
             {!data.rota?.gatilho_critico && (
-              <p className="text-sm text-slate-500 px-3 py-2">
-                Baseado no porte e complexidade da operação
+              <p className="text-xs text-slate-500 px-3 py-2 mt-2">
+                {infoPorte(data.rota?.rota).descricao}
               </p>
             )}
           </div>
@@ -134,7 +135,7 @@ export default function PortalClientePage({
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
           <h2 className="text-xl font-bold text-slate-900 mb-4">Seu Relatório Detalhado</h2>
           <p className="text-slate-600 mb-6">
-            Nossa inteligência artificial gerou um relatório completo com todas as inconformidades e recomendações legais aplicáveis à sua empresa.
+            Nossa equipe técnica de Engenharia e Segurança do Trabalho preparou um diagnóstico com todas as conformidades e recomendações legais aplicáveis à sua empresa.
           </p>
 
           {data.relatorio ? (

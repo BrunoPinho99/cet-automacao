@@ -67,3 +67,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message || 'Erro ao enviar mensagem' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const mensagemId = searchParams.get('mensagemId');
+    const leadId = searchParams.get('leadId');
+
+    if (mensagemId) {
+      await prisma.mensagem.delete({
+        where: { id: mensagemId },
+      });
+      return NextResponse.json({ success: true, message: 'Mensagem apagada com sucesso' });
+    }
+
+    if (leadId) {
+      await prisma.mensagem.deleteMany({
+        where: { lead_id: leadId },
+      });
+      return NextResponse.json({ success: true, message: 'Todas as mensagens do cliente foram apagadas' });
+    }
+
+    return NextResponse.json({ error: 'Informe mensagemId ou leadId' }, { status: 400 });
+  } catch (error: any) {
+    console.error('[DELETE /api/admin/atendimento] Erro:', error);
+    return NextResponse.json({ error: error.message || 'Erro ao apagar mensagem' }, { status: 500 });
+  }
+}
+

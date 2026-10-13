@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { infoPorte, OPCOES_PORTE } from '@/lib/porte';
 
 interface Empresa {
   id: string;
@@ -380,37 +381,37 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
         </div>
       </div>
 
-      {/* Cards de Métricas Responsivos */}
+      {/* Cards de Métricas em Azul, Verde e Branco */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wide truncate">
-            Total de Leads
+            Total de Clientes
           </div>
           <div className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">{metrics.total}</div>
         </div>
-        <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-3.5 sm:p-4 shadow-xs">
-          <div className="text-[11px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wide truncate">
-            Rota A (10 min)
-          </div>
-          <div className="mt-1 text-xl sm:text-2xl font-bold text-purple-900">{metrics.rotaA}</div>
-        </div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3.5 sm:p-4 shadow-xs">
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3.5 sm:p-4 shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-blue-700 uppercase tracking-wide truncate">
-            Rota B (2h)
+            Grande Porte (100+)
           </div>
-          <div className="mt-1 text-xl sm:text-2xl font-bold text-blue-900">{metrics.rotaB}</div>
+          <div className="mt-1 text-xl sm:text-2xl font-bold text-blue-900">{metrics.rotaA}</div>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3.5 sm:p-4 shadow-xs">
+        <div className="rounded-xl border border-blue-100 bg-white p-3.5 sm:p-4 shadow-xs">
+          <div className="text-[11px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wide truncate">
+            Médio Porte (20 a 99)
+          </div>
+          <div className="mt-1 text-xl sm:text-2xl font-bold text-slate-800">{metrics.rotaB}</div>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 sm:p-4 shadow-xs">
           <div className="text-[11px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wide truncate">
-            Rota C (Digital)
+            Pequeno Porte (até 19)
           </div>
           <div className="mt-1 text-xl sm:text-2xl font-bold text-emerald-900">{metrics.rotaC}</div>
         </div>
-        <div className="col-span-2 sm:col-span-1 xl:col-span-1 rounded-xl border border-amber-100 bg-amber-50/50 p-3.5 sm:p-4 shadow-xs">
-          <div className="text-[11px] sm:text-xs font-semibold text-amber-700 uppercase tracking-wide truncate">
+        <div className="col-span-2 sm:col-span-1 xl:col-span-1 rounded-xl border border-emerald-100 bg-white p-3.5 sm:p-4 shadow-xs">
+          <div className="text-[11px] sm:text-xs font-semibold text-emerald-700 uppercase tracking-wide truncate">
             Pagos / Fechados
           </div>
-          <div className="mt-1 text-xl sm:text-2xl font-bold text-amber-900">{metrics.pagos}</div>
+          <div className="mt-1 text-xl sm:text-2xl font-bold text-emerald-800">{metrics.pagos}</div>
         </div>
       </div>
 
@@ -422,7 +423,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar Empresa, CNPJ, Contato, Protocolo..."
+            placeholder="Buscar por Empresa, CNPJ, Contato, Telefone..."
             className="w-full rounded-lg border border-slate-300 pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:outline-hidden focus:ring-1 focus:ring-blue-600"
           />
           {searchTerm && (
@@ -437,27 +438,27 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600">
-            <span className="text-[11px] font-semibold uppercase text-slate-400">Rota:</span>
+            <span className="text-[11px] font-semibold uppercase text-slate-500">Porte da Empresa:</span>
             <select
               value={rotaFilter}
               onChange={(e) => setRotaFilter(e.target.value)}
               className="rounded-lg border border-slate-300 py-1.5 px-2.5 text-xs sm:text-sm text-slate-800 focus:border-blue-600 focus:outline-hidden bg-white"
             >
-              <option value="todas">Todas</option>
-              <option value="A">Rota A</option>
-              <option value="B">Rota B</option>
-              <option value="C">Rota C</option>
+              <option value="todas">Todos os portes</option>
+              <option value="A">Grande porte (100+ func.)</option>
+              <option value="B">Médio porte (20 a 99 func.)</option>
+              <option value="C">Pequeno porte (até 19 func.)</option>
             </select>
           </div>
 
           <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600">
-            <span className="text-[11px] font-semibold uppercase text-slate-400">Status:</span>
+            <span className="text-[11px] font-semibold uppercase text-slate-500">Pagamento:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="rounded-lg border border-slate-300 py-1.5 px-2.5 text-xs sm:text-sm text-slate-800 focus:border-blue-600 focus:outline-hidden bg-white"
             >
-              <option value="todos">Todos</option>
+              <option value="todos">Todos os status</option>
               <option value="pago">Pago / Confirmado</option>
               <option value="pendente">Pendente</option>
             </select>
@@ -473,8 +474,8 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
               <tr>
                 <th scope="col" className="py-3.5 pl-4 sm:pl-6 pr-3 min-w-[220px]">Empresa / CNPJ</th>
                 <th scope="col" className="px-3 py-3.5 min-w-[180px]">Contato</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[140px]">Porte & Cidade</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[110px]">Rota SST</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[140px]">Funcionários & Local</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[140px]">Porte da Empresa</th>
                 <th scope="col" className="px-3 py-3.5 min-w-[120px]">Pagamento</th>
                 <th scope="col" className="py-3.5 pl-3 pr-4 sm:pr-6 text-right min-w-[140px]">Ações</th>
               </tr>
@@ -540,21 +541,26 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                         </div>
                       </td>
 
-                      {/* Rota SST */}
+                      {/* Porte da Empresa */}
                       <td className="px-3 py-3.5 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            rota === 'A'
-                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                              : rota === 'B'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                              : rota === 'C'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          Rota {rota}
-                        </span>
+                        {(() => {
+                          const p = infoPorte(rota);
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                rota === 'A'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : rota === 'B'
+                                  ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                                  : rota === 'C'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              {p.nome}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Pagamento */}
@@ -782,24 +788,26 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                   </div>
                 </div>
 
-                {/* Seção 3: Classificação SST */}
+                {/* Seção 3: Porte da Empresa e Pagamento */}
                 <div>
                   <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2.5">
-                    3. Classificação e Triagem Comercial
+                    3. Porte da Empresa e Pagamento
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Rota Atribuída
+                        Porte da Empresa
                       </label>
                       <select
                         value={formData.rota}
                         onChange={(e) => setFormData({ ...formData, rota: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs sm:text-sm focus:border-blue-600 focus:outline-hidden bg-white"
                       >
-                        <option value="A">Rota A (Prioridade / 10 min)</option>
-                        <option value="B">Rota B (Média / 2h)</option>
-                        <option value="C">Rota C (Digital)</option>
+                        {OPCOES_PORTE.map((op) => (
+                          <option key={op.valor} value={op.valor}>
+                            {op.rotulo}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -885,7 +893,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
 
                 {/* Empresa */}
                 <div>
-                  <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2.5">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2.5">
                     1. Dados da Empresa
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -978,7 +986,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
 
                 {/* Contato */}
                 <div>
-                  <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2.5">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2.5">
                     2. Dados do Contato
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1018,24 +1026,26 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                   </div>
                 </div>
 
-                {/* Rota & Pagamento */}
+                {/* Porte & Pagamento */}
                 <div>
-                  <h3 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2.5">
-                    3. Rota & Pagamento
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2.5">
+                    3. Porte da Empresa e Pagamento
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Rota SST
+                        Porte da Empresa
                       </label>
                       <select
                         value={formData.rota}
                         onChange={(e) => setFormData({ ...formData, rota: e.target.value })}
                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs sm:text-sm focus:border-blue-600 focus:outline-hidden bg-white"
                       >
-                        <option value="A">Rota A (Prioritária)</option>
-                        <option value="B">Rota B (Média)</option>
-                        <option value="C">Rota C (Digital)</option>
+                        {OPCOES_PORTE.map((op) => (
+                          <option key={op.valor} value={op.valor}>
+                            {op.rotulo}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1094,7 +1104,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                 ({selectedLead.protocolo})?
               </p>
               <p className="text-xs text-red-600 mt-2 bg-red-50 p-2.5 rounded-lg border border-red-100">
-                Esta ação apagará fichas, rotas, relatórios e mensagens vinculadas a este lead.
+                Esta ação apagará fichas, histórico, relatórios e mensagens vinculadas a este lead.
               </p>
             </div>
 

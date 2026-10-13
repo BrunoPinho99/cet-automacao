@@ -4,6 +4,7 @@ import { Activity, BarChart3, Users, Briefcase, ShieldAlert, LineChart } from 'l
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { podeAcessarRota } from '@/lib/rbac';
+import { infoPorte } from '@/lib/porte';
 
 export const revalidate = 60; // Cache for 60 seconds
 
@@ -46,7 +47,7 @@ export default async function PaineisPage() {
   // Process data for charts
   const leadData = leadsPorCanal.map(l => ({ name: l.canal, value: l._count.id }));
   const fichaData = fichasPorStatus.map(f => ({ name: f.status, value: f._count.id }));
-  const rotaData = rotas.map(r => ({ name: r.rota_completa, value: r._count.id }));
+  const rotaData = rotas.map(r => ({ name: infoPorte(r.rota_completa).nome, value: r._count.id }));
   const sstData = scoresSST.map(s => ({ name: s.classificacao, value: s._count.id }));
 
   const totalValor = somaValores._sum.valor_estimado ? (somaValores._sum.valor_estimado / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00';
@@ -108,7 +109,7 @@ export default async function PaineisPage() {
         <Card className="col-span-1 shadow-sm">
           <CardHeader className="bg-slate-50 border-b pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-amber-500" />
+              <Briefcase className="w-5 h-5 text-blue-600" />
               Comercial
             </CardTitle>
           </CardHeader>
@@ -117,8 +118,8 @@ export default async function PaineisPage() {
               <p className="text-sm text-gray-500 font-medium">Pipeline (Estimado)</p>
               <p className="text-2xl font-bold text-gray-900">{totalValor}</p>
             </div>
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-1">Rotas Definidas</h4>
-            {rotaData.length > 0 ? rotaData.map(d => renderBar(d.name, d.value, getMax(rotaData), 'bg-amber-500')) : <p className="text-gray-500 text-sm">Sem dados</p>}
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 border-b pb-1">Porte das Empresas</h4>
+            {rotaData.length > 0 ? rotaData.map(d => renderBar(d.name, d.value, getMax(rotaData), 'bg-blue-600')) : <p className="text-gray-500 text-sm">Sem dados</p>}
           </CardContent>
         </Card>
 

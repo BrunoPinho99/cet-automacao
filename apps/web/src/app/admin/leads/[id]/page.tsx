@@ -2,6 +2,7 @@ import { prisma } from '@cet/db';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Actions } from './actions-client';
+import { infoPorte } from '@/lib/porte';
 
 export default async function LeadDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -132,19 +133,26 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
               </dd>
             </div>
             <div className="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-slate-500">Rota Designada</dt>
+              <dt className="text-sm font-medium text-slate-500">Porte da Empresa</dt>
               <dd className="mt-1 text-sm sm:col-span-2 sm:mt-0">
-                <span
-                  className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
-                    ficha?.rota?.rota === 'A'
-                      ? 'bg-purple-100 text-purple-800'
-                      : ficha?.rota?.rota === 'B'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-emerald-100 text-emerald-800'
-                  }`}
-                >
-                  Rota {ficha?.rota?.rota || 'Pendente'} ({ficha?.rota?.sla_minutos || 0} min SLA)
-                </span>
+                {(() => {
+                  const p = infoPorte(ficha?.rota?.rota);
+                  return (
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold ${
+                        ficha?.rota?.rota === 'A'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                          : ficha?.rota?.rota === 'B'
+                          ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                          : ficha?.rota?.rota === 'C'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {p.nome} — {p.descricao} ({p.prazo})
+                    </span>
+                  );
+                })()}
               </dd>
             </div>
             <div className="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">

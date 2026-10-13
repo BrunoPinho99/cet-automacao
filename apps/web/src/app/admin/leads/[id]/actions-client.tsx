@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { requestRegerarPdf, requestSincroniaPloomes } from './actions';
+import { OPCOES_PORTE } from '@/lib/porte';
 
 interface ActionsProps {
   leadId: string;
@@ -238,15 +239,17 @@ export function Actions({ leadId, empresaId, pedidoId, leadData }: ActionsProps)
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Rota SST</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Porte da Empresa</label>
                   <select
                     value={editForm.rota}
                     onChange={(e) => setEditForm({ ...editForm, rota: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none bg-white"
                   >
-                    <option value="A">Rota A (Prioritária / 10 min)</option>
-                    <option value="B">Rota B (Média / 2h)</option>
-                    <option value="C">Rota C (Digital)</option>
+                    {OPCOES_PORTE.map((op) => (
+                      <option key={op.valor} value={op.valor}>
+                        {op.rotulo}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

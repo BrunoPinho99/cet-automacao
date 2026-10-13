@@ -122,3 +122,22 @@ export async function limparDadosDemoAction() {
 
   return { success: true, message: 'Dados de demonstração removidos com sucesso. O sistema está 100% real.' };
 }
+
+export async function excluirMensagemAction(mensagemId: string) {
+  await getUsuarioLogado();
+  await prisma.mensagem.delete({
+    where: { id: mensagemId },
+  });
+  revalidatePath('/admin/atendimento');
+  return { success: true };
+}
+
+export async function limparMensagensDoLeadAction(leadId: string) {
+  await getUsuarioLogado();
+  await prisma.mensagem.deleteMany({
+    where: { lead_id: leadId },
+  });
+  revalidatePath('/admin/atendimento');
+  return { success: true };
+}
+
