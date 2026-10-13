@@ -11,7 +11,7 @@ export async function signToken(payload: { userId: string; role: string; email: 
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.userId)
     .setIssuedAt()
-    .setExpirationTime('8h')
+    .setExpirationTime('7d')
     .sign(key);
 }
 
@@ -31,7 +31,7 @@ export async function createSessionCookie(token: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 8, // 8 hours
+    maxAge: 60 * 60 * 24 * 7, // 7 dias
   });
 }
 

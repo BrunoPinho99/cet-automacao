@@ -15,7 +15,18 @@ interface AdminLayoutClientProps {
 
 export function AdminLayoutClient({ session, children }: AdminLayoutClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/login';
+    }
+  };
 
   const navItems = [
     { name: 'Leads e Clientes', href: '/admin', icon: '📋' },
@@ -119,12 +130,14 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
               >
                 <span>←</span> Início do Sistema
               </Link>
-              <Link
-                href="/api/auth/logout"
-                className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 pt-2 border-t border-slate-200"
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full text-left flex items-center gap-2 text-sm text-red-600 hover:text-red-700 pt-2 border-t border-slate-200 cursor-pointer"
               >
-                <span>🚪</span> Sair da Conta
-              </Link>
+                <span>🚪</span> {loggingOut ? 'Saindo...' : 'Sair da Conta'}
+              </button>
             </div>
           </div>
         </div>
@@ -181,12 +194,14 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
             >
               <span>←</span> Início do Sistema
             </Link>
-            <Link
-              href="/api/auth/logout"
-              className="text-sm font-medium text-red-600 hover:text-red-800 flex items-center gap-2 pt-2 border-t border-slate-200"
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full text-left text-sm font-medium text-red-600 hover:text-red-800 flex items-center gap-2 pt-2 border-t border-slate-200 cursor-pointer"
             >
-              <span>🚪</span> Sair da Conta
-            </Link>
+              <span>🚪</span> {loggingOut ? 'Saindo...' : 'Sair da Conta'}
+            </button>
           </div>
         </div>
       </aside>
