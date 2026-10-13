@@ -51,43 +51,59 @@ export default function AdminSaudePage() {
 
   return (
     <div className="space-y-6 w-full">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header SaaS 2026 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <span>💓</span> Saúde do Sistema & Filas
-          </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-            Monitoramento em tempo real do banco de dados, filas BullMQ e orquestrador de eventos.
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-200/60">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+              Saúde do Sistema & Filas
+            </h1>
+          </div>
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+            Monitoramento em tempo real do banco de dados PostgreSQL, filas BullMQ e eventos outbox.
           </p>
         </div>
+
         <div className="flex items-center gap-3">
-          <span className="text-[11px] text-slate-400 font-mono">
-            Última checagem: {lastUpdated.toLocaleTimeString('pt-BR')}
+          <span className="text-[11px] text-slate-400 font-mono tabular-nums">
+            Última verificação: {lastUpdated.toLocaleTimeString('pt-BR')}
           </span>
           <button
             type="button"
             onClick={carregarSaude}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium text-slate-700 shadow-xs hover:bg-slate-50 transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition disabled:opacity-50"
           >
-            <span>{loading ? '⏳' : '🔄'}</span> Atualizar
+            <svg
+              className={`w-3.5 h-3.5 text-blue-600 ${loading ? 'animate-spin' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>{loading ? 'Atualizando...' : 'Atualizar'}</span>
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs sm:text-sm text-red-700 font-medium">
-          ⚠️ {error}
+        <div className="rounded-xl border border-red-200 bg-red-50/80 p-4 text-xs sm:text-sm text-red-700 font-medium flex items-center justify-between">
+          <span>{error}</span>
         </div>
       )}
 
       {/* Grid de Indicadores de Infraestrutura */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Banco de Dados PostgreSQL */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
               PostgreSQL
             </span>
             <span
@@ -96,118 +112,132 @@ export default function AdminSaudePage() {
               }`}
             />
           </div>
-          <div className="mt-2 text-xl sm:text-2xl font-bold text-slate-900 capitalize">
+          <div className="mt-3 text-2xl font-bold text-slate-900 capitalize tracking-tight">
             {data?.banco_dados || 'Verificando...'}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
-            Fonte da verdade para leads, empresas e auditoria
+            Armazenamento seguro de cadastros e dados de clientes
           </p>
         </div>
 
         {/* SLA Médio de Processamento */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              SLA Médio (Outbox)
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              SLA Médio
             </span>
-            <span className="text-base">⚡</span>
+            <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
           </div>
-          <div className="mt-2 text-xl sm:text-2xl font-bold text-slate-900">
+          <div className="mt-3 text-2xl font-bold text-slate-900 tabular-nums tracking-tight">
             {data?.sla ? `${data.sla.tempo_medio_processamento_ms} ms` : '-'}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
-            Tempo médio da geração ao envio assíncrono
+            Tempo médio da geração de eventos
           </p>
         </div>
 
         {/* Eventos Pendentes */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Eventos Pendentes
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              Pendentes
             </span>
-            <span className="text-base">📦</span>
+            <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
           </div>
-          <div className="mt-2 text-xl sm:text-2xl font-bold text-slate-900">
+          <div className="mt-3 text-2xl font-bold text-slate-900 tabular-nums tracking-tight">
             {data?.outbox?.pending_events ?? 0}
           </div>
           <p className="mt-1 text-[11px] text-slate-500">
-            Aguardando processamento na fila
+            Eventos na fila de processamento
           </p>
         </div>
 
         {/* Fila Morta (DLQ) */}
         <div
-          className={`rounded-xl border p-4 shadow-xs ${
+          className={`rounded-2xl border p-5 shadow-xs ${
             (data?.outbox?.dead_events || 0) > 0
-              ? 'border-red-200 bg-red-50/60'
-              : 'border-slate-200 bg-white'
+              ? 'border-red-200 bg-red-50/50'
+              : 'border-slate-200/90 bg-white'
           }`}
         >
           <div className="flex items-center justify-between">
             <span
-              className={`text-xs font-semibold uppercase tracking-wide ${
-                (data?.outbox?.dead_events || 0) > 0 ? 'text-red-700' : 'text-slate-500'
+              className={`text-xs font-semibold uppercase tracking-wider ${
+                (data?.outbox?.dead_events || 0) > 0 ? 'text-red-700' : 'text-slate-400'
               }`}
             >
-              Fila Morta (DLQ)
+              Fila de Exceções
             </span>
-            <span className="text-base">⚠️</span>
+            <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+              (data?.outbox?.dead_events || 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-50 text-emerald-600'
+            }`}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
           </div>
           <div
-            className={`mt-2 text-xl sm:text-2xl font-bold ${
+            className={`mt-3 text-2xl font-bold tabular-nums tracking-tight ${
               (data?.outbox?.dead_events || 0) > 0 ? 'text-red-700' : 'text-slate-900'
             }`}
           >
             {data?.outbox?.dead_events ?? 0}
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-[11px] text-slate-500">Eventos falhos</span>
+            <span className="text-[11px] text-slate-500">Eventos não entregues</span>
             {(data?.outbox?.dead_events || 0) > 0 && (
               <Link
                 href="/admin/eventos/mortos"
                 className="text-[11px] font-semibold text-red-700 underline hover:text-red-900"
               >
-                Ver e Reprocessar →
+                Reprocessar →
               </Link>
             )}
           </div>
         </div>
       </div>
 
-      {/* Detalhamento das Filas BullMQ / Redis */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-        <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-          Filas de Processamento Assíncrono (BullMQ / Redis)
+      {/* Detalhamento das Filas Assíncronas */}
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs space-y-4">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          Filas de Processamento em Background
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Fila Relatórios */}
-          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="font-semibold text-xs text-slate-800">
-                📄 Fila de Geração de Relatórios SST (Puppeteer)
+                Geração de Relatórios e Fichas
               </span>
-              <span className="text-[11px] font-mono text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
-                Ativo
+              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full font-semibold">
+                Operacional
               </span>
             </div>
             {typeof data?.filas.relatorios === 'object' && data?.filas.relatorios ? (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Aguardando</div>
-                  <div className="font-bold text-slate-900 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Aguardando</div>
+                  <div className="font-bold text-slate-900 text-sm mt-0.5 tabular-nums">
                     {data.filas.relatorios.waiting ?? 0}
                   </div>
                 </div>
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Processando</div>
-                  <div className="font-bold text-blue-600 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Executando</div>
+                  <div className="font-bold text-blue-600 text-sm mt-0.5 tabular-nums">
                     {data.filas.relatorios.active ?? 0}
                   </div>
                 </div>
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Concluídos</div>
-                  <div className="font-bold text-emerald-600 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Concluídos</div>
+                  <div className="font-bold text-emerald-600 text-sm mt-0.5 tabular-nums">
                     {data.filas.relatorios.completed ?? 0}
                   </div>
                 </div>
@@ -220,32 +250,32 @@ export default function AdminSaudePage() {
           </div>
 
           {/* Fila Ploomes */}
-          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="font-semibold text-xs text-slate-800">
-                🔄 Fila de Sincronização Ploomes CRM
+                Sincronização CRM Corporativo
               </span>
-              <span className="text-[11px] font-mono text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
-                Ativo
+              <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full font-semibold">
+                Operacional
               </span>
             </div>
             {typeof data?.filas.ploomes === 'object' && data?.filas.ploomes ? (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Aguardando</div>
-                  <div className="font-bold text-slate-900 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Aguardando</div>
+                  <div className="font-bold text-slate-900 text-sm mt-0.5 tabular-nums">
                     {data.filas.ploomes.waiting ?? 0}
                   </div>
                 </div>
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Processando</div>
-                  <div className="font-bold text-blue-600 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Executando</div>
+                  <div className="font-bold text-blue-600 text-sm mt-0.5 tabular-nums">
                     {data.filas.ploomes.active ?? 0}
                   </div>
                 </div>
-                <div className="bg-white p-2 rounded-md border border-slate-200">
-                  <div className="text-slate-400 text-[10px] uppercase">Concluídos</div>
-                  <div className="font-bold text-emerald-600 text-sm">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-medium">Concluídos</div>
+                  <div className="font-bold text-emerald-600 text-sm mt-0.5 tabular-nums">
                     {data.filas.ploomes.completed ?? 0}
                   </div>
                 </div>
