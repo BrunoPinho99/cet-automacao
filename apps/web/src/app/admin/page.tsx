@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminLeadsPage() {
   const leadsRaw = await prisma.lead.findMany({
     orderBy: { criado_em: 'desc' },
+    take: 100,
     include: {
       empresa: true,
       contato: true,
