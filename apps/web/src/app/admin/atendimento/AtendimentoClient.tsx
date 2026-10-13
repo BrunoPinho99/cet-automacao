@@ -258,7 +258,7 @@ export default function AtendimentoClient({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-115px)] min-h-[600px] max-h-[940px] w-full">
+    <div className="flex flex-col h-[calc(100vh-145px)] sm:h-[calc(100vh-135px)] lg:h-[calc(100vh-125px)] min-h-[560px] w-full">
       {/* Topbar do Módulo de Atendimento — SaaS 2026 */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-white border border-slate-200/90 rounded-t-xl shrink-0 shadow-xs">
         <div className="flex items-center gap-3">
