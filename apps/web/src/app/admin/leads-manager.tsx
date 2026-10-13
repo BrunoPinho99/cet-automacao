@@ -98,8 +98,11 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
     setTimeout(() => setToastMessage(''), 4000);
   };
 
+  const [loading, setLoading] = useState(false);
+
   // Atualizar lista a partir do servidor
   const refreshLeads = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/admin/leads');
       const data = await res.json();
@@ -108,6 +111,8 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
       }
     } catch (e) {
       console.error('Erro ao recarregar leads:', e);
+    } finally {
+      setLoading(false);
     }
   };
 

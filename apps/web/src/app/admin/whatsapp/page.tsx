@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 
 export default function WhatsAppConnectionPage() {
-  const [status, setStatus] = useState<'loading' | 'open' | 'connecting' | 'disconnected' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'open' | 'connecting' | 'disconnected' | 'close' | 'error'>('loading');
   const [qrcode, setQrcode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
