@@ -109,4 +109,42 @@ describe('Fluxo Conversacional', () => {
       expect(typeof resultado).toBe('boolean');
     });
   });
+
+  describe('Gatilhos de Ativação e Humanização', () => {
+    it('deve ativar com saudações comuns e termos de SST', async () => {
+      const { verificarGatilhoAtivacao } = await import('../src/lib/fluxo-conversa');
+      expect(verificarGatilhoAtivacao('Oi')).toBe(true);
+      expect(verificarGatilhoAtivacao('Olá, tudo bem?')).toBe(true);
+      expect(verificarGatilhoAtivacao('Bom dia!')).toBe(true);
+      expect(verificarGatilhoAtivacao('Quero um orçamento de PGR e PCMSO')).toBe(true);
+      expect(verificarGatilhoAtivacao('Preciso de ASO admissional')).toBe(true);
+      expect(verificarGatilhoAtivacao('eSocial')).toBe(true);
+      expect(verificarGatilhoAtivacao('1')).toBe(true);
+      expect(verificarGatilhoAtivacao('6')).toBe(true);
+    });
+
+    it('não deve ativar com mensagens aleatórias ou spam', async () => {
+      const { verificarGatilhoAtivacao } = await import('../src/lib/fluxo-conversa');
+      expect(verificarGatilhoAtivacao('onde você está?')).toBe(false);
+      expect(verificarGatilhoAtivacao('vamos almoçar hoje')).toBe(false);
+      expect(verificarGatilhoAtivacao('kkk')).toBe(false);
+      expect(verificarGatilhoAtivacao('')).toBe(false);
+    });
+
+    it('mensagens não devem conter colchetes de botões simulados', () => {
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).not.toContain('[CONCORDO]');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).not.toContain('[FALAR COM ATENDENTE]');
+      expect(MENSAGENS.FICHA_INCOMPLETA).not.toContain('[CONTINUAR]');
+      expect(MENSAGENS.FICHA_INCOMPLETA).not.toContain('[FALAR COM ESPECIALISTA]');
+    });
+
+    it('abertura deve conter opções numéricas de 1 a 6', () => {
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('1 -');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('2 -');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('3 -');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('4 -');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('5 -');
+      expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('6 -');
+    });
+  });
 });

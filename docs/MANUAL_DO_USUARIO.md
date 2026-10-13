@@ -60,18 +60,27 @@ Acesse a tela de login em:
 ## 🔄 3. Passo a Passo dos Fluxos Principais
 
 ### Fluxo 1: Atendimento via WhatsApp / Instagram (Assistente Digital)
-1. O cliente envia qualquer mensagem no WhatsApp.
-2. A assistente envia a **Abertura Obrigatória com Consentimento LGPD**:
-   > *"Olá! Sou a assistente digital da CET. Vou fazer algumas perguntas rápidas para identificar o que sua empresa precisa e encaminhar você ao setor certo. Seus dados serão usados para atendimento, diagnóstico e proposta. Para continuar, confirme: [CONCORDO] [FALAR COM ATENDENTE]."*
-3. Ao responder `[CONCORDO]` (ou `sim`, `1`), é exibido o **Menu de 6 Opções**:
-   - `1- Quero saber se minha empresa está regular.`
-   - `2- Preciso fazer ou renovar documentos de SST.`
-   - `3- Preciso de ASO ou exames ocupacionais.`
-   - `4- Preciso enviar eSocial SST, PPP ou CAT.`
-   - `5- Já sou cliente e preciso de suporte.`
-   - `6- Quero falar com um especialista.`
-4. Escolhendo as opções **1 a 4**, o sistema gera o protocolo e envia o link exclusivo da **Ficha Inteligente**.
-5. Se o cliente escolher **5**, é transferido para o Suporte. Se escolher **6**, é transferido para um Especialista Humano.
+1. **Gatilho de Ativação:** O robô só é ativado se a mensagem contiver saudações amigáveis (*oi, olá, bom dia, boa tarde...*), termos comerciais/SST (*orçamento, proposta, PGR, PCMSO, ASO, eSocial, laudo...*) ou números diretos de 1 a 6. Mensagens aleatórias, spam, stickers ou áudios avulsos não ativam o bot, evitando conversas desnecessárias.
+2. A assistente envia a **Abertura Humanizada com Consentimento LGPD e Opções Numéricas**:
+   > *"Olá! Tudo bem? Seja muito bem-vindo(a) à CET – Segurança e Medicina do Trabalho! 😊
+   >
+   > Estou aqui para te ajudar e agilizar o seu atendimento.
+   >
+   > Por favor, digite o número da opção que melhor descreve o que você precisa hoje:
+   > 
+   > 1 - Saber se minha empresa está regular perante o Ministério do Trabalho
+   > 2 - Fazer ou renovar documentos de SST (PGR, PCMSO, LTCAT)
+   > 3 - Exames ocupacionais e ASO (Admissional, Periódico, Demissional)
+   > 4 - Envio de eSocial SST, PPP ou emissão de CAT
+   > 5 - Já sou cliente da CET e preciso de suporte
+   > 6 - Falar diretamente com um de nossos consultores
+   > 
+   > _(Ao responder, você autoriza o uso dos dados para atendimento e proposta, conforme a LGPD)._"*
+3. O cliente escolhe digitando simplesmente o número correspondente (**1 a 6**):
+   - **Opções 1 a 4:** A assistente pede gentilmente o nome completo, cria o Lead, gera o protocolo rastreável e envia o link exclusivo da **Ficha Inteligente** para preenchimento ágil no celular.
+   - **Opção 5:** Encaminha com acolhimento para a equipe de suporte ao cliente existente.
+   - **Opção 6:** Transfere suavemente para um consultor especialista humano (com protocolo).
+4. **Regra de Silêncio do Robô:** Se um atendente humano assumir a conversa no painel ou se for acionado transbordo, o robô permanece 100% em silêncio para não atrapalhar a conversa humana.
 
 ### Fluxo 2: Gatilhos Críticos (Rota A - Transferência Imediata)
 A automação é **interrompida imediatamente** e direcionada a um vendedor sênior (SLA de 10 min) caso:

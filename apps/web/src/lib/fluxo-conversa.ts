@@ -29,66 +29,140 @@ export interface ContextoConversa {
   ultima_interacao: Date;
 }
 
-// Mensagens EXATAS padronizadas da Assistente Digital CET
-export const MENSAGENS = {
-  // 1. Abertura Obrigatória (LGPD + Consentimento)
-  ABERTURA_OBRIGATORIA: `Olá! Sou a assistente digital da CET. Vou fazer algumas perguntas rápidas para identificar o que sua empresa precisa e encaminhar você ao setor certo. Seus dados serão usados para atendimento, diagnóstico e proposta. Para continuar, confirme: [CONCORDO] [FALAR COM ATENDENTE].`,
+// Palavras e padrões que ativam o atendimento inicial (evita conversas aleatórias/spam)
+export const GATILHOS_ATIVACAO = [
+  // Saudações comuns
+  'oi', 'ola', 'olá', 'opa', 'bom dia', 'boa tarde', 'boa noite', 'e ai', 'e aí', 'fala', 'salve', 'hello', 'hi',
+  // Comerciais e Atendimento
+  'atendimento', 'orcamento', 'orçamento', 'proposta', 'tabela', 'preco', 'preço', 'valor', 'valores', 'custo',
+  // Termos SST e serviços CET
+  'cet', 'sst', 'seguranca', 'segurança', 'medicina', 'trabalho', 'empresa', 'cnpj',
+  'pgr', 'pcmso', 'ltcat', 'lip', 'aso', 'exame', 'exames', 'laudo', 'laudos',
+  'esocial', 'ppp', 'cat', 'nr', 'treinamento', 'treinamentos', 'regularizar', 'regular',
+  'renovar', 'consultoria', 'consultor', 'especialista', 'suporte', 'ajuda', 'duvida', 'dúvida',
+  'preciso', 'gostaria', 'quero', 'informacao', 'informação', 'contato', 'cotacao', 'cotação',
+  // Números diretos de opção
+  '1', '2', '3', '4', '5', '6',
+];
 
-  // 2. Menu de Triagem Inicial (Exato 1 a 6)
-  MENU_TRIAGEM: `1- Quero saber se minha empresa está regular.
-2- Preciso fazer ou renovar documentos de SST.
-3- Preciso de ASO ou exames ocupacionais.
-4- Preciso enviar eSocial SST, PPP ou CAT.
-5- Já sou cliente e preciso de suporte.
-6- Quero falar com um especialista.`,
+export function verificarGatilhoAtivacao(texto: string): boolean {
+  if (!texto || typeof texto !== 'string') return false;
+  const t = texto.toLowerCase().trim();
+
+  // Opção numérica isolada de 1 a 6
+  if (/^[1-6]$/.test(t)) return true;
+
+  return GATILHOS_ATIVACAO.some((g) => {
+    if (g.length <= 3) {
+      const regex = new RegExp(`(^|\\W)${g}(\\W|$)`, 'i');
+      return regex.test(t);
+    }
+    return t.includes(g);
+  });
+}
+
+// Mensagens Humanizadas e Acolhedoras da CET (Sem botões, opções numéricas)
+export const MENSAGENS = {
+  // 1. Abertura Humanizada (com opções de 1 a 6 e consentimento integrado de forma amigável)
+  ABERTURA_OBRIGATORIA: `Olá! Tudo bem? Seja muito bem-vindo(a) à CET – Segurança e Medicina do Trabalho! 😊
+
+Estou aqui para te ajudar e agilizar o seu atendimento.
+
+Por favor, digite o número da opção que melhor descreve o que você precisa hoje:
+
+1 - Saber se minha empresa está regular perante o Ministério do Trabalho
+2 - Fazer ou renovar documentos de SST (PGR, PCMSO, LTCAT)
+3 - Exames ocupacionais e ASO (Admissional, Periódico, Demissional)
+4 - Envio de eSocial SST, PPP ou emissão de CAT
+5 - Já sou cliente da CET e preciso de suporte
+6 - Falar diretamente com um de nossos consultores
+
+_(Ao responder, você autoriza o uso dos dados para atendimento e proposta, conforme a LGPD)._`,
+
+  // 2. Menu de Opções
+  MENU_TRIAGEM: `Por favor, digite o número da opção desejada:
+
+1 - Regularidade da empresa
+2 - Fazer ou renovar documentos de SST (PGR/PCMSO)
+3 - Exames ocupacionais e ASO
+4 - eSocial SST, PPP ou CAT
+5 - Já sou cliente (suporte)
+6 - Falar com especialista`,
 
   // Pedido de Nome (para personalizar o atendimento e ficha)
-  PEDIR_NOME: `Para iniciarmos seu cadastro, por favor informe seu *nome completo*:`,
+  PEDIR_NOME: `Perfeito! Para que a nossa equipe possa preparar sua análise e gerar seu protocolo, qual é o seu *nome completo*?`,
 
   // Pergunta de intenção complementar (compatibilidade)
   PEDIR_INTENCAO: `Qual é a principal necessidade da sua empresa hoje, {{nome}}?`,
 
   // 3. Direcionamento para a Ficha Inteligente
-  FICHA_CRIADA: `✅ Perfeito, {{nome}}!
-Seu atendimento foi registrado com o protocolo *{{protocolo}}*.
+  FICHA_CRIADA: `Prazer em falar com você, {{nome}}! Já registrei seu atendimento com o protocolo *{{protocolo}}*. 📋
 
-📋 Preencha a Ficha Inteligente para avaliarmos CNPJ, porte e unidades da sua empresa:
+Para avaliarmos o CNPJ e o que sua empresa realmente precisa (sem burocracia), preencha este formulário rápido:
 👉 {{link_ficha}}
 
-Você pode preencher no seu ritmo — seus dados ficam salvos!`,
+Leva menos de 3 minutinhos e você pode preencher direto pelo seu celular. Seus dados ficam salvos automaticamente!
+
+Caso queira falar com um especialista a qualquer momento, basta responder *6* por aqui.`,
 
   // Retomada de Ficha
-  RETOMAR_FICHA: `Olá, {{nome}}! Você já tem um atendimento em andamento (protocolo {{protocolo}}).
-Acesse o link para continuar de onde parou:
+  RETOMAR_FICHA: `Olá, {{nome}}! Você já tem um atendimento em andamento (protocolo {{protocolo}}). 😊
+
+Para continuar de onde parou, acesse:
 👉 {{link_ficha}}`,
 
-  // Alerta de Ficha Incompleta / Abandono
-  FICHA_INCOMPLETA: `Sua avaliação ficou incompleta. Falta pouco para identificar as pendências. [CONTINUAR] [FALAR COM ESPECIALISTA]`,
+  // Alerta de Ficha Incompleta / Abandono (Sem botões, opções numéricas)
+  FICHA_INCOMPLETA: `Olá! Notamos que sua avaliação ficou incompleta. Falta bem pouquinho para identificarmos as pendências da sua empresa!
+
+Digite o número para continuar:
+1 - Continuar preenchimento
+2 - Falar com especialista`,
 
   // Gatilhos Críticos - Rota A (Transferência Humana Imediata)
-  ROTA_A_TRANSBORDO: `Pelo porte da empresa, sua análise será personalizada. Um especialista da CET continuará o atendimento. Protocolo: {{protocolo}}.`,
+  ROTA_A_TRANSBORDO: `Pelo porte e complexidade da sua empresa, sua análise será personalizada diretamente por nossa equipe sênior da CET. Protocolo: *{{protocolo}}*. Um especialista entrará em contato com você agora mesmo.`,
 
   // Diagnóstico e Pagamento - Rotas B e C
-  OFERTA_DIAGNOSTICO: `Sua triagem está pronta. Escolha: Essencial R$ 19,90 ou Completo R$ 29,90, com prioridades e plano. [ESSENCIAL] [COMPLETO]
+  OFERTA_DIAGNOSTICO: `Sua triagem foi calculada com sucesso! 🎉
+
+Escolha a opção desejada:
+1 - Diagnóstico Essencial (R$ 19,90)
+2 - Diagnóstico Completo (R$ 29,90)
 
 💡 *Regra de Crédito:* O valor pago vira crédito integral na contratação de serviços acima de R$ 500 realizados em até 7 dias.`,
 
   // Pós-Venda e Relatório (após confirmação webhook Asaas)
-  RELATORIO_PRONTO: `Seu diagnóstico está pronto. Prioridade: {{prioridade}}. A CET pode regularizar e aplicar o crédito previsto. [QUERO RESOLVER] [FALAR COM TÉCNICO]`,
+  RELATORIO_PRONTO: `Seu diagnóstico da CET está pronto! Prioridade: *{{prioridade}}*.
+
+A CET pode regularizar sua empresa e aplicar o crédito integral do valor pago.
+Digite:
+1 - Quero regularizar minha empresa
+2 - Falar com responsável técnico`,
 
   // Transbordo genérico
-  TRANSBORDO_PADRAO: `Entendido! Estou transferindo seu atendimento para um especialista da equipe CET. Protocolo: {{protocolo}}. Aguarde um instante, por favor.`,
+  TRANSBORDO_PADRAO: `Combinado! Estou transferindo seu atendimento para um de nossos consultores da equipe CET. 💬
+
+Seu protocolo é *{{protocolo}}*. Aguarde só um instante que já vamos te responder por aqui!`,
 
   // Erro de opção
-  ERRO_OPCAO: `Por favor, digite o número de 1 a 6 ou confirme [CONCORDO] / [FALAR COM ATENDENTE].`,
+  ERRO_OPCAO: `Desculpe, não entendi direitinho! 😅
+
+Por favor, digite apenas o número da opção (de 1 a 6):
+
+1 - Regularidade da empresa
+2 - Documentos de SST (PGR/PCMSO)
+3 - Exames e ASO
+4 - eSocial SST / PPP
+5 - Já sou cliente (suporte)
+6 - Falar com especialista`,
 
   // Fora do horário comercial
-  HORARIO_FORA: `⏰ Nosso horário de atendimento com especialistas humanos é de segunda a sexta, das 8h às 18h.
-Mas você pode preencher a Ficha Inteligente a qualquer momento:
+  HORARIO_FORA: `⏰ Nosso horário de atendimento com consultores humanos é de segunda a sexta, das 8h às 18h.
+
+Mas você pode acessar sua Ficha Inteligente a qualquer momento:
 👉 {{link_ficha}}`,
 
   // Despedida
-  DESPEDIDA: `A CET agradece seu contato! Se precisar de algo mais, basta nos mandar uma mensagem.`,
+  DESPEDIDA: `A CET agradece muito o seu contato! Tenha um ótimo dia e conte sempre conosco. Se precisar de algo mais, basta mandar uma mensagem por aqui! 😊`,
 
   // Aliases para compatibilidade de testes existentes
   get BOAS_VINDAS() {

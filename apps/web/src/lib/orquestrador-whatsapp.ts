@@ -13,19 +13,17 @@
 
 import { prisma } from './prisma';
 import { normalizarTelefone, gerarProtocolo } from './validacoes';
-import { enviarTexto, enviarBotoes, enviarLista, marcarComoLida } from './whatsapp-client';
+import { enviarTexto, marcarComoLida } from './whatsapp-client';
 import {
   type ContextoConversa,
   type EstadoConversa,
   MENSAGENS,
   MENU_OPCOES,
-  CONSENTIMENTO_BOTOES,
-  MENU_BOTOES,
-  INTENCOES,
   MAX_TENTATIVAS_INVALIDAS,
   SESSAO_TIMEOUT_MS,
   dentroDoHorarioComercial,
   verificarGatilhoRotaA,
+  verificarGatilhoAtivacao,
 } from './fluxo-conversa';
 import { VERSAO_CONSENTIMENTO_ATUAL, getHashConsentimento } from '@cet/shared';
 
@@ -58,29 +56,59 @@ export async function processarMensagem(
   const ctx = obterSessao(telefone);
 
   // 4. Localizar ou registrar lead para auditoria
-  let leadId = ctx.lead_id;
-  if (!leadId) {
-    const contato = await prisma.contato.findUnique({
-      where: { telefone_e164: telefone },
-      include: { leads: { orderBy: { criado_em: 'desc' }, take: 1 } },
-    });
-    leadId = contato?.leads[0]?.id;
+  let lead = null;
+  const contato = await prisma.contato.findUnique({
+    where: { telefone_e164: telefone },
+    include: {
+      leads: {
+        orderBy: { criado_em: 'desc' },
+        take: 1,
+        include: { atendente: true },
+      },
+    },
+  });
+
+  if (contato && contato.leads.length > 0) {
+    lead = contato.leads[0];
+    ctx.contato_id = contato.id;
+    ctx.lead_id = lead.id;
+    if (contato.nome && !ctx.nome) {
+      ctx.nome = contato.nome;
+    }
   }
 
-  if (leadId) {
+  // Se houver lead identificado, salvar a mensagem de entrada para histórico
+  if (lead) {
     await prisma.mensagem.create({
       data: {
-        lead_id: leadId,
+        lead_id: lead.id,
         direcao: 'entrada',
         canal: 'whatsapp',
         wamid,
         conteudo,
         status: 'recebida',
       },
-    });
+    }).catch(err => console.error('[Orquestrador] Erro ao gravar mensagem:', err));
   }
 
-  // 5. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação)
+  // 5. REGRA DE SILÊNCIO: Se já houver atendente humano assumido OU a sessão estiver em transbordo
+  // O robô NUNCA deve responder para não interferir na conversa humana.
+  if (lead?.atendente_id || ctx.estado === 'transbordo') {
+    console.log(`[Orquestrador] ${telefone} está sob atendimento humano / transbordo — robô em silêncio.`);
+    return;
+  }
+
+  // 6. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
+  // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST ou números 1 a 6.
+  if (ctx.estado === 'inicio') {
+    const ativou = verificarGatilhoAtivacao(conteudo);
+    if (!ativou) {
+      console.log(`[Orquestrador] Mensagem de ${telefone} ignorada (não ativou gatilho de atendimento): "${conteudo}"`);
+      return;
+    }
+  }
+
+  // 7. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação e SLA de 10 min)
   const gatilhoRotaA = verificarGatilhoRotaA({ texto: conteudo });
   if (gatilhoRotaA.ativa) {
     console.log(`[Orquestrador] Gatilho Rota A acionado para ${telefone}: ${gatilhoRotaA.motivo}`);
@@ -88,12 +116,12 @@ export async function processarMensagem(
     return;
   }
 
-  // 6. Determinar ação baseada no estado atual
+  // 8. Determinar ação baseada no estado atual
   const idResposta = interactiveId || conteudo;
 
   switch (ctx.estado) {
     case 'inicio':
-      await tratarInicio(telefone, ctx);
+      await tratarInicio(telefone, ctx, conteudo);
       break;
 
     case 'consentimento':
@@ -113,7 +141,7 @@ export async function processarMensagem(
       break;
 
     case 'transbordo':
-      console.log(`[Orquestrador] ${telefone} em transbordo com especialista — mensagem: ${conteudo}`);
+      // Robô em silêncio durante transbordo humano
       break;
 
     case 'ficha_criada':
@@ -121,8 +149,10 @@ export async function processarMensagem(
       break;
 
     case 'encerrado':
-      ctx.estado = 'inicio';
-      await tratarInicio(telefone, ctx);
+      if (verificarGatilhoAtivacao(conteudo)) {
+        ctx.estado = 'inicio';
+        await tratarInicio(telefone, ctx, conteudo);
+      }
       break;
   }
 }
@@ -131,7 +161,7 @@ export async function processarMensagem(
 // Tratadores de estado
 // =============================================================================
 
-async function tratarInicio(telefone: string, ctx: ContextoConversa): Promise<void> {
+async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: string): Promise<void> {
   // Verificar se o contato já existe e possui ficha em andamento
   const contato = await prisma.contato.findUnique({
     where: { telefone_e164: telefone },
@@ -161,7 +191,7 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa): Promise<vo
       const msg = MENSAGENS.FICHA_INCOMPLETA;
 
       await enviarTexto(telefone, msg);
-      await enviarTexto(telefone, `Link para continuar: ${link}`);
+      await enviarTexto(telefone, `Link para continuar direto pelo celular:\n👉 ${link}`);
       ctx.ficha_token = ficha.token_retomada;
       ctx.estado = 'ficha_criada';
       atualizarSessao(telefone, ctx);
@@ -169,11 +199,17 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa): Promise<vo
     }
   }
 
-  // 1. Abertura Obrigatória EXATA
+  // 1. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
   await enviarTexto(telefone, MENSAGENS.ABERTURA_OBRIGATORIA);
 
-  ctx.estado = 'consentimento';
+  ctx.estado = 'menu';
+  ctx.tentativas_invalidas = 0;
   atualizarSessao(telefone, ctx);
+
+  // Se o usuário já enviou diretamente um número de 1 a 6 de primeira
+  if (conteudo && /^[1-6]$/.test(conteudo.trim())) {
+    await tratarMenu(telefone, ctx, conteudo);
+  }
 }
 
 async function tratarConsentimento(
@@ -183,22 +219,39 @@ async function tratarConsentimento(
 ): Promise<void> {
   const norm = resposta.trim().toLowerCase();
 
+  // Se a pessoa respondeu com um número de 1 a 6 direto
+  if (/^[1-6]$/.test(norm)) {
+    if (ctx.contato_id) {
+      await prisma.consentimento.create({
+        data: {
+          contato_id: ctx.contato_id,
+          versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
+          texto_hash: getHashConsentimento(),
+          finalidade: 'triagem_atendimento_diagnostico_proposta',
+        },
+      }).catch(err => console.error('[LGPD] Erro ao salvar consentimento:', err));
+    }
+    await tratarMenu(telefone, ctx, resposta);
+    return;
+  }
+
   const aceitou =
     norm.includes('concordo') ||
-    norm === '1' ||
     norm === 'aceite_lgpd' ||
     norm === 'sim' ||
-    norm === 'aceito';
+    norm === 'aceito' ||
+    norm === 'ok' ||
+    norm === 'pode ser';
 
   const pediuHumano =
     norm.includes('falar com atendente') ||
     norm.includes('falar_atendente') ||
     norm.includes('atendente') ||
-    norm === '2' ||
+    norm.includes('especialista') ||
+    norm.includes('consultor') ||
     norm === 'falar_especialista';
 
   if (aceitou) {
-    // Registrar consentimento LGPD no banco se houver contato
     if (ctx.contato_id) {
       await prisma.consentimento.create({
         data: {
@@ -210,7 +263,6 @@ async function tratarConsentimento(
       }).catch(err => console.error('[LGPD] Erro ao salvar consentimento:', err));
     }
 
-    // 2. Apresentar o Menu de Triagem Inicial EXATO
     await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
     ctx.estado = 'menu';
     ctx.tentativas_invalidas = 0;
@@ -236,26 +288,23 @@ async function tratarMenu(
   const norm = resposta.trim().toLowerCase();
 
   // Opções 1 a 4: Direcionamento para Ficha Inteligente
-  const opcao1 = norm === '1' || norm.includes('empresa está regular') || norm.includes('regular');
-  const opcao2 = norm === '2' || norm.includes('renovar documentos') || norm.includes('documentos de sst');
-  const opcao3 = norm === '3' || norm.includes('aso') || norm.includes('exames ocupacionais');
+  const opcao1 = norm === '1' || norm.includes('empresa está regular') || norm.includes('regular') || norm.includes('regularidade');
+  const opcao2 = norm === '2' || norm.includes('renovar') || norm.includes('documentos') || norm.includes('pgr') || norm.includes('pcmso') || norm.includes('ltcat');
+  const opcao3 = norm === '3' || norm.includes('aso') || norm.includes('exame') || norm.includes('admissional') || norm.includes('demissional') || norm.includes('periodico');
   const opcao4 = norm === '4' || norm.includes('esocial') || norm.includes('ppp') || norm.includes('cat');
 
   // Opção 5: Já é cliente
-  const opcao5 = norm === '5' || norm.includes('já sou cliente') || norm.includes('suporte');
+  const opcao5 = norm === '5' || norm.includes('já sou cliente') || norm.includes('ja sou cliente') || norm.includes('suporte');
 
   // Opção 6: Falar com especialista
-  const opcao6 = norm === '6' || norm.includes('falar com um especialista') || norm.includes('especialista');
+  const opcao6 = norm === '6' || norm.includes('falar com') || norm.includes('consultor') || norm.includes('especialista') || norm.includes('humano') || norm.includes('atendente');
 
   if (opcao1 || opcao2 || opcao3 || opcao4) {
-    const opcaoEscolhida = MENU_OPCOES.find(o =>
-      (opcao1 && o.numero === '1') ||
-      (opcao2 && o.numero === '2') ||
-      (opcao3 && o.numero === '3') ||
-      (opcao4 && o.numero === '4')
-    );
-
-    const intencaoTitulo = opcaoEscolhida?.titulo || 'Diagnóstico SST';
+    let intencaoTitulo = 'Diagnóstico SST';
+    if (opcao1) intencaoTitulo = 'Regularidade da Empresa';
+    if (opcao2) intencaoTitulo = 'Documentos de SST (PGR/PCMSO)';
+    if (opcao3) intencaoTitulo = 'Exames Ocupacionais e ASO';
+    if (opcao4) intencaoTitulo = 'eSocial SST / PPP / CAT';
 
     if (ctx.nome) {
       await criarLeadEFicha(telefone, ctx, intencaoTitulo);
@@ -268,18 +317,24 @@ async function tratarMenu(
   } else if (opcao5) {
     await enviarTexto(
       telefone,
-      'Identificamos que você já é cliente da CET! Vou encaminhar seu atendimento para a nossa equipe de suporte e relacionamento. 🤝',
+      'Perfeito! Que bom falar com você novamente. Vou encaminhar seu atendimento para a nossa equipe de suporte e relacionamento com clientes da CET! 🤝',
     );
     await iniciarTransbordo(telefone, ctx);
   } else if (opcao6) {
     await iniciarTransbordo(telefone, ctx);
   } else {
+    // Se a pessoa apenas enviou uma saudação comum de novo, envia o menu sem erro
+    const saudacao = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'opa'].includes(norm);
+    if (saudacao) {
+      await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
+      return;
+    }
+
     ctx.tentativas_invalidas++;
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
       await iniciarTransbordo(telefone, ctx);
     } else {
       await enviarTexto(telefone, MENSAGENS.ERRO_OPCAO);
-      await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
     }
     atualizarSessao(telefone, ctx);
   }
@@ -296,7 +351,7 @@ async function tratarNome(
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
       await iniciarTransbordo(telefone, ctx);
     } else {
-      await enviarTexto(telefone, 'Por favor, informe seu nome completo para prosseguir:');
+      await enviarTexto(telefone, 'Por favor, informe seu *nome completo* para prosseguirmos: 😊');
     }
     atualizarSessao(telefone, ctx);
     return;
@@ -389,7 +444,7 @@ async function criarLeadEFicha(
   const baseUrl = process.env.SITE_URL || 'https://cet-automacao.vercel.app';
   const link = `${baseUrl}/ficha/${ficha.token_retomada}`;
 
-  // 3. Direcionamento para a Ficha Inteligente
+  // 3. Direcionamento para a Ficha Inteligente com tom acolhedor
   const msg = MENSAGENS.FICHA_CRIADA
     .replace('{{nome}}', ctx.nome || 'cliente')
     .replace('{{protocolo}}', protocolo)
@@ -423,14 +478,14 @@ async function tratarPosFicha(
 ): Promise<void> {
   const norm = resposta.trim().toLowerCase();
 
-  if (norm.includes('continuar')) {
+  if (norm === '1' || norm.includes('continuar') || norm.includes('preenchimento') || norm.includes('formulario') || norm.includes('link')) {
     if (ctx.ficha_token) {
       const link = `${process.env.SITE_URL || 'https://cet-automacao.vercel.app'}/ficha/${ctx.ficha_token}`;
       await enviarTexto(telefone, `Aqui está o link para continuar seu preenchimento:\n👉 ${link}`);
     } else {
       await tratarInicio(telefone, ctx);
     }
-  } else if (norm.includes('especialista') || norm.includes('falar com especialista') || norm.includes('humano')) {
+  } else if (norm === '2' || norm === '6' || norm.includes('especialista') || norm.includes('falar com') || norm.includes('humano') || norm.includes('atendente') || norm.includes('consultor')) {
     await iniciarTransbordo(telefone, ctx);
   } else if (norm.includes('essencial') || norm.includes('completo')) {
     await enviarTexto(
@@ -523,3 +578,4 @@ function atualizarSessao(telefone: string, ctx: ContextoConversa): void {
   ctx.ultima_interacao = new Date();
   sessoes.set(telefone, ctx);
 }
+

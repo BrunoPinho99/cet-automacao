@@ -120,7 +120,17 @@ export async function POST(req: Request) {
         });
       }
 
-      const sender = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '');
+      const remoteJid = messageData.key?.remoteJid || '';
+
+      // Ignora mensagens de grupos (@g.us) ou transmissões/status (@broadcast)
+      if (remoteJid.includes('@g.us') || remoteJid.includes('@broadcast')) {
+        return new Response(JSON.stringify({ status: 'ignored_group_or_broadcast' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const sender = remoteJid.replace('@s.whatsapp.net', '');
       const messageText =
         messageData.message?.conversation ||
         messageData.message?.extendedTextMessage?.text ||
