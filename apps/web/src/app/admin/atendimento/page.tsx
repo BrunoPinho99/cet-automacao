@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import AtendimentoClient from './AtendimentoClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AtendimentoPage() {
   const session = await getSession();
   if (!session) redirect('/login');
@@ -12,11 +14,12 @@ export default async function AtendimentoPage() {
   const leads = await prisma.lead.findMany({
     where: {
       mensagens: {
-        some: {} // Only leads that have messages
+        some: {} // Apenas leads com mensagens
       }
     },
     include: {
       contato: true,
+      empresa: true,
       mensagens: {
         orderBy: { criado_em: 'asc' }
       }
@@ -26,12 +29,12 @@ export default async function AtendimentoPage() {
     }
   });
 
-  // Serialize dates for Client Component
+  // Serializa datas para passar de forma segura ao Client Component
   const serializableLeads = leads.map(lead => ({
     ...lead,
     mensagens: lead.mensagens.map(msg => ({
       ...msg,
-      criado_em: msg.criado_em
+      criado_em: msg.criado_em.toISOString(),
     }))
   }));
 

@@ -2,9 +2,9 @@
  * Cliente para a Evolution API.
  */
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8080';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://2.31.30.193:8080';
 const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cet_automacao';
-const API_KEY = process.env.EVOLUTION_API_KEY || '';
+const API_KEY = process.env.EVOLUTION_API_KEY || 'cet_api_key_secreta_2026';
 
 interface EnvioResult {
   sucesso: boolean;

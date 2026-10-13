@@ -74,11 +74,51 @@ export async function enviarMensagemManual(formData: FormData) {
       lead_id: leadId,
       conteudo,
       chave_idempotencia,
-      template: template || undefined
+      template: template || undefined,
+      ignorarJanela24h: true,
     });
     revalidatePath('/admin/atendimento');
+    return { success: true };
   } catch (error: unknown) {
     console.error('Erro ao enviar mensagem:', error);
     return { error: error instanceof Error ? error.message : 'Erro desconhecido' };
   }
+}
+
+export async function limparDadosDemoAction() {
+  const session = await getSession();
+  if (!session || session.role !== 'admin') {
+    throw new Error('Apenas administradores podem executar esta ação.');
+  }
+
+  // Deletar dados na ordem correta de chaves estrangeiras
+  await prisma.mensagem.deleteMany({});
+  await prisma.relatorio.deleteMany({});
+  await prisma.pedido.deleteMany({});
+  await prisma.rota.deleteMany({});
+  await prisma.scoreSST.deleteMany({});
+  await prisma.scoreComercial.deleteMany({});
+  await prisma.documentoDeclarado.deleteMany({});
+  await prisma.arquivo.deleteMany({});
+  await prisma.ficha.deleteMany({});
+  await prisma.negocio.deleteMany({});
+  await prisma.consentimento.deleteMany({});
+  await prisma.lead.deleteMany({});
+  await prisma.contato.deleteMany({});
+  await prisma.empresa.deleteMany({});
+  
+  await prisma.domainEvent.deleteMany({
+    where: {
+      payload: {
+        path: ['origem'],
+        equals: 'seed_demo'
+      }
+    }
+  }).catch(() => {});
+
+  revalidatePath('/admin/atendimento');
+  revalidatePath('/admin');
+  revalidatePath('/admin/paineis');
+
+  return { success: true, message: 'Dados de demonstração removidos com sucesso. O sistema está 100% real.' };
 }
