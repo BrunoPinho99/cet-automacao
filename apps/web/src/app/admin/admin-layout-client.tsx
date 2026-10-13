@@ -20,6 +20,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
   const navItems = [
     { name: 'Leads e Clientes', href: '/admin', icon: '📋' },
     { name: 'Atendimento Comercial', href: '/admin/atendimento', icon: '💬' },
+    { name: 'Conexão WhatsApp', href: '/admin/whatsapp', icon: '📱' },
     { name: 'Painéis e Indicadores', href: '/admin/paineis', icon: '📊' },
     { name: 'Saúde do Sistema', href: '/admin/saude', icon: '💓' },
     { name: 'Fila Morta (Erros)', href: '/admin/eventos/mortos', icon: '⚠️' },

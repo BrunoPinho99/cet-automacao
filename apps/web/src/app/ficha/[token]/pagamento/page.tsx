@@ -35,71 +35,68 @@ export default async function PagamentoPage({ params }: PagamentoPageProps) {
 
   const isPago = pedido?.status === 'pago';
   const checkoutUrl = pedido?.checkout_url;
-  
-  // Define o valor para exibição simulada
-  let valor = 'R$ 149,90';
-  let plano = 'Diagnóstico Digital (Rota C)';
-  
-  if (ficha.rota?.rota === 'A' || ficha.rota?.rota === 'B') {
-    valor = 'R$ 249,90';
-    plano = ficha.rota?.rota === 'A' ? 'Plano Estratégico (Rota A)' : 'Plano Crescimento (Rota B)';
-  }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-sm border border-gray-100 mt-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Resultado do Diagnóstico</h1>
-        <p className="text-gray-600 mt-2">
-          Olá, {ficha.lead.contato.nome}! A avaliação inicial foi concluída.
+    <div className="max-w-2xl mx-auto p-6 sm:p-8 bg-white rounded-2xl shadow-sm border border-slate-200 mt-6 sm:mt-10">
+      <div className="mb-6">
+        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+          Triagem Concluída
+        </span>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-3">
+          Diagnóstico Preliminar SST
+        </h1>
+        <p className="text-sm text-slate-600 mt-1">
+          Olá, <strong>{ficha.lead.contato.nome}</strong>! Sua avaliação foi calculada com sucesso para a empresa{' '}
+          <strong>{ficha.lead.empresa?.razao_social || 'sua empresa'}</strong>.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Score Comercial</h2>
-          <p className="text-3xl font-bold text-blue-600 mt-1">{ficha.score_comercial?.total || 0}</p>
-          <p className="text-xs text-gray-500 mt-1">Faixa: {ficha.score_comercial?.faixa || 'N/A'}</p>
+      {/* Cards de Score */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Score SST de Conformidade</h2>
+          <p className="text-3xl font-black text-emerald-600 mt-1">{ficha.score_sst?.total || 0} / 100</p>
+          <p className="text-xs text-slate-500 mt-1">Classificação: <strong>{ficha.score_sst?.classificacao || 'N/A'}</strong></p>
         </div>
 
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Score SST</h2>
-          <p className="text-3xl font-bold text-emerald-600 mt-1">{ficha.score_sst?.total || 0}</p>
-          <p className="text-xs text-gray-500 mt-1">Classificação: {ficha.score_sst?.classificacao || 'N/A'}</p>
-        </div>
-      </div>
-
-      <div className="p-6 bg-blue-50 text-blue-900 rounded-lg border border-blue-100 mb-8">
-        <h2 className="text-lg font-bold mb-2">Sua Jornada: {plano}</h2>
-        <p className="mb-4 text-blue-800">
-          Com base nas suas respostas, preparamos um plano de adequação detalhado e mapeamento de riscos.
-          O relatório completo e as orientações serão liberados após a confirmação da taxa de emissão.
-        </p>
-        <div className="flex justify-between items-center bg-white p-4 rounded-md border border-blue-200 shadow-sm">
-          <span className="font-medium text-gray-700">Taxa de Emissão</span>
-          <span className="text-2xl font-bold text-gray-900">{valor}</span>
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Potencial Comercial Avaliado</h2>
+          <p className="text-3xl font-black text-blue-600 mt-1">{ficha.score_comercial?.total || 0}</p>
+          <p className="text-xs text-slate-500 mt-1">Faixa: <strong>{ficha.score_comercial?.faixa || 'N/A'}</strong></p>
         </div>
       </div>
 
       {isPago ? (
-        <div className="p-6 bg-green-50 rounded-lg border border-green-200 text-center">
-          <h3 className="text-lg font-bold text-green-800 mb-2">Pagamento Confirmado!</h3>
-          <p className="text-green-700 mb-4">
-            Agradecemos a confiança. O seu relatório já foi liberado e encaminhado para o seu WhatsApp/E-mail.
+        <div className="p-6 bg-emerald-50 rounded-xl border border-emerald-200 text-center space-y-3">
+          <div className="w-12 h-12 bg-emerald-500 text-white rounded-full flex items-center justify-center text-2xl mx-auto shadow-sm">
+            ✓
+          </div>
+          <h3 className="text-lg font-bold text-emerald-900">Diagnóstico Pago e Liberado!</h3>
+          <p className="text-sm text-emerald-700 max-w-md mx-auto">
+            Seu relatório em PDF já foi gerado e está disponível para download. A equipe CET já registrou seu crédito integral!
           </p>
+          <div className="pt-2">
+            <Link
+              href={`/portal/${token}`}
+              className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-lg text-sm transition-colors"
+            >
+              Acessar Meu Relatório Completo
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center">
-          {checkoutUrl ? (
-            <div className="w-full">
-              <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 mb-4 text-center">
-                <p className="text-yellow-800 font-medium">Você já tem uma fatura em aberto.</p>
+        <div className="space-y-6">
+          {checkoutUrl && pedido?.status !== 'pago' && !checkoutUrl.includes('pagamento_pendente') ? (
+            <div className="space-y-4">
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
+                <p className="text-amber-900 font-semibold text-sm">Você já possui uma fatura gerada para este diagnóstico.</p>
               </div>
               <Link 
                 href={checkoutUrl}
                 target="_blank"
-                className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md"
               >
-                Acessar Fatura (PIX)
+                Abrir Fatura PIX / Cartão no Asaas
               </Link>
             </div>
           ) : (

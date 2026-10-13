@@ -93,9 +93,14 @@ export async function gerarPdfParaFicha(fichaId: string): Promise<void> {
     </html>
   `;
 
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (process.platform === 'linux' ? '/usr/bin/google-chrome' : undefined);
+
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    ...(executablePath ? { executablePath } : {}),
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
 
   const page = await browser.newPage();
