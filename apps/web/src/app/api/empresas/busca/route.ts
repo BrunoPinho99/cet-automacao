@@ -300,6 +300,96 @@ async function consultarCnpjRedundante(cnpjLimpo: string): Promise<EmpresaSugest
   return null;
 }
 
+/**
+ * Busca aberta de empresas do Brasil inteiro por Razão Social ou Nome Fantasia
+ * Utiliza o indexador da base aberta da Receita Federal (api.cnpj.pw / busca difusa)
+ * 100% gratuita, sem token e sem custos de API.
+ */
+async function buscarEmpresasNacionaisPorNome(termo: string): Promise<EmpresaSugestao[]> {
+  const resultados: EmpresaSugestao[] = [];
+  try {
+    // 1. Tentar busca por razão social
+    const url = `https://api.cnpj.pw/busca_difusa/?razao_social=${encodeURIComponent(termo)}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+      signal: AbortSignal.timeout(3500),
+    });
+
+    let data = res.ok ? await res.json() : null;
+    let lista = data?.resultados_paginacao || [];
+
+    // 2. Se trouxer poucos resultados, tentar por nome fantasia
+    if (lista.length < 3) {
+      try {
+        const urlFantasia = `https://api.cnpj.pw/busca_difusa/?nome_fantasia=${encodeURIComponent(termo)}`;
+        const resFantasia = await fetch(urlFantasia, {
+          headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+          signal: AbortSignal.timeout(2500),
+        });
+        if (resFantasia.ok) {
+          const dataFantasia = await resFantasia.json();
+          lista = [...lista, ...(dataFantasia.resultados_paginacao || [])];
+        }
+      } catch {
+        // Ignora
+      }
+    }
+
+    // Processar os primeiros itens únicos
+    const cnpjsAdicionados = new Set<string>();
+    const topItems: any[] = [];
+    for (const item of lista) {
+      if (item.cnpj && item.nome_empresarial && !cnpjsAdicionados.has(item.cnpj)) {
+        cnpjsAdicionados.add(item.cnpj);
+        topItems.push(item);
+        if (topItems.length >= 6) break;
+      }
+    }
+
+    // Enriquecer os 3 primeiros com UF e Bairro em paralelo
+    await Promise.all(
+      topItems.slice(0, 3).map(async (item: any) => {
+        try {
+          const r = await fetch(`https://api.cnpj.pw/estabelecimento/${item.cnpj}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+            signal: AbortSignal.timeout(1200),
+          });
+          if (r.ok) {
+            const est = await r.json();
+            item.uf = est.uf;
+            item.bairro = est.bairro;
+            item.nome_fantasia = est.nome_fantasia;
+            item.logradouro = est.logradouro;
+          }
+        } catch {
+          // Ignora timeout de enriquecimento
+        }
+      })
+    );
+
+    for (const item of topItems) {
+      const clean = item.cnpj.replace(/\D/g, '');
+      const ufTexto = item.uf ? ` - ${item.uf}` : '';
+      const local = item.bairro ? `${item.bairro}${ufTexto}` : item.uf ? `Brasil - ${item.uf}` : 'Brasil';
+      resultados.push({
+        cnpj: clean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+        razao_social: item.nome_empresarial,
+        nome_fantasia: item.nome_fantasia || undefined,
+        cidade: local,
+        uf: item.uf || 'BR',
+        cnae_descricao: estimarCnaeDescricao(item.nome_empresarial),
+        porte: 'Demais',
+        grau_risco: estimarGrauRisco(item.nome_empresarial),
+        origem: 'receita_federal',
+      });
+    }
+  } catch (err) {
+    console.warn('[Busca Nacional Nome] Erro ao buscar na base nacional:', err);
+  }
+
+  return resultados;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -385,7 +475,7 @@ export async function GET(request: Request) {
       // Ignora erro de banco local
     }
 
-    // 3. BUSCA NA BASE CURADA DEMONSTRATIVA
+    // 3. BUSCA NA BASE CURADA DEMONSTRATIVA (CET e populares)
     const termoLower = termo.toLowerCase();
     const demoFiltradas = EMPRESAS_DEMO.filter((e) => {
       const matchRazao = e.razao_social.toLowerCase().includes(termoLower);
@@ -396,11 +486,18 @@ export async function GET(request: Request) {
       return matchRazao || matchFantasia || matchCnpj || matchCidade || matchCnae;
     });
 
-    // Unir resultados sem duplicar CNPJ
+    // 4. BUSCA NACIONAL EM TEMPO REAL NA RECEITA FEDERAL POR NOME (Brasil Inteiro)
+    let resultadosNacionais: EmpresaSugestao[] = [];
+    if (termo.length >= 3 && !/^\d+$/.test(termo)) {
+      resultadosNacionais = await buscarEmpresasNacionaisPorNome(termo);
+    }
+
+    // Unir resultados sem duplicar CNPJ:
+    // Prioridade: Local -> Nacional Receita Federal -> Demo
     const cnpjsAdicionados = new Set<string>();
     const todosResultados: EmpresaSugestao[] = [];
 
-    [...resultadosLocais, ...demoFiltradas].forEach((item) => {
+    [...resultadosLocais, ...resultadosNacionais, ...demoFiltradas].forEach((item) => {
       const clean = item.cnpj.replace(/\D/g, '');
       if (!cnpjsAdicionados.has(clean)) {
         cnpjsAdicionados.add(clean);
@@ -421,7 +518,7 @@ export async function GET(request: Request) {
           nome_fantasia: termo,
           cidade: 'São Paulo',
           uf: 'SP',
-          cnae_descricao: 'Medicina e Segurança do Trabalho / Serviços Gerais',
+          cnae_descricao: estimarCnaeDescricao(termo),
           porte: 'Demais',
           grau_risco: 2,
           origem: 'local',
@@ -436,6 +533,20 @@ export async function GET(request: Request) {
   }
 }
 
+function estimarCnaeDescricao(nome: string): string {
+  const n = nome.toLowerCase();
+  if (n.includes('farmacia') || n.includes('drogaria')) return 'Comércio varejista de produtos farmacêuticos';
+  if (n.includes('posto') || n.includes('combustivel')) return 'Comércio varejista de combustíveis para veículos';
+  if (n.includes('padaria') || n.includes('confeitaria')) return 'Fabricação de produtos de padaria e confeitaria';
+  if (n.includes('hospital') || n.includes('clinica') || n.includes('medica') || n.includes('saude')) return 'Atividades de atenção à saúde / Atendimento médico';
+  if (n.includes('odontolog')) return 'Atividade odontológica ambulatorial';
+  if (n.includes('restaurante') || n.includes('alimento') || n.includes('refeic')) return 'Serviços de alimentação e restaurantes';
+  if (n.includes('transporte') || n.includes('logistica')) return 'Transporte rodoviário de carga e logística';
+  if (n.includes('construcao') || n.includes('engenharia') || n.includes('obra')) return 'Construção de edifícios e obras de engenharia';
+  if (n.includes('metalurgica') || n.includes('solda') || n.includes('usinagem')) return 'Fabricação de produtos de metal e metalurgia';
+  return 'Serviços e Atividades Comerciais em Geral';
+}
+
 function estimarGrauRisco(cnaeDescricao: string): number {
   const desc = cnaeDescricao.toLowerCase();
   if (desc.includes('petróleo') || desc.includes('química') || desc.includes('construção') || desc.includes('metalúrgica')) {
@@ -444,7 +555,7 @@ function estimarGrauRisco(cnaeDescricao: string): number {
   if (desc.includes('transporte') || desc.includes('hospital') || desc.includes('fabricação') || desc.includes('odont')) {
     return 3;
   }
-  if (desc.includes('comércio') || desc.includes('padaria') || desc.includes('supermercado')) {
+  if (desc.includes('comércio') || desc.includes('padaria') || desc.includes('supermercado') || desc.includes('farmacia') || desc.includes('drogaria')) {
     return 2;
   }
   return 1;
