@@ -50,6 +50,35 @@ export default function FichaPage({
   const [salvando, setSalvando] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
 
+  // Busca e autocompletar de empresas no Bloco 1
+  const [buscaEmpresaFicha, setBuscaEmpresaFicha] = useState('');
+  const [sugestoesFicha, setSugestoesFicha] = useState<any[]>([]);
+  const [mostrarSugestoesFicha, setMostrarSugestoesFicha] = useState(false);
+
+  useEffect(() => {
+    const termo = buscaEmpresaFicha.trim();
+    if (termo.length < 2) {
+      setSugestoesFicha([]);
+      setMostrarSugestoesFicha(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/empresas/busca?q=${encodeURIComponent(termo)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSugestoesFicha(data.resultados || []);
+          setMostrarSugestoesFicha(true);
+        }
+      } catch (e) {
+        console.error('Erro ao buscar empresas:', e);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [buscaEmpresaFicha]);
+
   // Resolver params (Next.js 15+ async params)
   useEffect(() => {
     params.then(setResolvedParams);
@@ -198,15 +227,15 @@ export default function FichaPage({
 
   // --- Ficha concluída ---
   if (state.concluida) {
-    // Redirecionar imediatamente para o portal do cliente
+    // Redirecionar imediatamente para a tela de diagnóstico com velocímetro e pagamento
     if (typeof window !== 'undefined') {
-      router.push(`/portal/${state.token}`);
+      router.push(`/ficha/${state.token}/pagamento`);
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
-          <p className="text-slate-600">Redirecionando para o seu Portal...</p>
+          <p className="text-slate-600 font-medium">Calculando seu Score SST e gerando diagnóstico...</p>
         </div>
       </div>
     );
@@ -304,6 +333,58 @@ export default function FichaPage({
             {state.erro && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
                 <p className="text-sm text-red-700">{state.erro}</p>
+              </div>
+            )}
+
+            {/* Se for o Bloco 1 (Identificação), disponibilizar busca inteligente por nome ou CNPJ */}
+            {state.bloco_atual === 1 && (
+              <div className="mb-6 p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl relative">
+                <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <span>🔍 Buscar Empresa por Nome ou CNPJ (Preenchimento Rápido)</span>
+                </label>
+                <p className="text-xs text-blue-700 mb-2">
+                  Pesquise o nome da sua empresa para vincular Razão Social, CNPJ e localização sem precisar digitar dígito por dígito:
+                </p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={buscaEmpresaFicha}
+                    onChange={(e) => setBuscaEmpresaFicha(e.target.value)}
+                    placeholder="Digite o nome da empresa ou CNPJ..."
+                    className="w-full bg-white border border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-hidden font-medium placeholder:text-slate-400"
+                  />
+
+                  {mostrarSugestoesFicha && sugestoesFicha.length > 0 && (
+                    <div className="absolute left-0 right-0 top-[46px] z-30 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-slate-100">
+                      {sugestoesFicha.map((emp, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setRespostasBloco(prev => ({
+                              ...prev,
+                              cnpj: emp.cnpj,
+                              razao_social: emp.razao_social,
+                              nome_fantasia: emp.nome_fantasia || emp.razao_social,
+                              cidade: emp.cidade,
+                              uf: emp.uf,
+                              atividade_real: emp.cnae_descricao || 'Comércio e Serviços Gerais',
+                            }));
+                            setBuscaEmpresaFicha(emp.razao_social);
+                            setMostrarSugestoesFicha(false);
+                          }}
+                          className="w-full p-3 text-left hover:bg-blue-50 transition flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <div className="font-bold text-slate-900">{emp.razao_social}</div>
+                            <div className="text-slate-500 text-[11px] font-mono">{emp.cnpj} • {emp.cidade} - {emp.uf}</div>
+                          </div>
+                          <span className="text-blue-600 font-semibold shrink-0">Vincular →</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
