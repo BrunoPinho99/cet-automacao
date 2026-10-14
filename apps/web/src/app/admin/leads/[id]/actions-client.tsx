@@ -126,23 +126,29 @@ export function Actions({ leadId, empresaId, pedidoId, leadData }: ActionsProps)
         <button
           type="button"
           onClick={() => setIsEditing(true)}
-          className="inline-flex items-center rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 transition"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition"
         >
-          ✏️ Editar Dados
+          <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          Editar Dados
         </button>
         <button
           type="button"
           onClick={handleExcluirLead}
           disabled={isDeleting}
-          className="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 shadow-2xs hover:bg-red-50 disabled:opacity-50 transition"
         >
-          {isDeleting ? 'Excluindo...' : '🗑️ Excluir Lead'}
+          <svg className="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          {isDeleting ? 'Excluindo...' : 'Excluir Lead'}
         </button>
         <button
           type="button"
           onClick={regerarPdf}
           disabled={loadingPdf}
-          className="inline-flex items-center rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-50 transition"
         >
           {loadingPdf ? 'Aguarde...' : 'Regerar PDF'}
         </button>
@@ -150,7 +156,7 @@ export function Actions({ leadId, empresaId, pedidoId, leadData }: ActionsProps)
           type="button"
           onClick={forcarSincronia}
           disabled={loadingSync}
-          className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50 transition"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition"
         >
           {loadingSync ? 'Aguarde...' : 'Sincronizar Ploomes'}
         </button>

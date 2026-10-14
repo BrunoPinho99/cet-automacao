@@ -37,37 +37,25 @@ export default function LoginPage() {
     }
   };
 
-  const handleFillAdmin = () => {
-    setEmail('admin@cet.com.br');
-    setSenha('Cet@2026!Dev');
-    setError('');
-  };
-
-  const handleFillComercial = () => {
-    setEmail('vendas@cet.com.br');
-    setSenha('Cet@2026!Dev');
-    setError('');
-  };
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-12">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 sm:p-10 shadow-2xl border border-slate-100">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="w-full max-w-sm space-y-6 rounded-lg bg-white p-8 border border-slate-200">
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-cet.png"
             alt="CET Clínica"
-            className="w-16 h-16 rounded-2xl mx-auto shadow-md border border-blue-200/60 mb-3 object-contain"
+            className="w-14 h-14 rounded-md mx-auto mb-3 object-contain"
           />
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">CET Automação</h2>
-          <p className="mt-1 text-sm text-slate-500">Painel de Gestão e Triagem SST</p>
+          <h1 className="text-xl font-semibold text-slate-900">CET</h1>
+          <p className="mt-1 text-sm text-slate-500">Acesse com seu e-mail e senha</p>
         </div>
 
         <form className="mt-6 space-y-5" onSubmit={handleLogin}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                E-mail de Acesso
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
+                E-mail
               </label>
               <input
                 id="email"
@@ -83,7 +71,7 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="senha" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              <label htmlFor="senha" className="block text-sm font-medium text-slate-700 mb-1">
                 Senha
               </label>
               <div className="relative">
@@ -119,7 +107,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center items-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-60 transition"
+              className="flex w-full justify-center items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:opacity-60"
             >
               {loading ? (
                 <>
@@ -127,37 +115,12 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                   </svg>
-                  <span>Autenticando...</span>
+                  <span>Entrando...</span>
                 </>
               ) : (
-                'Entrar no Painel'
+                'Entrar'
               )}
             </button>
-          </div>
-
-          <div className="pt-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500 text-center mb-2 font-medium">
-              Preenchimento rápido para demonstração:
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleFillAdmin}
-                className="text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 py-1.5 px-2 rounded-md transition text-center"
-              >
-                👤 Admin
-              </button>
-              <button
-                type="button"
-                onClick={handleFillComercial}
-                className="text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 py-1.5 px-2 rounded-md transition text-center"
-              >
-                💼 Comercial
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-400 text-center mt-2">
-              Senha aceita: <code className="font-mono text-slate-600">Bruno080299!</code> ou <code className="font-mono text-slate-600">Cet@2026!Dev</code>
-            </p>
           </div>
         </form>
       </div>

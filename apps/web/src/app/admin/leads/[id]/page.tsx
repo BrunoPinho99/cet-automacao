@@ -47,9 +47,12 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
           href="/admin"
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-blue-600 transition"
         >
-          <span>←</span> Voltar para Leads e Clientes
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Voltar para Clientes
         </Link>
-        <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
+        <span className="font-mono text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
           Protocolo: {lead.protocolo}
         </span>
       </div>
@@ -70,9 +73,12 @@ export default async function LeadDetailsPage({ params }: { params: Promise<{ id
               <Link
                 href={`/api/relatorios/${ficha.id}?format=html`}
                 target="_blank"
-                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-transparent text-xs font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition"
               >
-                📄 Visualizar Relatório SST
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Visualizar Relatório SST
               </Link>
             )}
             <Actions
