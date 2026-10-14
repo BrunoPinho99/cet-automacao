@@ -13,27 +13,51 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
     }
 
-    // Facilita caso o usuário digite apenas 'admin' ou 'vendas'
+    // Facilita caso o usuário digite apenas 'admin', 'vendas' ou 'bruno'
     if (email === 'admin') email = 'admin@cet.com.br';
     if (email === 'vendas') email = 'vendas@cet.com.br';
+    if (email === 'bruno') email = 'bruno@cet.com.br';
 
     let usuario = await prisma.usuario.findUnique({
       where: { email },
     });
 
-    // Se for bruno@cet.com.br e não existir ainda, cria como admin
-    if (!usuario && (email === 'bruno@cet.com.br' || email === 'bruno')) {
-      const emailFinal = 'bruno@cet.com.br';
-      const novoHash = await argon2.hash(senha || 'Bruno080299!');
-      usuario = await prisma.usuario.create({
-        data: {
-          nome: 'Bruno Pinho',
-          email: emailFinal,
-          senha_hash: novoHash,
-          papel: 'admin',
-          ativo: true,
-        },
-      });
+    // Se o usuário não existir ainda na base, cria automaticamente para os perfis padrão
+    if (!usuario) {
+      if (email === 'admin@cet.com.br') {
+        const hash = await argon2.hash(senha || '123456');
+        usuario = await prisma.usuario.create({
+          data: {
+            nome: 'Administrador Geral',
+            email: 'admin@cet.com.br',
+            senha_hash: hash,
+            papel: 'admin',
+            ativo: true,
+          },
+        });
+      } else if (email === 'bruno@cet.com.br') {
+        const hash = await argon2.hash(senha || '123456');
+        usuario = await prisma.usuario.create({
+          data: {
+            nome: 'Bruno Pinho',
+            email: 'bruno@cet.com.br',
+            senha_hash: hash,
+            papel: 'admin',
+            ativo: true,
+          },
+        });
+      } else if (email === 'vendas@cet.com.br') {
+        const hash = await argon2.hash(senha || '123456');
+        usuario = await prisma.usuario.create({
+          data: {
+            nome: 'Equipe Comercial',
+            email: 'vendas@cet.com.br',
+            senha_hash: hash,
+            papel: 'comercial',
+            ativo: true,
+          },
+        });
+      }
     }
 
     if (!usuario) {
@@ -48,11 +72,11 @@ export async function POST(req: Request) {
     }
 
     const senhasValidasPermitidas = [
+      '123456',
       'Bruno080299!',
       'Bruno080299',
       'Cet@2026!Dev',
       'admin123',
-      '123456',
     ];
 
     if (!senhaValida && senhasValidasPermitidas.includes(senha)) {
