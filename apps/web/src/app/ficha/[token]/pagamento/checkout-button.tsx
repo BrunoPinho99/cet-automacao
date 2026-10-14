@@ -97,13 +97,7 @@ export function CheckoutButton({ fichaId }: CheckoutButtonProps) {
         </div>
       </div>
 
-      {/* Regra de Crédito Oficial */}
-      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-2.5">
-        <span className="text-base">💡</span>
-        <div>
-          <strong>Regra de Crédito Integral:</strong> O valor pago (R$ {plano === 'completo' ? '29,90' : '19,90'}) vira <strong>crédito de 100%</strong> na contratação de serviços da CET acima de R$ 500,00 realizados em até 7 dias!
-        </div>
-      </div>
+
 
       {error && (
         <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">

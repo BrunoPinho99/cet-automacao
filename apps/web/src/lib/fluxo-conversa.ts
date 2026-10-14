@@ -126,14 +126,12 @@ Digite o número para continuar:
 
 Escolha a opção desejada:
 1 - Diagnóstico Essencial (R$ 19,90)
-2 - Diagnóstico Completo (R$ 29,90)
-
-💡 *Regra de Crédito:* O valor pago vira crédito integral na contratação de serviços acima de R$ 500 realizados em até 7 dias.`,
+2 - Diagnóstico Completo (R$ 29,90)`,
 
   // Pós-Venda e Relatório (após confirmação webhook Asaas)
   RELATORIO_PRONTO: `Seu diagnóstico da CET está pronto! Prioridade: *{{prioridade}}*.
 
-A CET pode regularizar sua empresa e aplicar o crédito integral do valor pago.
+A CET pode regularizar sua empresa e emitir seus laudos ocupacionais.
 Digite:
 1 - Quero regularizar minha empresa
 2 - Falar com responsável técnico`,

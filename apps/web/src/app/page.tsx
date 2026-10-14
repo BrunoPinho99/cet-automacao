@@ -392,9 +392,6 @@ export default function HomePage() {
                   {empresaSelecionada?.razao_social || 'Sua Empresa'}
                 </div>
                 <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
-                <div className="pt-1 text-[11px] text-emerald-800 font-semibold">
-                  🎁 Os R$ 19,90 viram crédito integral para qualquer serviço contratado com a CET!
-                </div>
               </div>
 
               {!pixCopiaCola ? (

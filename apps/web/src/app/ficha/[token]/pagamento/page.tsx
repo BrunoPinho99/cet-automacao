@@ -47,7 +47,7 @@ export default async function PagamentoPage({ params }: PagamentoPageProps) {
           </div>
           <h2 className="text-2xl font-extrabold text-emerald-950">Diagnóstico Pago e Liberado!</h2>
           <p className="text-sm text-emerald-800 max-w-md mx-auto">
-            Seu relatório em PDF já foi gerado e está disponível para download. A equipe CET já registrou seu crédito integral de R$ 19,90!
+            Seu relatório em PDF já foi gerado e está disponível para download. Você pode acessá-lo abaixo.
           </p>
           <div className="pt-2">
             <Link

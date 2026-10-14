@@ -258,15 +258,7 @@ export function SstScoreGauge({
             </div>
           </div>
 
-          {/* Destaque do Crédito Integral */}
-          <div className="mt-4 pt-3.5 border-t border-blue-200/60 flex items-start sm:items-center gap-2 text-xs text-blue-900 font-medium bg-blue-100/60 rounded-xl p-2.5">
-            <svg className="w-5 h-5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>
-              <strong>Garantia CET:</strong> Os R$ 19,90 pagos viram <strong>crédito integral</strong> na contratação de qualquer laudo ou serviço com a nossa clínica!
-            </span>
-          </div>
+
 
           {/* Botão de Ação CTA */}
           <div className="mt-5">
