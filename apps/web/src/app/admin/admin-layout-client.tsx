@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { OnboardingModal } from './onboarding-modal';
 
 interface AdminLayoutClientProps {
   session: {
@@ -123,6 +124,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
 
 export function AdminLayoutClient({ session, children }: AdminLayoutClientProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
 
@@ -140,6 +142,8 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+      <OnboardingModal forceOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
+
       {/* CABEÇALHO ÚNICO COM A LOGO */}
       <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
@@ -164,22 +168,36 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           </Link>
         </div>
 
-        {session && (
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:block text-right leading-tight">
-              <span className="block text-sm font-medium text-slate-800">{nomeUsuario}</span>
-              <span className="block text-xs text-slate-500 capitalize">{session.role}</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="text-sm text-slate-600 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1.5"
-            >
-              {loggingOut ? 'Saindo...' : 'Sair'}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => setTutorialOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-md px-2.5 sm:px-3 py-1.5 transition"
+            title="Abrir guia rápido de uso do sistema"
+          >
+            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Como usar</span>
+          </button>
+
+          {session && (
+            <>
+              <div className="hidden sm:block text-right leading-tight">
+                <span className="block text-sm font-medium text-slate-800">{nomeUsuario}</span>
+                <span className="block text-xs text-slate-500 capitalize">{session.role}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="text-sm text-slate-600 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1.5"
+              >
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-1 min-h-0">
