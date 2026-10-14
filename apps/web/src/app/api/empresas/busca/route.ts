@@ -11,9 +11,14 @@ interface EmpresaSugestao {
   cnae_descricao?: string;
   porte?: string;
   grau_risco?: number;
+  logradouro?: string;
+  numero?: string;
+  bairro?: string;
+  cep?: string;
+  origem?: 'receita_federal' | 'local' | 'demo';
 }
 
-// Base demonstrativa de empresas populares de vários segmentos para busca imediata
+// Base demonstrativa de empresas populares de vários segmentos para busca imediata por nome
 const EMPRESAS_DEMO: EmpresaSugestao[] = [
   {
     cnpj: '00.000.000/0001-91',
@@ -25,6 +30,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Bancos múltiplos com carteira comercial',
     porte: 'Demais',
     grau_risco: 1,
+    origem: 'demo',
   },
   {
     cnpj: '33.000.167/0001-01',
@@ -36,6 +42,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Fabricação de produtos do refino de petróleo',
     porte: 'Demais',
     grau_risco: 4,
+    origem: 'demo',
   },
   {
     cnpj: '03.007.331/0001-41',
@@ -47,6 +54,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Fabricação de cervejas e chopes',
     porte: 'Demais',
     grau_risco: 3,
+    origem: 'demo',
   },
   {
     cnpj: '47.960.950/0001-21',
@@ -58,6 +66,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Lojas de departamentos ou magazines',
     porte: 'Demais',
     grau_risco: 2,
+    origem: 'demo',
   },
   {
     cnpj: '12.345.678/0001-90',
@@ -69,6 +78,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Fabricação de estruturas metálicas',
     porte: 'EPP',
     grau_risco: 3,
+    origem: 'demo',
   },
   {
     cnpj: '23.456.789/0001-01',
@@ -80,6 +90,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Construção de edifícios residenciais e comerciais',
     porte: 'Demais',
     grau_risco: 4,
+    origem: 'demo',
   },
   {
     cnpj: '34.567.890/0001-12',
@@ -91,6 +102,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Transporte rodoviário de carga interestadual e intermunicipal',
     porte: 'EPP',
     grau_risco: 3,
+    origem: 'demo',
   },
   {
     cnpj: '45.678.901/0001-23',
@@ -102,6 +114,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Atividades de atendimento hospitalar geral',
     porte: 'Demais',
     grau_risco: 3,
+    origem: 'demo',
   },
   {
     cnpj: '56.789.012/0001-34',
@@ -113,6 +126,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Fabricação de produtos de padaria e confeitaria',
     porte: 'ME',
     grau_risco: 2,
+    origem: 'demo',
   },
   {
     cnpj: '67.890.123/0001-45',
@@ -121,9 +135,10 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cidade: 'Salvador',
     uf: 'BA',
     cnae: '4711-3/02',
-    cnae_descricao: 'Comércio varejista de mercadorias em geral com predominância de produtos alimentícios',
+    cnae_descricao: 'Comércio varejista de mercadorias em geral',
     porte: 'EPP',
     grau_risco: 2,
+    origem: 'demo',
   },
   {
     cnpj: '78.901.234/0001-56',
@@ -132,9 +147,10 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cidade: 'Porto Alegre',
     uf: 'RS',
     cnae: '4731-8/00',
-    cnae_descricao: 'Comércio varejista de combustíveis para veículos automotores',
+    cnae_descricao: 'Comércio varejista de combustíveis para veículos',
     porte: 'EPP',
     grau_risco: 3,
+    origem: 'demo',
   },
   {
     cnpj: '89.012.345/0001-67',
@@ -146,6 +162,7 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cnae_descricao: 'Fabricação de tintas, vernizes, esmaltes e lacas',
     porte: 'Demais',
     grau_risco: 4,
+    origem: 'demo',
   },
   {
     cnpj: '90.123.456/0001-78',
@@ -154,16 +171,115 @@ const EMPRESAS_DEMO: EmpresaSugestao[] = [
     cidade: 'Goiânia',
     uf: 'GO',
     cnae: '8630-5/04',
-    cnae_descricao: 'Atividade odontológica com recursos para realização de procedimentos cirúrgicos',
+    cnae_descricao: 'Atividade odontológica ambulatorial',
     porte: 'ME',
     grau_risco: 3,
+    origem: 'demo',
   },
 ];
+
+/**
+ * Consulta de CNPJ com redundância tripla gratuita:
+ * 1. BrasilAPI (aberta, sem token)
+ * 2. Minha Receita (aberta, sem token)
+ * 3. CNPJ.ws pública
+ */
+async function consultarCnpjRedundante(cnpjLimpo: string): Promise<EmpresaSugestao | null> {
+  // 1. Tentar BrasilAPI
+  try {
+    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+      signal: AbortSignal.timeout(4500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        cnpj: data.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+        razao_social: data.razao_social || data.nome_fantasia || 'Empresa Localizada',
+        nome_fantasia: data.nome_fantasia || undefined,
+        cidade: data.municipio || '',
+        uf: data.uf || '',
+        cnae: data.cnae_fiscal ? String(data.cnae_fiscal) : undefined,
+        cnae_descricao: data.cnae_fiscal_descricao || undefined,
+        porte: data.porte || 'Micro/Pequena Empresa',
+        grau_risco: estimarGrauRisco(data.cnae_fiscal_descricao || ''),
+        logradouro: data.logradouro || undefined,
+        numero: data.numero || undefined,
+        bairro: data.bairro || undefined,
+        cep: data.cep || undefined,
+        origem: 'receita_federal',
+      };
+    }
+  } catch (err) {
+    console.warn('[BrasilAPI] Falhou, tentando MinhaReceita...', err);
+  }
+
+  // 2. Tentar Minha Receita
+  try {
+    const res = await fetch(`https://minhareceita.org/${cnpjLimpo}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+      signal: AbortSignal.timeout(4500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        cnpj: (data.cnpj || cnpjLimpo).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+        razao_social: data.razao_social || data.nome_fantasia || 'Empresa Localizada',
+        nome_fantasia: data.nome_fantasia || undefined,
+        cidade: data.municipio || '',
+        uf: data.uf || '',
+        cnae: data.cnae_fiscal ? String(data.cnae_fiscal) : undefined,
+        cnae_descricao: data.cnae_fiscal_descricao || undefined,
+        porte: data.porte || 'Micro/Pequena Empresa',
+        grau_risco: estimarGrauRisco(data.cnae_fiscal_descricao || ''),
+        logradouro: data.logradouro || undefined,
+        numero: data.numero || undefined,
+        bairro: data.bairro || undefined,
+        cep: data.cep || undefined,
+        origem: 'receita_federal',
+      };
+    }
+  } catch (err) {
+    console.warn('[MinhaReceita] Falhou, tentando CNPJ.ws...', err);
+  }
+
+  // 3. Tentar publica.cnpj.ws
+  try {
+    const res = await fetch(`https://publica.cnpj.ws/cnpj/${cnpjLimpo}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
+      signal: AbortSignal.timeout(4500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const est = data.estabelecimento || {};
+      return {
+        cnpj: cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+        razao_social: data.razao_social || est.nome_fantasia || 'Empresa Localizada',
+        nome_fantasia: est.nome_fantasia || undefined,
+        cidade: est.cidade?.nome || '',
+        uf: est.estado?.sigla || '',
+        cnae: est.atividade_principal?.subclasse ? String(est.atividade_principal.subclasse) : undefined,
+        cnae_descricao: est.atividade_principal?.descricao || undefined,
+        porte: data.porte?.descricao || 'Pequeno Porte',
+        grau_risco: estimarGrauRisco(est.atividade_principal?.descricao || ''),
+        logradouro: est.logradouro || undefined,
+        numero: est.numero || undefined,
+        bairro: est.bairro || undefined,
+        cep: est.cep || undefined,
+        origem: 'receita_federal',
+      };
+    }
+  } catch (err) {
+    console.warn('[CNPJ.ws] Falhou também:', err);
+  }
+
+  return null;
+}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const termo = (searchParams.get('q') || '').trim();
+    const termo = (searchParams.get('q') || searchParams.get('cnpj') || '').trim();
 
     if (!termo || termo.length < 2) {
       return NextResponse.json({ resultados: [] });
@@ -171,37 +287,48 @@ export async function GET(request: Request) {
 
     const apenasDigitos = termo.replace(/\D/g, '');
 
-    // Se o usuário digitou ou colou um CNPJ com 14 dígitos (ou pelo menos 11)
+    // 1. SE FOR CNPJ (14 dígitos): Consulta tripla gratuita com salvamento em cache local
     if (apenasDigitos.length === 14) {
-      try {
-        // Consulta na BrasilAPI
-        const resBrasil = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${apenasDigitos}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 CET-Automacao' },
-          next: { revalidate: 3600 },
-        });
+      const empresaExterna = await consultarCnpjRedundante(apenasDigitos);
 
-        if (resBrasil.ok) {
-          const data = await resBrasil.json();
-          const resultado: EmpresaSugestao = {
-            cnpj: data.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
-            razao_social: data.razao_social || data.nome_fantasia || 'Empresa Localizada',
-            nome_fantasia: data.nome_fantasia || undefined,
-            cidade: data.municipio || '',
-            uf: data.uf || '',
-            cnae: data.cnae_fiscal ? String(data.cnae_fiscal) : undefined,
-            cnae_descricao: data.cnae_fiscal_descricao || undefined,
-            porte: data.porte || 'Micro/Pequena Empresa',
-            grau_risco: estimarGrauRisco(data.cnae_fiscal_descricao || ''),
-          };
-
-          return NextResponse.json({ resultados: [resultado] });
+      if (empresaExterna) {
+        // Salva/Atualiza no banco local para que buscas futuras por NOME a encontrem instantaneamente
+        try {
+          await prisma.empresa.upsert({
+            where: { cnpj: apenasDigitos },
+            update: {
+              razao_social: empresaExterna.razao_social,
+              nome_fantasia: empresaExterna.nome_fantasia || null,
+              cidade: empresaExterna.cidade,
+              uf: empresaExterna.uf,
+              cnae_informado: empresaExterna.cnae || null,
+              atividade_real: empresaExterna.cnae_descricao || null,
+              grau_risco: empresaExterna.grau_risco || 2,
+            },
+            create: {
+              cnpj: apenasDigitos,
+              razao_social: empresaExterna.razao_social,
+              nome_fantasia: empresaExterna.nome_fantasia || null,
+              cidade: empresaExterna.cidade,
+              uf: empresaExterna.uf,
+              cnae_informado: empresaExterna.cnae || null,
+              atividade_real: empresaExterna.cnae_descricao || null,
+              grau_risco: empresaExterna.grau_risco || 2,
+            },
+          });
+        } catch (dbErr) {
+          console.warn('[Auto-cache Empresa] Erro ao salvar no banco local:', dbErr);
         }
-      } catch (err) {
-        console.warn('[Busca CNPJ BrasilAPI] Falhou, prosseguindo com busca local:', err);
+
+        return NextResponse.json({
+          resultados: [empresaExterna],
+          origem: 'receita_federal',
+          mensagem: 'Empresa consultada na base oficial nacional (Receita Federal)',
+        });
       }
     }
 
-    // Busca no banco local
+    // 2. BUSCA NO BANCO DE DADOS LOCAL (Empresas já cadastradas ou consultadas)
     const resultadosLocais: EmpresaSugestao[] = [];
     try {
       const empresasDb = await prisma.empresa.findMany({
@@ -220,18 +347,21 @@ export async function GET(request: Request) {
           cnpj: e.cnpj.length === 14
             ? e.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
             : e.cnpj,
-          razao_social: e.razao_social,
+          razao_social: e.razao_social || 'Empresa sem Razão Social',
           nome_fantasia: e.nome_fantasia || undefined,
           cidade: e.cidade || '',
           uf: e.uf || '',
+          cnae: e.cnae_informado || undefined,
+          cnae_descricao: e.atividade_real || undefined,
           grau_risco: e.grau_risco || 2,
+          origem: 'local',
         });
       });
     } catch {
-      // Ignora erro de query ao banco
+      // Ignora erro de banco local
     }
 
-    // Busca na base de empresas de demonstração e segmentos
+    // 3. BUSCA NA BASE CURADA DEMONSTRATIVA
     const termoLower = termo.toLowerCase();
     const demoFiltradas = EMPRESAS_DEMO.filter((e) => {
       const matchRazao = e.razao_social.toLowerCase().includes(termoLower);
@@ -254,13 +384,13 @@ export async function GET(request: Request) {
       }
     });
 
-    // Se o usuário digitou um nome que não achou exato, permite criar/vincular empresa com aquele nome
+    // Se o usuário digitou um nome e não achou exato, permite vincular e autogerar o diagnóstico
     if (todosResultados.length === 0 && termo.length >= 3 && !/^\d+$/.test(termo)) {
       todosResultados.push({
         cnpj: 'Clique para autogerar o diagnóstico desta empresa',
         razao_social: termo.toUpperCase(),
         nome_fantasia: termo,
-        cidade: 'Sua Cidade',
+        cidade: 'São Paulo',
         uf: 'SP',
         cnae_descricao: 'Comércio / Serviços Gerais',
         porte: 'Pequeno Porte',

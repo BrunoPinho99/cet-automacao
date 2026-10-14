@@ -14,11 +14,15 @@ interface EmpresaItem {
   cnae_descricao?: string;
   porte?: string;
   grau_risco?: number;
+  origem?: 'receita_federal' | 'local' | 'demo';
+  logradouro?: string;
+  bairro?: string;
 }
 
 export default function HomePage() {
   const [busca, setBusca] = useState('');
   const [buscando, setBuscando] = useState(false);
+  const [buscandoReceita, setBuscandoReceita] = useState(false);
   const [sugestoes, setSugestoes] = useState<EmpresaItem[]>([]);
   const [mostrarDropdown, setMostrarDropdown] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<EmpresaItem | null>(null);
@@ -46,14 +50,26 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Busca com debounce conforme o usuário digita o nome da empresa ou CNPJ
+  // Busca inteligente (Solução 2):
+  // - Se colar/digitar 14 dígitos (CNPJ): busca imediata na Receita Federal do Brasil inteiro
+  // - Se digitar nome da empresa: debounce suave de 250ms com busca no banco local e populares
   useEffect(() => {
     const termo = busca.trim();
     if (termo.length < 2) {
       setSugestoes([]);
       setMostrarDropdown(false);
+      setBuscandoReceita(false);
       return;
     }
+
+    const apenasDigitos = termo.replace(/\D/g, '');
+    const isCnpjCompleto = apenasDigitos.length === 14;
+
+    if (isCnpjCompleto) {
+      setBuscandoReceita(true);
+    }
+
+    const delay = isCnpjCompleto ? 50 : 250;
 
     const timer = setTimeout(async () => {
       setBuscando(true);
@@ -68,8 +84,9 @@ export default function HomePage() {
         console.error('Erro na busca de empresas:', err);
       } finally {
         setBuscando(false);
+        setBuscandoReceita(false);
       }
-    }, 280);
+    }, delay);
 
     return () => clearTimeout(timer);
   }, [busca]);
@@ -187,17 +204,30 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* FORMULÁRIO DE BUSCA INTELIGENTE DE EMPRESA */}
+        {/* FORMULÁRIO DE BUSCA INTELIGENTE DE EMPRESA (Solução 2: Brasil Inteiro) */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 relative" ref={dropdownRef}>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-            Pesquise o nome da empresa ou CNPJ:
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Pesquise o nome da empresa ou cole o CNPJ:
+            </label>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              Base Nacional (Brasil Inteiro)
+            </span>
+          </div>
 
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              {buscando ? (
+                <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
             </div>
 
             <input
@@ -207,7 +237,7 @@ export default function HomePage() {
               onFocus={() => {
                 if (sugestoes.length > 0) setMostrarDropdown(true);
               }}
-              placeholder="Ex: Padaria Central, Metalúrgica Aliança, ou digite o CNPJ..."
+              placeholder="Digite o nome da sua empresa OU cole o CNPJ (ex: 12.345.678/0001-90)..."
               className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
             />
 
@@ -216,6 +246,7 @@ export default function HomePage() {
                 type="button"
                 onClick={handleLimparBusca}
                 className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                title="Limpar campo"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -224,18 +255,30 @@ export default function HomePage() {
             )}
           </div>
 
-          <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
+          {/* AVISO DE CONSULTA NA RECEITA FEDERAL EM ANDAMENTO */}
+          {buscandoReceita && (
+            <div className="mt-2.5 px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs font-medium flex items-center gap-2 animate-fade-in">
+              <svg className="animate-spin h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Consultando dados oficiais da empresa na Receita Federal do Brasil...</span>
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1.5">
             <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Ao selecionar a empresa na lista, vinculamos o CNPJ e localização automaticamente, sem precisar digitar número por número.</span>
+            <span>Ao selecionar a empresa, vinculamos CNPJ, CNAE e localização automaticamente, sem precisar digitar número por número.</span>
           </p>
 
           {/* DROPDOWN DE SUGESTÕES */}
           {mostrarDropdown && sugestoes.length > 0 && (
             <div className="absolute left-6 right-6 top-[102px] z-20 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-80 overflow-y-auto animate-fade-in divide-y divide-slate-100">
-              <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                {sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'} — Clique para vincular
+              <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                <span>{sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'}</span>
+                <span className="text-[10px] text-slate-400 font-normal">Clique para vincular e gerar score</span>
               </div>
 
               {sugestoes.map((emp, index) => (
@@ -246,9 +289,22 @@ export default function HomePage() {
                   className="w-full px-4 py-3 text-left hover:bg-blue-50/80 transition-colors flex items-start justify-between gap-3 group"
                 >
                   <div className="space-y-0.5 min-w-0">
-                    <div className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
-                      {emp.razao_social}
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
+                        {emp.razao_social}
+                      </div>
+                      {emp.origem === 'receita_federal' && (
+                        <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
+                          Receita Federal
+                        </span>
+                      )}
+                      {emp.origem === 'local' && (
+                        <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded-md">
+                          Base Integrada
+                        </span>
+                      )}
                     </div>
+
                     {emp.nome_fantasia && emp.nome_fantasia !== emp.razao_social && (
                       <div className="text-xs text-slate-500 font-medium">
                         Nome fantasia: {emp.nome_fantasia}
@@ -278,17 +334,36 @@ export default function HomePage() {
           {empresaSelecionada && (
             <div className="mt-5 p-4 bg-blue-50/80 rounded-2xl border border-blue-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-blue-200">
-                  ✓ Empresa Vinculada
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-blue-200">
+                    ✓ Empresa Vinculada
+                  </span>
+                  {empresaSelecionada.origem === 'receita_federal' && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                      🟢 Base Oficial da Receita Federal
+                    </span>
+                  )}
+                </div>
+
                 <h3 className="text-base font-bold text-slate-900">
                   {empresaSelecionada.razao_social}
                 </h3>
-                <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1">
+                {empresaSelecionada.nome_fantasia && empresaSelecionada.nome_fantasia !== empresaSelecionada.razao_social && (
+                  <p className="text-xs text-slate-600 font-medium">
+                    Nome Fantasia: {empresaSelecionada.nome_fantasia}
+                  </p>
+                )}
+                <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
                   <span>CNPJ: <strong className="font-mono text-slate-800">{empresaSelecionada.cnpj}</strong></span>
                   <span>Localização: <strong>{empresaSelecionada.cidade} - {empresaSelecionada.uf}</strong></span>
+                  {empresaSelecionada.cnae_descricao && (
+                    <span className="w-full sm:w-auto truncate">Atividade: <strong>{empresaSelecionada.cnae_descricao}</strong></span>
+                  )}
                   {empresaSelecionada.porte && (
                     <span>Porte: <strong>{empresaSelecionada.porte}</strong></span>
+                  )}
+                  {empresaSelecionada.grau_risco && (
+                    <span>Risco NR-4: <strong>Grau {empresaSelecionada.grau_risco}</strong></span>
                   )}
                 </div>
               </div>
@@ -296,7 +371,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleLimparBusca}
-                className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-2 shrink-0"
+                className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-2 shrink-0 py-1"
               >
                 Trocar empresa
               </button>

@@ -50,10 +50,43 @@ export default function FichaPage({
   const [salvando, setSalvando] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
 
-  // Busca e autocompletar de empresas no Bloco 1
+  // Busca e autocompletar de empresas no Bloco 1 (Solução 2: Brasil Inteiro)
   const [buscaEmpresaFicha, setBuscaEmpresaFicha] = useState('');
   const [sugestoesFicha, setSugestoesFicha] = useState<any[]>([]);
   const [mostrarSugestoesFicha, setMostrarSugestoesFicha] = useState(false);
+  const [buscandoCnpjFicha, setBuscandoCnpjFicha] = useState(false);
+  const [cnpjPreenchidoAutomatico, setCnpjPreenchidoAutomatico] = useState(false);
+
+  // Consulta automática de CNPJ nacional na Receita Federal
+  const consultarCnpjAuto = async (valorCnpj: string) => {
+    const apenasDigitos = valorCnpj.replace(/\D/g, '');
+    if (apenasDigitos.length !== 14) return;
+
+    try {
+      setBuscandoCnpjFicha(true);
+      const res = await fetch(`/api/empresas/busca?cnpj=${apenasDigitos}`);
+      if (res.ok) {
+        const data = await res.json();
+        const emp = data.resultados?.[0];
+        if (emp) {
+          setRespostasBloco(prev => ({
+            ...prev,
+            cnpj: emp.cnpj,
+            razao_social: emp.razao_social,
+            nome_fantasia: emp.nome_fantasia || emp.razao_social,
+            cidade: emp.cidade,
+            uf: emp.uf,
+            atividade_real: emp.cnae_descricao || prev.atividade_real || 'Comércio e Serviços Gerais',
+          }));
+          setCnpjPreenchidoAutomatico(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao consultar CNPJ na ficha:', e);
+    } finally {
+      setBuscandoCnpjFicha(false);
+    }
+  };
 
   useEffect(() => {
     const termo = buscaEmpresaFicha.trim();
@@ -339,18 +372,23 @@ export default function FichaPage({
             {/* Se for o Bloco 1 (Identificação), disponibilizar busca inteligente por nome ou CNPJ */}
             {state.bloco_atual === 1 && (
               <div className="mb-6 p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl relative">
-                <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <span>🔍 Buscar Empresa por Nome ou CNPJ (Preenchimento Rápido)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🔍 Buscar Empresa por Nome ou CNPJ</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Base Nacional
+                  </span>
+                </div>
                 <p className="text-xs text-blue-700 mb-2">
-                  Pesquise o nome da sua empresa para vincular Razão Social, CNPJ e localização sem precisar digitar dígito por dígito:
+                  Pesquise o nome da empresa ou cole o CNPJ para preencher Razão Social, CNAE e localização automaticamente:
                 </p>
                 <div className="relative">
                   <input
                     type="text"
                     value={buscaEmpresaFicha}
                     onChange={(e) => setBuscaEmpresaFicha(e.target.value)}
-                    placeholder="Digite o nome da empresa ou CNPJ..."
+                    placeholder="Ex: Padaria Central, ou cole o CNPJ (ex: 12.345.678/0001-90)..."
                     className="w-full bg-white border border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 outline-hidden font-medium placeholder:text-slate-400"
                   />
 
@@ -368,15 +406,23 @@ export default function FichaPage({
                               nome_fantasia: emp.nome_fantasia || emp.razao_social,
                               cidade: emp.cidade,
                               uf: emp.uf,
-                              atividade_real: emp.cnae_descricao || 'Comércio e Serviços Gerais',
+                              atividade_real: emp.cnae_descricao || prev.atividade_real || 'Comércio e Serviços Gerais',
                             }));
                             setBuscaEmpresaFicha(emp.razao_social);
                             setMostrarSugestoesFicha(false);
+                            setCnpjPreenchidoAutomatico(true);
                           }}
                           className="w-full p-3 text-left hover:bg-blue-50 transition flex items-center justify-between text-xs"
                         >
-                          <div>
-                            <div className="font-bold text-slate-900">{emp.razao_social}</div>
+                          <div className="space-y-0.5 min-w-0 pr-2">
+                            <div className="font-bold text-slate-900 truncate flex items-center gap-1.5">
+                              <span>{emp.razao_social}</span>
+                              {emp.origem === 'receita_federal' && (
+                                <span className="text-[9px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-semibold shrink-0">
+                                  Receita Federal
+                                </span>
+                              )}
+                            </div>
                             <div className="text-slate-500 text-[11px] font-mono">{emp.cnpj} • {emp.cidade} - {emp.uf}</div>
                           </div>
                           <span className="text-blue-600 font-semibold shrink-0">Vincular →</span>
@@ -385,6 +431,12 @@ export default function FichaPage({
                     </div>
                   )}
                 </div>
+
+                {cnpjPreenchidoAutomatico && (
+                  <p className="text-[11px] text-emerald-700 mt-2 font-medium flex items-center gap-1">
+                    <span>✓</span> Dados da empresa vinculados com sucesso!
+                  </p>
+                )}
               </div>
             )}
 
@@ -408,19 +460,39 @@ export default function FichaPage({
 
                   {/* Texto */}
                   {campo.tipo === 'texto' && (
-                    <input
-                      id={campo.id}
-                      type="text"
-                      placeholder={campo.placeholder}
-                      value={(respostasBloco[campo.id] as string) || ''}
-                      onChange={e =>
-                        setRespostasBloco(prev => ({
-                          ...prev,
-                          [campo.id]: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
-                    />
+                    <div className="space-y-1">
+                      <input
+                        id={campo.id}
+                        type="text"
+                        placeholder={campo.placeholder}
+                        value={(respostasBloco[campo.id] as string) || ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setRespostasBloco(prev => ({
+                            ...prev,
+                            [campo.id]: val,
+                          }));
+                          if (campo.id === 'cnpj') {
+                            const digits = val.replace(/\D/g, '');
+                            if (digits.length === 14) {
+                              consultarCnpjAuto(val);
+                            }
+                          }
+                        }}
+                        onBlur={e => {
+                          if (campo.id === 'cnpj') {
+                            consultarCnpjAuto(e.target.value);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition"
+                      />
+                      {campo.id === 'cnpj' && buscandoCnpjFicha && (
+                        <p className="text-xs text-blue-600 font-medium flex items-center gap-1.5 pt-1 animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                          Consultando dados na Receita Federal do Brasil...
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   {/* Número */}
