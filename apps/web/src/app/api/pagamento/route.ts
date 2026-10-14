@@ -87,7 +87,7 @@ export async function GET(request: Request) {
         }),
       ]);
 
-      const tokenFicha = pedido.lead.fichas?.[0]?.token_retomada || '';
+      const tokenFicha = (pedido as any)?.lead?.fichas?.[0]?.token_retomada || '';
       return NextResponse.json({
         status: 'pago',
         pago: true,
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const tokenFicha = pedido.lead?.fichas?.[0]?.token_retomada || '';
+    const tokenFicha = (pedido as any)?.lead?.fichas?.[0]?.token_retomada || '';
 
     return NextResponse.json({
       status: pedido.status,

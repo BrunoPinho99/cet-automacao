@@ -148,8 +148,8 @@ async function main() {
       contatoTel: `+556399${String(100000 + i).padStart(6, '0')}`,
       contatoEmail: `contato@empresa${i + 1}.com.br`,
       statusFicha: 'concluida',
-      classificacaoSst: empresa.grau_risco >= 3 ? 'alto_risco' : (empresa.grau_risco === 2 ? 'atencao' : 'regular'),
-      scoreTotalSst: Math.max(20, Math.min(95, 100 - (empresa.grau_risco * 20))),
+      classificacaoSst: (empresa.grau_risco ?? 2) >= 3 ? 'alto_risco' : ((empresa.grau_risco ?? 2) === 2 ? 'atencao' : 'regular'),
+      scoreTotalSst: Math.max(20, Math.min(95, 100 - ((empresa.grau_risco ?? 2) * 20))),
       scoreComercialTotal: empresa.trabalhadores_proprios > 100 ? 85 : (empresa.trabalhadores_proprios >= 20 ? 60 : 35),
       statusPedido: i % 3 === 0 ? 'CONFIRMADO' : (i % 3 === 1 ? 'PENDENTE' : 'CRIADO'),
       valorPedidoCentavos: empresa.trabalhadores_proprios > 100 ? 3500000 : (empresa.trabalhadores_proprios >= 20 ? 950000 : 2990),
@@ -196,9 +196,9 @@ async function main() {
         bloco_atual: 4,
         concluida_em: new Date(),
         respostas: {
-          possui_pgr: empresa.grau_risco > 1 ? 'sim' : 'nao',
-          possui_pcmso: empresa.grau_risco > 1 ? 'sim' : 'nao',
-          possui_ltcat: empresa.grau_risco >= 3 ? 'sim' : 'nao',
+          possui_pgr: (empresa.grau_risco ?? 2) > 1 ? 'sim' : 'nao',
+          possui_pcmso: (empresa.grau_risco ?? 2) > 1 ? 'sim' : 'nao',
+          possui_ltcat: (empresa.grau_risco ?? 2) >= 3 ? 'sim' : 'nao',
           envia_esocial: empresa.trabalhadores_proprios > 20 ? 'sim' : 'parcial',
           treinamentos_em_dia: 'parcial',
         }
@@ -210,7 +210,7 @@ async function main() {
       data: {
         ficha_id: ficha.id,
         porte_unidades: empresa.trabalhadores_proprios > 100 ? 30 : 15,
-        complexidade: empresa.grau_risco * 6,
+        complexidade: (empresa.grau_risco ?? 2) * 6,
         urgencia: 15,
         potencial: 12,
         qualidade_dados: 10,
