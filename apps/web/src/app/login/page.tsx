@@ -53,9 +53,12 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-12">
       <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 sm:p-10 shadow-2xl border border-slate-100">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg shadow-blue-500/30 mb-3">
-            CET
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-cet.png"
+            alt="CET Clínica"
+            className="w-16 h-16 rounded-2xl mx-auto shadow-md border border-blue-200/60 mb-3 object-contain"
+          />
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">CET Automação</h2>
           <p className="mt-1 text-sm text-slate-500">Painel de Gestão e Triagem SST</p>
         </div>

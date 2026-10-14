@@ -3,7 +3,7 @@
 /*
  * ==========================================================================
  * CET CLÍNICA — SISTEMA DE GESTÃO SST & ATENDIMENTO
- * DESIGN SYSTEM SAAS 2026: BRANCO, AZUL E VERDE
+ * DESIGN SYSTEM SAAS 2026: BRANCO E AZUL CET (#0891c7)
  * ==========================================================================
  */
 
@@ -12,24 +12,30 @@
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary: #0891c7;
+  --primary-hover: #0284c7;
   --primary-foreground: #ffffff;
   --secondary: #059669;
   --secondary-hover: #047857;
   --secondary-foreground: #ffffff;
-  --muted: #f1f5f9;
+  --muted: #f0f9ff;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
-  --ring: #2563eb;
+  --ring: #0891c7;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
-  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+@theme {
+  --color-blue-50: #f0f9ff;
+  --color-blue-100: #e0f2fe;
+  --color-blue-200: #bae6fd;
+  --color-blue-300: #7dd3fc;
+  --color-blue-400: #38bdf8;
+  --color-blue-500: #0ea5e9;
+  --color-blue-600: #0891c7; /* Azul Oficial da Logo CET */
+  --color-blue-700: #0284c7;
+  --color-blue-800: #0369a1;
+  --color-blue-900: #075985;
+  --color-blue-950: #0c4a6e;
 }
 
 html {
@@ -43,7 +49,7 @@ html {
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.011em;
 }
 
@@ -64,11 +70,11 @@ body {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .saas-card-interactive:hover {
-  border-color: #93c5fd;
-  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  border-color: #7dd3fc;
+  box-shadow: 0 4px 12px -2px rgba(8, 145, 199, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 }
 
-/* Botões Modernos SaaS */
+/* Botões Modernos SaaS na Paleta Oficial CET */
 .btn-saas-primary {
   display: inline-flex;
   align-items: center;
@@ -78,15 +84,15 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   color: #ffffff;
-  background: #2563eb;
-  border: 1px solid #1d4ed8;
+  background: #0891c7;
+  border: 1px solid #0284c7;
   border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(37, 99, 235, 0.25);
+  box-shadow: 0 1px 2px 0 rgba(8, 145, 199, 0.25);
   transition: all 0.15s ease;
 }
 .btn-saas-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 2px 4px 0 rgba(37, 99, 235, 0.35);
+  background: #0284c7;
+  box-shadow: 0 2px 4px 0 rgba(8, 145, 199, 0.35);
   transform: translateY(-0.5px);
 }
 .btn-saas-primary:active:not(:disabled) {
@@ -142,9 +148,9 @@ body {
   padding: 0.2rem 0.65rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
   border-radius: 9999px;
 }
 

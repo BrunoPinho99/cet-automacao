@@ -103,7 +103,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-800 flex flex-col lg:flex-row antialiased overflow-x-hidden">
-      {/* BARRA SUPERIOR MOBILE */}
+      {/* BARRA SUPERIOR MOBILE COM A LOGO OFICIAL */}
       <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs">
         <div className="flex items-center gap-3">
           <button
@@ -117,12 +117,15 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
             </svg>
           </button>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
-              CET
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-cet.png"
+              alt="CET Clínica"
+              className="w-9 h-9 rounded-xl object-contain shadow-xs border border-blue-200/60"
+            />
             <div>
-              <span className="font-bold text-slate-900 text-sm tracking-tight block">CET Clínica</span>
-              <span className="text-[10px] text-emerald-600 font-semibold block leading-none">WhatsApp Live</span>
+              <span className="font-bold text-slate-900 text-sm tracking-tight block leading-tight">CET Clínica</span>
+              <span className="text-[10px] text-blue-600 font-semibold block leading-tight">Segurança & Saúde</span>
             </div>
           </div>
         </div>
@@ -147,12 +150,15 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           <div className="relative flex flex-col w-80 max-w-[85vw] bg-white h-full shadow-2xl z-10 border-r border-slate-200">
             <div className="flex items-center justify-between h-18 px-5 border-b border-slate-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs shadow-blue-500/20">
-                  CET
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo-cet.png"
+                  alt="CET Clínica"
+                  className="w-10 h-10 rounded-xl object-contain shadow-xs border border-blue-200/60"
+                />
                 <div>
                   <div className="text-base font-bold text-slate-900 leading-tight">CET Clínica</div>
-                  <div className="text-xs text-emerald-600 font-medium">Segurança & Saúde</div>
+                  <div className="text-xs text-blue-600 font-semibold">Segurança & Medicina SST</div>
                 </div>
               </div>
               <button
@@ -226,34 +232,37 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
         </div>
       )}
 
-      {/* SIDEBAR DESKTOP AMPLIADA SAAS 2026 (w-72 a w-80) */}
+      {/* SIDEBAR DESKTOP COM A LOGO OFICIAL CET */}
       <aside className="hidden lg:flex lg:flex-col lg:w-72 xl:w-80 lg:shrink-0 bg-white border-r border-slate-200/90 min-h-screen shadow-2xs">
         <div className="h-full flex flex-col justify-between">
           <div>
-            {/* Header da Sidebar */}
-            <div className="h-18 px-6 border-b border-slate-200/90 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm tracking-wide shadow-xs shadow-blue-500/20 ring-1 ring-blue-700">
-                  CET
-                </div>
+            {/* Header da Sidebar com a Logo Oficial da CET */}
+            <div className="h-20 px-6 border-b border-slate-200/90 flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo-cet.png"
+                  alt="Logo CET Clínica"
+                  className="w-11 h-11 rounded-xl object-contain shadow-xs border border-blue-200/60 ring-2 ring-blue-500/10"
+                />
                 <div>
-                  <div className="text-sm font-bold text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+                  <div className="text-base font-bold text-slate-900 tracking-tight leading-tight flex items-center gap-2">
                     CET Clínica
                     <span className="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100" />
                   </div>
-                  <div className="text-xs text-slate-500 font-medium leading-tight mt-0.5">Segurança & Medicina SST</div>
+                  <div className="text-xs text-blue-600 font-semibold leading-tight mt-0.5">Segurança & Medicina SST</div>
                 </div>
               </div>
             </div>
 
             {/* Status do WhatsApp no Topo da Sidebar */}
             <div className="px-5 pt-4 pb-2">
-              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs shadow-2xs">
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-blue-50/60 border border-blue-200/70 text-xs shadow-2xs">
                 <div className="flex items-center gap-2 font-medium text-slate-700">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <span>WhatsApp Operacional</span>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                <span className="text-[11px] font-semibold text-blue-700 bg-white px-2 py-0.5 rounded-full border border-blue-200">
                   Ao Vivo
                 </span>
               </div>
@@ -311,14 +320,14 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
             {session && (
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs flex items-center justify-center shrink-0">
                     {session.email.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-semibold text-slate-800 truncate leading-tight">
                       {session.email.split('@')[0]}
                     </div>
-                    <div className="text-[11px] text-slate-400 truncate leading-tight mt-0.5 capitalize">
+                    <div className="text-[11px] text-blue-600 font-medium truncate leading-tight mt-0.5 capitalize">
                       {session.role}
                     </div>
                   </div>
@@ -350,12 +359,24 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
       {/* ÁREA PRINCIPAL TOTALMENTE RESPONSIVA */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* Top Navbar Desktop */}
-        <header className="hidden lg:flex items-center justify-between h-18 px-8 xl:px-10 bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 shadow-2xs">
-          <div className="flex items-center gap-2.5 text-sm text-slate-500">
-            <span className="font-medium text-slate-400">CET Enterprise</span>
+        {/* Top Navbar Desktop com a Logo Oficial no Header */}
+        <header className="hidden lg:flex items-center justify-between h-20 px-8 xl:px-10 bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <Link href="/admin" className="flex items-center gap-3 group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-cet.png"
+                alt="Logo CET"
+                className="w-10 h-10 rounded-xl object-contain shadow-xs border border-blue-200/60 group-hover:scale-105 transition"
+              />
+              <div className="leading-tight">
+                <span className="font-bold text-slate-900 text-sm tracking-tight block">CET Clínica</span>
+                <span className="text-[11px] text-blue-600 font-semibold block">Segurança & Saúde</span>
+              </div>
+            </Link>
+
             <span className="text-slate-300">/</span>
-            <span className="font-semibold text-slate-900">{currentNav.name}</span>
+            <span className="font-semibold text-slate-800 text-sm">{currentNav.name}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -369,7 +390,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
             <Link
               href="/admin/atendimento"
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition shadow-2xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-semibold transition shadow-2xs"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <span>WhatsApp Live</span>

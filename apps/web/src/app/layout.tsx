@@ -10,6 +10,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "CET — Painel de Atendimento",
   description: "Painel de atendimento, clientes e diagnóstico de Segurança e Medicina do Trabalho da CET",
+  icons: {
+    icon: "/logo-cet.png",
+    apple: "/logo-cet.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
