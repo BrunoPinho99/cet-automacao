@@ -329,7 +329,7 @@ export async function obterOuGerarRelatorio(idOuFichaId: string): Promise<{ buff
   }
 
   // 4. Buscar ficha correspondente (seja por id da ficha ou id do lead)
-  let ficha = relatorio?.ficha;
+  let ficha: any = relatorio?.ficha;
   if (!ficha) {
     ficha = await prisma.ficha.findUnique({
       where: { id: idOuFichaId },

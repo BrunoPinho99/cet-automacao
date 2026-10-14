@@ -34,7 +34,7 @@ export async function GET(
     headers.set('Content-Disposition', `attachment; filename="${arquivo.nome}"`);
     headers.set('X-Content-Type-Options', 'nosniff');
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers
     });

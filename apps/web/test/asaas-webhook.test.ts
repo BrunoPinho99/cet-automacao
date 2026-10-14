@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 
 // Fazemos um mock parcial de @cet/db para injetar falhas e testar a transação
 vi.mock('@cet/db', async () => {
-  const actual = await vi.importActual('@cet/db');
+  const actual = await vi.importActual<any>('@cet/db');
   return {
     ...actual,
     prisma: {

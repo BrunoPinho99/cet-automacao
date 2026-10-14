@@ -16,6 +16,52 @@ function normalizarTelefoneE164(tel: string): string {
   return `+55${digitos.padEnd(11, '0')}`;
 }
 
+// Gera payload EMV PIX padrão BACEN (BR Code) com CRC16 válido aceito por todos os bancos
+function gerarPixPayloadEstatico(chavePix: string, nomeRecebedor: string, cidade: string, valor: number, txid: string = 'CET'): string {
+  const formatField = (id: string, value: string) => `${id}${value.length.toString().padStart(2, '0')}${value}`;
+
+  const payloadFormat = formatField('00', '01');
+  const merchantAccountInfo = formatField('26', [
+    formatField('00', 'br.gov.bcb.pix'),
+    formatField('01', chavePix),
+  ].join(''));
+  const merchantCategoryCode = formatField('52', '0000');
+  const transactionCurrency = formatField('53', '986');
+  const transactionAmount = formatField('54', valor.toFixed(2));
+  const countryCode = formatField('58', 'BR');
+  const merchantName = formatField('59', nomeRecebedor.slice(0, 25).toUpperCase());
+  const merchantCity = formatField('60', cidade.slice(0, 15).toUpperCase());
+  const additionalDataField = formatField('62', formatField('05', txid.slice(0, 25)));
+
+  const rawPayloadWithoutCrc = [
+    payloadFormat,
+    merchantAccountInfo,
+    merchantCategoryCode,
+    transactionCurrency,
+    transactionAmount,
+    countryCode,
+    merchantName,
+    merchantCity,
+    additionalDataField,
+    '6304',
+  ].join('');
+
+  // Cálculo CRC16-CCITT (0x1021) padrão Banco Central
+  let crc = 0xffff;
+  for (let i = 0; i < rawPayloadWithoutCrc.length; i++) {
+    crc ^= rawPayloadWithoutCrc.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+  return `${rawPayloadWithoutCrc}${crcHex}`;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -280,7 +326,13 @@ export async function POST(request: Request) {
     let asaasCustomerId = 'simulado_cust_' + targetLeadId;
     let asaasPaymentId = 'simulado_pay_' + Date.now();
     let checkoutUrl = `https://cet-automacao.vercel.app/portal/${targetFichaToken}?pagamento_pendente=true`;
-    let pixPayload = `00020126580014br.gov.bcb.pix0136financeiro@cetseguranca.com.br520400005303986540${valorCobrar.toFixed(2)}5802BR5925CET CLINICA ESPECIALIZADA6009SAO PAULO62070503CET6304`;
+    let pixPayload = gerarPixPayloadEstatico(
+      'financeiro@cetseguranca.com.br',
+      'CET CLINICA ESPECIALIZADA',
+      'SAO PAULO',
+      valorCobrar,
+      `CET${targetLeadId.slice(-6)}`
+    );
     let pixQrCodeImage = '';
 
     const asaasKey = process.env.ASAAS_API_KEY || '';
@@ -289,13 +341,18 @@ export async function POST(request: Request) {
     if (hasRealAsaasKey) {
       try {
         // 1. Criar ou Obter Customer no Asaas
-        const customerPayload = {
-          name: razaoSocial || nomeCliente,
-          cpfCnpj: docCnpj.length === 14 ? docCnpj : '00000000000',
-          email: email || 'contato@email.com',
+        const isValidCpfCnpj = (docCnpj.length === 11 || docCnpj.length === 14) && !/^(\d)\1+$/.test(docCnpj);
+        const customerPayload: any = {
+          name: (razaoSocial || nomeCliente).slice(0, 70),
           mobilePhone: telE164,
           externalReference: targetLeadId,
         };
+        if (isValidCpfCnpj) {
+          customerPayload.cpfCnpj = docCnpj;
+        }
+        if (email && email.includes('@')) {
+          customerPayload.email = email;
+        }
 
         asaasCustomerId = await asaasClient.createCustomer(customerPayload);
 

@@ -11,8 +11,10 @@ export async function requestRegerarPdf(pedidoId: string) {
 
   await prisma.auditoria.create({
     data: {
+      entidade: 'pedido',
+      entidade_id: pedidoId,
       acao: 'REGERAR_PDF',
-      detalhes: JSON.stringify({ pedido_id: pedidoId }),
+      depois: { pedido_id: pedidoId },
     },
   });
 
@@ -30,8 +32,10 @@ export async function requestRegerarPdf(pedidoId: string) {
 export async function requestSincroniaPloomes(empresaId: string) {
   await prisma.auditoria.create({
     data: {
+      entidade: 'empresa',
+      entidade_id: empresaId,
       acao: 'FORCAR_SINCRONIA_PLOOMES',
-      detalhes: JSON.stringify({ empresa_id: empresaId }),
+      depois: { empresa_id: empresaId },
     },
   });
 

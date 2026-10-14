@@ -81,20 +81,33 @@ describe('Fase 4: Critérios de Aceite (MVP)', () => {
     // Preparar um lead e pedido
     const lead = await prisma.lead.create({
       data: {
-        protocolo: 'IDEMP-123',
-        contato: 'idemp@test.com',
-        empresa: { create: { cnpj: '99888777000155', razao_social: 'Idemp LTDA' } }
-      }
+        canal: 'teste',
+        protocolo: `IDEMP-${Date.now()}`,
+        contato: {
+          create: {
+            telefone_e164: '+5511999990001',
+            nome: 'Teste Idemp',
+            email: 'idemp@test.com',
+          },
+        },
+        empresa: {
+          create: {
+            cnpj: '99888777000155',
+            razao_social: 'Idemp LTDA',
+          },
+        },
+      },
     });
 
     const pedido = await prisma.pedido.create({
       data: {
         lead_id: lead.id,
         produto: 'diagnostico_pago',
-        valor: 199.9,
+        valor_centavos: 19990,
         status: 'pendente',
-        asaas_payment_id: 'pay_simulado_123',
-      }
+        asaas_payment_id: `pay_simulado_${Date.now()}`,
+        idempotency_key: `idemp_${Date.now()}`,
+      },
     });
 
     // Simular disparo paralelo
@@ -147,8 +160,11 @@ describe('Fase 4: Critérios de Aceite (MVP)', () => {
       estados_atendidos: ['SP'],
       cliente_atual: false
     };
-    const fichaInput = {
-      ...respostas.bloco_3
+    const fichaInput: import('@cet/core').FichaInput = {
+      documentos: {
+        PGR: { possui: 'sim' },
+        PCMSO: { possui: 'sim' },
+      },
     };
 
     const score1 = calcularScoreSST(empresaInput, fichaInput);

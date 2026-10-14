@@ -21,7 +21,7 @@ export async function POST(
         lead: {
           include: { pedidos: { take: 1, orderBy: { criado_em: 'desc' } } }
         },
-        documentosDeclarados: true,
+        documentos: true,
       }
     });
 

@@ -347,7 +347,7 @@ async function calcularScoresSeFinalizou(
       tem_fiscalizacao: (bloco4 as Record<string, unknown>)?.tem_fiscalizacao === true,
       prazo_urgente: (bloco4 as Record<string, unknown>)?.prazo_urgente === true,
       objetivo_principal: (bloco4 as Record<string, unknown>)?.objetivo_principal as string | undefined,
-      documentos: {} as Record<string, import('@cet/core/src/types').DocumentoInput>,
+      documentos: {} as Record<string, import('@cet/core').DocumentoInput>,
     };
 
     // Extrair "possui" do bloco 3
@@ -438,7 +438,6 @@ async function calcularScoresSeFinalizou(
           tipo: 'ficha.concluida', // ou DomainEvents.FICHA_CONCLUIDA se exportado
           payload: { ficha_id: fichaId, lead_id: leadId, empresa_id: empresaId } as import('@prisma/client').Prisma.InputJsonValue,
           status: 'pendente',
-          versao: 1,
         }
       });
 
@@ -454,7 +453,6 @@ async function calcularScoresSeFinalizou(
             trabalhadores: empresaInput.trabalhadores_proprios + empresaInput.trabalhadores_terceiros
           } as import('@prisma/client').Prisma.InputJsonValue,
           status: 'pendente',
-          versao: 1,
         }
       });
     }

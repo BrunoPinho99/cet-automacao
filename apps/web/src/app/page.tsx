@@ -464,59 +464,113 @@ export default function HomePage() {
           </div>
 
           {/* DROPDOWN DE SUGESTÕES */}
-          {mostrarDropdown && sugestoes.length > 0 && (
+          {mostrarDropdown && (
             <div className="absolute left-6 right-6 top-[138px] z-20 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-80 overflow-y-auto animate-fade-in divide-y divide-slate-100">
-              <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                <span>{sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'}</span>
-                <span className="text-[10px] text-slate-400 font-normal">Clique para vincular e gerar score</span>
-              </div>
-
-              {sugestoes.map((emp, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleSelecionarEmpresa(emp)}
-                  className="w-full px-4 py-3 text-left hover:bg-blue-50/80 transition-colors flex items-start justify-between gap-3 group"
-                >
-                  <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
-                        {emp.razao_social}
-                      </div>
-                      {emp.origem === 'receita_federal' && (
-                        <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
-                          Receita Federal
-                        </span>
-                      )}
-                      {emp.origem === 'local' && (
-                        <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded-md">
-                          Base Integrada
-                        </span>
-                      )}
-                    </div>
-
-                    {emp.nome_fantasia && emp.nome_fantasia !== emp.razao_social && (
-                      <div className="text-xs text-slate-500 font-medium">
-                        Nome fantasia: {emp.nome_fantasia}
-                      </div>
-                    )}
-                    {emp.cnae_descricao && (
-                      <div className="text-[11px] text-slate-400 truncate">
-                        {emp.cnae_descricao}
-                      </div>
-                    )}
+              {sugestoes.length > 0 ? (
+                <>
+                  <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>{sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Clique para vincular e gerar score</span>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="inline-block px-2 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100 text-[11px] font-mono font-semibold text-slate-700 group-hover:text-blue-800">
-                      {emp.cnpj}
-                    </span>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      {emp.cidade} - {emp.uf}
-                    </div>
+                  {sugestoes.map((emp, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleSelecionarEmpresa(emp)}
+                      className="w-full px-4 py-3 text-left hover:bg-blue-50/80 transition-colors flex items-start justify-between gap-3 group cursor-pointer"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
+                            {emp.razao_social}
+                          </div>
+                          {emp.origem === 'receita_federal' && (
+                            <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
+                              Receita Federal
+                            </span>
+                          )}
+                          {emp.origem === 'local' && (
+                            <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded-md">
+                              Base Integrada
+                            </span>
+                          )}
+                        </div>
+
+                        {emp.nome_fantasia && emp.nome_fantasia !== emp.razao_social && (
+                          <div className="text-xs text-slate-500 font-medium">
+                            Nome fantasia: {emp.nome_fantasia}
+                          </div>
+                        )}
+                        {emp.cnae_descricao && (
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {emp.cnae_descricao}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100 text-[11px] font-mono font-semibold text-slate-700 group-hover:text-blue-800">
+                          {emp.cnpj}
+                        </span>
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          {emp.cidade} - {emp.uf}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              ) : !buscando && busca.trim().length >= 3 ? (
+                <div className="p-5 text-center space-y-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto text-base">
+                    🔍
                   </div>
-                </button>
-              ))}
+                  {modoBusca === 'nome' ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-600 font-medium">
+                        Não encontramos empresas pelo termo <strong>&quot;{busca}&quot;</strong> na amostragem rápida.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModoBusca('cnpj');
+                          setBusca('');
+                          setSugestoes([]);
+                          setMostrarDropdown(false);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+                      >
+                        <span>🏢 Digitar ou Colar CNPJ Diretamente (100% Preciso)</span>
+                        <span>→</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-600 font-medium">
+                        CNPJ: <strong className="font-mono">{busca}</strong>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSelecionarEmpresa({
+                            cnpj: busca,
+                            razao_social: `Empresa CNPJ ${busca}`,
+                            cidade: 'São Paulo',
+                            uf: 'SP',
+                            grau_risco: 2,
+                            origem: 'receita_federal',
+                          });
+                          setMostrarDropdown(false);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+                      >
+                        <span>✓ Continuar com este CNPJ e Avançar</span>
+                        <span>→</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -689,6 +743,14 @@ export default function HomePage() {
                       {empresaSelecionada?.razao_social || 'Sua Empresa'}
                     </div>
                     <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
+                  </div>
+
+                  {/* AVISO METODOLÓGICO: AS PERGUNTAS ESTRATÉGICAS CONTINUAM NA ETAPA SEGUINTE */}
+                  <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+                    <span className="text-amber-600 font-bold shrink-0 text-xs mt-0.5">ℹ️</span>
+                    <span>
+                      <strong>Aviso Metodológico:</strong> O Score do CNPJ é uma análise prévia. O laudo definitivo depende do preenchimento das <strong>perguntas estratégicas de SST</strong> (equipe, laudos PGR/PCMSO e eSocial) na próxima etapa.
+                    </span>
                   </div>
 
                   <div>

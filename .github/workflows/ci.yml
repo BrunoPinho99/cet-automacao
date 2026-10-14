@@ -55,7 +55,7 @@ jobs:
         run: pnpm --filter @cet/db run generate
 
       - name: Prisma Migrate
-        run: pnpm --filter @cet/db run db:migrate
+        run: pnpm --filter @cet/db run migrate:deploy
         
       - name: Typecheck
         run: pnpm run typecheck

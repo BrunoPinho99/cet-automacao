@@ -140,10 +140,6 @@ export async function processarMensagem(
       await tratarIntencao(telefone, ctx, idResposta);
       break;
 
-    case 'transbordo':
-      // Robô em silêncio durante transbordo humano
-      break;
-
     case 'ficha_criada':
       await tratarPosFicha(telefone, ctx, idResposta);
       break;

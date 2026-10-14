@@ -53,7 +53,7 @@ export async function GET(
 
     // Se for visualização HTML direta no navegador
     if (format === 'html' || mime === 'text/html') {
-      return new NextResponse(buffer, {
+      return new NextResponse(new Uint8Array(buffer), {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
           'Content-Length': buffer.length.toString(),
@@ -63,7 +63,7 @@ export async function GET(
 
     // Se for download de PDF
     const filename = key.endsWith('.pdf') ? key : `diagnostico_sst_${id}.html`;
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': mime,
         'Content-Disposition': `attachment; filename="${filename}"`,
