@@ -114,16 +114,26 @@ Ações operacionais quando cada integração cair.
 
 ---
 
-## Consulta Nacional de Empresas / CNPJ (Solução 2)
+## Consulta Nacional de Empresas / CNPJ (Solução 1 — Foco no CNPJ Gratuito)
 
-**Funcionamento:** A rota `/api/empresas/busca` provê busca rápida de empresas do Brasil inteiro com redundância tripla gratuita:
+**Funcionamento:** A rota `/api/empresas/busca` provê busca e autocompletar de empresas do Brasil inteiro com redundância tripla gratuita via Receita Federal:
 1. `BrasilAPI` (timeout 4.5s)
 2. `Minha Receita` (timeout 4.5s)
 3. `CNPJ.ws` pública
 
+**Regra de Negócio Crucial (Triagem Cadastral vs Perguntas Estratégicas):**
+- O CNPJ agiliza e automatiza o preenchimento de dados cadastrais oficiais (Razão Social, Nome Fantasia, CNAE, Grau de Risco NR-4, Endereço e Cidade/UF).
+- **A consulta por CNPJ NÃO substitui as perguntas estratégicas sobre a empresa.**
+- O Score SST exibido na Landing Page é uma triagem inicial calculada pelo Grau de Risco e CNAE.
+- O diagnóstico oficial e plano de ação técnico exigem o preenchimento dos blocos da Ficha Inteligente (`/ficha/[token]`), onde o cliente responde sobre:
+  - Quadro de trabalhadores próprios e terceirizados (Bloco 2)
+  - Situação de laudos obrigatórios: PGR, PCMSO, LTCAT, LIP, AET, PPP e Ordens de Serviço (Bloco 3)
+  - Histórico de acidentes de trabalho e fiscalizações do Ministério do Trabalho / eSocial (Bloco 4)
+  - Upload de laudos vigentes e data do último ASO (Bloco 5)
+
 **Auto-Cache no PostgreSQL:**
 - Toda consulta bem-sucedida de CNPJ salva ou atualiza o registro na tabela `empresas` via `prisma.empresa.upsert`.
-- Se as APIs públicas externas sofrerem instabilidade temporária, o banco local e a base demonstrativa continuam respondendo normalmente sem interromper o fluxo do usuário.
+- Se as APIs públicas externas sofrerem instabilidade temporária, o banco local responde instantaneamente.
 
 ---
 

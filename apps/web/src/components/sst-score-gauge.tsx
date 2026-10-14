@@ -230,18 +230,39 @@ export function SstScoreGauge({
           </div>
         )}
 
+        {/* AVISO METODOLÓGICO: A consulta de CNPJ não substitui as perguntas estratégicas */}
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-lg">
+            📋
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2">
+              <span>Triagem Cadastral Preliminar</span>
+              <span className="text-[10px] font-semibold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full">
+                Receita Federal
+              </span>
+            </h4>
+            <p className="text-xs text-blue-800 leading-relaxed">
+              Este score preliminar gratuito avalia o enquadramento fiscal do seu CNAE e Grau de Risco (NR-4) perante as exigências do Ministério do Trabalho.
+            </p>
+            <p className="text-xs text-blue-900 leading-relaxed font-semibold">
+              ⚡ Importante: Esta estimativa inicial <u>não substitui</u> a análise das <strong>perguntas estratégicas</strong> sobre a realidade física da empresa (número de colaboradores, máquinas operadas, riscos químicos/físicos/ergonômicos, vigência de laudos PGR/PCMSO e transmissões ao eSocial).
+            </p>
+          </div>
+        </div>
+
         {/* CARD CTA: GERAR DIAGNÓSTICO POR R$ 19,90 */}
         <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50/50 rounded-2xl p-5 sm:p-6 border-2 border-blue-600/30 shadow-xs relative">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
-                <span>Relatório Executivo Completo</span>
+                <span>Relatório Executivo Completo + Ficha Estratégica</span>
               </div>
               <h4 className="text-lg font-bold text-slate-900 tracking-tight">
-                Receba o Diagnóstico Detalhado da sua Empresa
+                Receba o Diagnóstico Completo da sua Empresa
               </h4>
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md">
-                Lista de todos os documentos obrigatórios por lei, cálculo de risco e roteiro passo a passo para regularizar seu CNPJ.
+                Seus dados cadastrais já ficam vinculados. Acesse o questionário com as perguntas estratégicas de SST da sua empresa para emissão do laudo técnico individualizado.
               </p>
             </div>
 

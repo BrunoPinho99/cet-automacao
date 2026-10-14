@@ -369,19 +369,19 @@ export default function FichaPage({
               </div>
             )}
 
-            {/* Se for o Bloco 1 (Identificação), disponibilizar busca inteligente por nome ou CNPJ */}
+            {/* Se for o Bloco 1 (Identificação), disponibilizar busca inteligente por CNPJ */}
             {state.bloco_atual === 1 && (
               <div className="mb-6 p-4 bg-blue-50/70 border border-blue-200/80 rounded-2xl relative">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <span>🔍 Buscar Empresa por Nome ou CNPJ</span>
+                    <span>🔍 Consulta Rápida por CNPJ (Receita Federal)</span>
                   </label>
                   <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                    Base Nacional
+                    Base Oficial Gratuita
                   </span>
                 </div>
-                <p className="text-xs text-blue-700 mb-2">
-                  Pesquise o nome da empresa ou cole o CNPJ para preencher Razão Social, CNAE e localização automaticamente:
+                <p className="text-xs text-blue-800 mb-2 leading-relaxed">
+                  Digite ou cole o CNPJ da empresa para preencher Razão Social, CNAE e localização automaticamente. Nos blocos seguintes, você responderá às <strong>perguntas estratégicas</strong> sobre seus colaboradores, ambientes de trabalho e laudos de SST.
                 </p>
                 <div className="relative">
                   <input

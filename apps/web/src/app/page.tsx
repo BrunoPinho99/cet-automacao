@@ -204,55 +204,117 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* FORMULÁRIO DE BUSCA INTELIGENTE DE EMPRESA (Solução 2: Brasil Inteiro) */}
+        {/* FORMULÁRIO DE CONSULTA GRATUITA POR CNPJ NA RECEITA FEDERAL (Solução 1) */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 relative" ref={dropdownRef}>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Pesquise o nome da empresa ou cole o CNPJ:
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <span>Informe o CNPJ da sua empresa:</span>
             </label>
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Base Nacional (Brasil Inteiro)
+              Consulta Oficial Gratuita (Receita Federal)
             </span>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              {buscando ? (
-                <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                {buscando ? (
+                  <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                )}
+              </div>
+
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Se o usuário estiver digitando dígitos, aplica máscara visual de CNPJ suave
+                  const digitos = val.replace(/\D/g, '');
+                  if (/^\d+$/.test(val.replace(/[./-]/g, '')) && digitos.length <= 14) {
+                    if (digitos.length <= 2) setBusca(digitos);
+                    else if (digitos.length <= 5) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2)}`);
+                    else if (digitos.length <= 8) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5)}`);
+                    else if (digitos.length <= 12) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8)}`);
+                    else setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/${digitos.slice(8, 12)}-${digitos.slice(12, 14)}`);
+                  } else {
+                    setBusca(val);
+                  }
+                }}
+                onFocus={() => {
+                  if (sugestoes.length > 0) setMostrarDropdown(true);
+                }}
+                placeholder="Cole ou digite o CNPJ (ex: 12.345.678/0001-90)..."
+                className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
+              />
+
+              {busca && (
+                <button
+                  type="button"
+                  onClick={handleLimparBusca}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                  title="Limpar campo"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               )}
             </div>
 
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              onFocus={() => {
-                if (sugestoes.length > 0) setMostrarDropdown(true);
+            <button
+              type="button"
+              disabled={buscando}
+              onClick={async () => {
+                const termo = busca.trim();
+                if (termo.length < 2) return;
+                setBuscando(true);
+                setBuscandoReceita(true);
+                try {
+                  const res = await fetch(`/api/empresas/busca?q=${encodeURIComponent(termo)}`);
+                  if (res.ok) {
+                    const data = await res.json();
+                    const lista = data.resultados || [];
+                    setSugestoes(lista);
+                    if (lista.length === 1) {
+                      handleSelecionarEmpresa(lista[0]);
+                    } else if (lista.length > 1) {
+                      setMostrarDropdown(true);
+                    }
+                  }
+                } catch (e) {
+                  console.error('Erro na consulta manual:', e);
+                } finally {
+                  setBuscando(false);
+                  setBuscandoReceita(false);
+                }
               }}
-              placeholder="Digite o nome da sua empresa OU cole o CNPJ (ex: 12.345.678/0001-90)..."
-              className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
-            />
-
-            {busca && (
-              <button
-                type="button"
-                onClick={handleLimparBusca}
-                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
-                title="Limpar campo"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+              className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold rounded-2xl text-sm transition shadow-sm hover:shadow shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {buscando ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Consultando...</span>
+                </>
+              ) : (
+                <>
+                  <span>Consultar CNPJ</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </>
+              )}
+            </button>
           </div>
 
           {/* AVISO DE CONSULTA NA RECEITA FEDERAL EM ANDAMENTO */}
@@ -262,16 +324,26 @@ export default function HomePage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>Consultando dados oficiais da empresa na Receita Federal do Brasil...</span>
+              <span>Consultando dados cadastrais, CNAE e Grau de Risco na Receita Federal do Brasil...</span>
             </div>
           )}
 
-          <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Ao selecionar a empresa, vinculamos CNPJ, CNAE e localização automaticamente, sem precisar digitar número por número.</span>
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Ao informar o CNPJ, buscamos automaticamente Razão Social, CNAE e Grau de Risco (NR-4) na base oficial.
+            </span>
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent('consultar cnpj ' + (busca || 'minha empresa'))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 shrink-0 font-medium"
+            >
+              Não lembra o CNPJ? Pesquisar no Google ↗
+            </a>
+          </div>
 
           {/* DROPDOWN DE SUGESTÕES */}
           {mostrarDropdown && sugestoes.length > 0 && (
