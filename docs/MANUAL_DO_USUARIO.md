@@ -17,20 +17,22 @@ Acesse a tela de login em:
 | :--- | :--- | :--- | :--- | :--- |
 | **Administrador Geral** | `admin@cet.com.br` *(ou apenas `admin`)* | `admin` | `Bruno080299!`<br>`Cet@2026!Dev`<br>`admin123` | **Acesso Total:** Gestão de leads, edição de regras, auditoria, monitoramento de saúde do sistema e eventos mortos. |
 | **Bruno Pinho (Admin)** | `bruno@cet.com.br` *(ou apenas `bruno`)* | `admin` | `Bruno080299!` | **Acesso Total:** Super Administrador com privilégios completos. |
-| **Equipe Comercial** | `vendas@cet.com.br` *(ou apenas `vendas`)* | `comercial` | `Bruno080299!`<br>`Cet@2026!Dev`<br>`123456` | **Atendimento e Vendas:** Visualização e gestão de leads, acompanhamento da Ficha Inteligente, contato com clientes da Rota A, B e C. |
+| **Equipe Comercial** | `vendas@cet.com.br` *(ou apenas `vendas`)* | `comercial` | `Bruno080299!`<br>`Cet@2026!Dev`<br>`123456` | **Atendimento e Vendas:** Visualização e gestão de leads, acompanhamento da Ficha Inteligente, contato com clientes categorizados por Porte da Empresa (Grande, Médio e Pequeno porte). |
 
 > 💡 **Dica de Usabilidade:** No campo de e-mail da tela de login, você não precisa digitar `@cet.com.br`. Basta digitar `admin`, `vendas` ou `bruno` que o sistema autocompleta automaticamente!
 
 ---
 
-## 🗺️ 2. Módulos do Sistema e Rotas de Navegação
+## 🗺️ 2. Módulos do Sistema e Navegação
+
+A interface adota a estética **SaaS 2026** nas cores institucionais **branco e azul**, com cabeçalho contendo a logomarca oficial da CET, layout 100% responsivo para computadores e celulares, e livre de jargões técnicos ou aparências de inteligência artificial genérica.
 
 ### 1. Painel Administrativo / Dashboard Geral
 - **URL:** [`/admin`](https://cet-automacao.vercel.app/admin) (ou [`/painel`](https://cet-automacao.vercel.app/painel))
 - **O que faz:** Exibe o panorama consolidado do dia:
-  - Total de novos leads recebidos;
-  - Fichas em andamento vs concluídas;
-  - Leads estratégicos da **Rota A** com SLA de 10 minutos;
+  - Total de novos clientes e contatos recebidos;
+  - Diagnósticos em andamento vs concluídos;
+  - Clientes estratégicos de **Grande Porte** (antiga Rota A) com SLA prioritário de 10 minutos;
   - Faturamento preliminar (Diagnósticos Essencial R$ 19,90 e Completo R$ 29,90).
 
 ### 2. Central de Atendimento & Gestão de Leads (CRUD)
@@ -82,16 +84,16 @@ Acesse a tela de login em:
    - **Opção 6:** Transfere suavemente para um consultor especialista humano (com protocolo).
 4. **Regra de Silêncio do Robô:** Se um atendente humano assumir a conversa no painel ou se for acionado transbordo, o robô permanece 100% em silêncio para não atrapalhar a conversa humana.
 
-### Fluxo 2: Gatilhos Críticos (Rota A - Transferência Imediata)
-A automação é **interrompida imediatamente** e direcionada a um vendedor sênior (SLA de 10 min) caso:
-- A empresa tenha **100 ou mais trabalhadores**;
-- A empresa tenha **2 ou mais unidades** ou atue em mais de um estado;
+### Fluxo 2: Gatilhos Críticos (Grande Porte - Transferência Imediata)
+A triagem automática é **direcionada imediatamente** a um consultor sênior (SLA de 10 min) caso:
+- A empresa seja classificada como **Grande Porte** (100 ou mais trabalhadores);
+- A empresa possua **2 ou mais unidades** ou atue em mais de um estado;
 - O cliente mencione **acidente de trabalho, fiscalização, notificação do MTE ou autuação**;
 - O cliente informe necessidade técnica de alta complexidade.
 - **Mensagem enviada:**
   > *"Pelo porte da empresa, sua análise será personalizada. Um especialista da CET continuará o atendimento. Protocolo: {{protocolo}}."*
 
-### Fluxo 3: Ficha Inteligente & Pagamento Asaas (Rotas B e C)
+### Fluxo 3: Ficha de Diagnóstico & Pagamento Asaas (Médio e Pequeno Porte)
 1. O cliente preenche a ficha no navegador (sem necessidade de senha).
 2. Ao final, escolhe o diagnóstico:
    - **Essencial:** R$ 19,90
