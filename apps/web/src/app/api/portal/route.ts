@@ -14,7 +14,13 @@ export async function GET(request: Request) {
       where: { token_retomada: token },
       include: {
         lead: {
-          include: { empresa: true }
+          include: {
+            empresa: true,
+            pedidos: {
+              orderBy: { criado_em: 'desc' },
+              take: 1,
+            },
+          },
         },
         score_sst: true,
         score_comercial: true,
@@ -34,9 +40,17 @@ export async function GET(request: Request) {
       }, { status: 403 });
     }
 
+    // TRAVA DE PAGAMENTO:
+    // O diagnóstico e o PDF só são liberados se houver pedido pago ou isento
+    const ultimoPedido = ficha.lead?.pedidos?.[0];
+    const statusPagamento = ultimoPedido?.status?.toLowerCase() || 'pendente';
+    const isPago = statusPagamento === 'pago' || statusPagamento === 'confirmado' || statusPagamento === 'isento';
+
     const empresa = ficha.lead.empresa;
 
     return NextResponse.json({
+      pago: isPago,
+      status_pagamento: statusPagamento,
       empresa: {
         razao_social: empresa?.razao_social || empresa?.nome_fantasia || 'Desconhecida',
         cnpj: empresa?.cnpj,
@@ -44,10 +58,12 @@ export async function GET(request: Request) {
       score_sst: ficha.score_sst,
       score_comercial: ficha.score_comercial,
       rota: ficha.rota,
-      relatorio: ficha.relatorio ? {
+      // Se não estiver pago, NÃO retorna dados do relatório
+      relatorio: isPago && ficha.relatorio ? {
         id: ficha.relatorio.id,
         gerado_em: ficha.relatorio.gerado_em,
       } : null,
+      checkout_url: ultimoPedido?.checkout_url || `/ficha/${token}/pagamento`,
     });
 
   } catch (error) {
