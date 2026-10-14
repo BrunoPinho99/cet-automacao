@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "apify": {
+      "type": "http",
+      "url": "https://mcp.apify.com/?tools=actors,docs,jungle_synthesizer/brazil-cnpj-receita-federal-crawler"
+    }
+  }
+}

@@ -307,6 +307,49 @@ async function consultarCnpjRedundante(cnpjLimpo: string): Promise<EmpresaSugest
  */
 async function buscarEmpresasNacionaisPorNome(termo: string): Promise<EmpresaSugestao[]> {
   const resultados: EmpresaSugestao[] = [];
+
+  // Se houver APIFY_TOKEN configurado, tenta buscar via Actor do Apify (brazil-cnpj-receita-federal-crawler)
+  const apifyToken = process.env.APIFY_TOKEN || process.env.APIFY_API_KEY;
+  if (apifyToken) {
+    try {
+      const apifyRes = await fetch(
+        `https://api.apify.com/v2/acts/jungle_synthesizer~brazil-cnpj-receita-federal-crawler/run-sync-get-dataset-items?token=${apifyToken}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: termo, maxItems: 6 }),
+          signal: AbortSignal.timeout(4500),
+        }
+      );
+      if (apifyRes.ok) {
+        const apifyData = await apifyRes.json();
+        if (Array.isArray(apifyData) && apifyData.length > 0) {
+          for (const item of apifyData) {
+            const rawCnpj = (item.cnpj || item.taxId || '').replace(/\D/g, '');
+            if (rawCnpj.length === 14) {
+              resultados.push({
+                cnpj: rawCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5'),
+                razao_social: item.razao_social || item.legalName || termo.toUpperCase(),
+                nome_fantasia: item.nome_fantasia || item.tradeName || undefined,
+                cidade: item.municipio || item.city || 'Brasil',
+                uf: item.uf || item.state || 'BR',
+                cnae_descricao: item.cnae_fiscal_descricao || item.cnaeDescription || estimarCnaeDescricao(item.razao_social || termo),
+                porte: item.porte || 'Demais',
+                grau_risco: estimarGrauRisco(item.cnae_fiscal_descricao || item.razao_social || ''),
+                origem: 'receita_federal',
+              });
+            }
+          }
+          if (resultados.length > 0) {
+            return resultados;
+          }
+        }
+      }
+    } catch (apifyErr) {
+      console.warn('[Apify Actor] Falha na chamada síncrona, usando fallback:', apifyErr);
+    }
+  }
+
   try {
     // 1. Tentar busca por razão social
     const url = `https://api.cnpj.pw/busca_difusa/?razao_social=${encodeURIComponent(termo)}`;

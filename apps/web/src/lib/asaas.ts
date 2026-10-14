@@ -92,5 +92,24 @@ export const asaasClient = {
       payload: result.payload as string,
       expirationDate: result.expirationDate as string,
     };
+  },
+
+  async getPayment(paymentId: string) {
+    if (!ASAAS_API_KEY) throw new Error('ASAAS_API_KEY não configurada');
+
+    const res = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        access_token: ASAAS_API_KEY,
+      },
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(`Falha ao consultar cobrança no Asaas: ${error}`);
+    }
+
+    return await res.json();
   }
 };

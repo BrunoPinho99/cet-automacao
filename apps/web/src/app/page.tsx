@@ -20,6 +20,8 @@ interface EmpresaItem {
 }
 
 export default function HomePage() {
+  // Modo de busca: 'nome' (busca fácil por nome da empresa) ou 'cnpj' (inserção direta do CNPJ)
+  const [modoBusca, setModoBusca] = useState<'nome' | 'cnpj'>('nome');
   const [busca, setBusca] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [buscandoReceita, setBuscandoReceita] = useState(false);
@@ -33,11 +35,25 @@ export default function HomePage() {
   const [gerandoCheckout, setGerandoCheckout] = useState(false);
   const [whatsappLead, setWhatsappLead] = useState('');
   const [nomeLead, setNomeLead] = useState('');
+  const [emailLead, setEmailLead] = useState('');
   const [pixCopiaCola, setPixCopiaCola] = useState('');
+  const [pixQrCode, setPixQrCode] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
+  const [tokenFicha, setTokenFicha] = useState<string | null>(null);
   const [pagamentoConcluido, setPagamentoConcluido] = useState(false);
+  const [verificandoPagamento, setVerificandoPagamento] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Limpa timer de polling ao desmontar
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   // Fecha dropdown ao clicar fora
   useEffect(() => {
@@ -50,9 +66,7 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Busca inteligente (Solução 2):
-  // - Se colar/digitar 14 dígitos (CNPJ): busca imediata na Receita Federal do Brasil inteiro
-  // - Se digitar nome da empresa: debounce suave de 250ms com busca no banco local e populares
+  // Busca em tempo real (Debounce)
   useEffect(() => {
     const termo = busca.trim();
     if (termo.length < 2) {
@@ -69,7 +83,7 @@ export default function HomePage() {
       setBuscandoReceita(true);
     }
 
-    const delay = isCnpjCompleto ? 50 : 250;
+    const delay = isCnpjCompleto ? 80 : 300;
 
     const timer = setTimeout(async () => {
       setBuscando(true);
@@ -77,8 +91,14 @@ export default function HomePage() {
         const res = await fetch(`/api/empresas/busca?q=${encodeURIComponent(termo)}`);
         if (res.ok) {
           const data = await res.json();
-          setSugestoes(data.resultados || []);
+          const lista = data.resultados || [];
+          setSugestoes(lista);
           setMostrarDropdown(true);
+
+          // Se digitou 14 dígitos de CNPJ exatos e veio apenas 1 resultado oficial, autovincula
+          if (isCnpjCompleto && lista.length === 1) {
+            handleSelecionarEmpresa(lista[0]);
+          }
         }
       } catch (err) {
         console.error('Erro na busca de empresas:', err);
@@ -98,11 +118,10 @@ export default function HomePage() {
     setMostrarDropdown(false);
 
     // Geração do SCORE GRATUITO na hora:
-    // O score preliminar é baixo para alertar sobre conformidade e pendências regulatórias
     const risco = empresa.grau_risco || 2;
-    let baseScore = 28; // Score baixo característico de triagem sem laudos comprovados
+    let baseScore = 28;
     if (risco >= 3) {
-      baseScore = 24; // Risco químico/mecânico/construção tem ainda mais pendências
+      baseScore = 24;
     } else if (risco === 1) {
       baseScore = 34;
     }
@@ -118,18 +137,20 @@ export default function HomePage() {
 
   const handleAbrirCheckout = () => {
     setModalCheckoutAberto(true);
+    setPagamentoConcluido(false);
   };
 
+  // Disparar geração de PIX e iniciar acompanhamento
   const handleGerarPix = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!whatsappLead || whatsappLead.length < 9) {
-      alert('Por favor, informe seu WhatsApp para receber o diagnóstico.');
+    const cleanPhone = whatsappLead.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 9) {
+      alert('Por favor, informe um WhatsApp válido para receber o diagnóstico.');
       return;
     }
 
     setGerandoCheckout(true);
     try {
-      // Simulação rápida ou chamada à API de pagamento
       const res = await fetch('/api/pagamento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,29 +160,70 @@ export default function HomePage() {
           cnpj: empresaSelecionada?.cnpj,
           whatsapp: whatsappLead,
           nome: nomeLead || 'Responsável',
+          email: emailLead || undefined,
         }),
-      }).catch(() => null);
+      });
 
-      if (res && res.ok) {
-        const json = await res.json();
-        setCheckoutUrl(json.checkout_url || '');
+      if (!res.ok) {
+        const erroJson = await res.json().catch(() => ({}));
+        throw new Error(erroJson.erro || 'Falha ao processar pagamento');
       }
 
-      // Código PIX Copia e Cola formatado
-      const pixSimulado = `00020101021226840014br.gov.bcb.pix2562pix.asaas.com/qr/stat/cet_diag_${Date.now()}520400005303986540519.905802BR5925CET CLINICA ESPECIALIZADA6009SAO PAULO62070503***6304E8A2`;
-      setPixCopiaCola(pixSimulado);
-    } catch {
-      // Fallback
-      setPixCopiaCola('00020126580014br.gov.bcb.pix0136contato@cet.com.br520400005303986540519.905802BR5915CET SEGURANCA6009SAO PAULO62070503***6304A1B2');
+      const data = await res.json();
+      setPedidoId(data.pedido_id);
+      setTokenFicha(data.token_ficha);
+      setPixCopiaCola(data.pix_copia_cola);
+      setPixQrCode(data.pix_qr_code);
+      setCheckoutUrl(data.checkout_url || '');
+
+      // Inicia polling automático do status de pagamento
+      iniciarPollingPagamento(data.pedido_id);
+    } catch (err: any) {
+      console.error('Erro ao gerar pagamento:', err);
+      alert(err.message || 'Erro ao gerar cobrança. Tente novamente.');
     } finally {
       setGerandoCheckout(false);
     }
   };
 
+  // Consultar status do pagamento (Polling ou Manual)
+  const checarStatusPagamento = async (id: string, simular = false) => {
+    try {
+      setVerificandoPagamento(true);
+      const url = `/api/pagamento?pedido_id=${id}${simular ? '&simular_pagamento=true' : ''}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pago) {
+          setPagamentoConcluido(true);
+          if (data.token_ficha) {
+            setTokenFicha(data.token_ficha);
+          }
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao verificar status do pagamento:', e);
+    } finally {
+      setVerificandoPagamento(false);
+    }
+  };
+
+  const iniciarPollingPagamento = (id: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(() => {
+      checarStatusPagamento(id, false);
+    }, 3500);
+  };
+
   const copiarPix = () => {
     if (pixCopiaCola) {
       navigator.clipboard.writeText(pixCopiaCola);
-      alert('Código PIX copiado com sucesso! Abra o app do seu banco para pagar.');
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 3000);
     }
   };
 
@@ -194,28 +256,61 @@ export default function HomePage() {
         <div className="text-center space-y-3">
           <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-            Consulta Pública Gratuita
+            Consulta Oficial Gratuita
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
             Descubra o <span className="text-blue-600">Score SST</span> da sua Empresa
           </h1>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-            Pesquise pelo <strong>Nome da Empresa</strong> ou <strong>CNPJ</strong> para identificar o nível de risco ocupacional e pendências com as Normas Regulamentadoras e o eSocial.
+            Identifique o nível de risco ocupacional (NR-4) e pendências com as Normas Regulamentadoras da CLT e o eSocial.
           </p>
         </div>
 
-        {/* FORMULÁRIO DE CONSULTA GRATUITA POR CNPJ NA RECEITA FEDERAL (Solução 1) */}
+        {/* ÁREA DE BUSCA INTELIGENTE: NOME OU CNPJ */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 relative" ref={dropdownRef}>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <span>Informe o CNPJ da sua empresa:</span>
-            </label>
+          {/* SELETOR DE MODO: BUSCAR POR NOME OU DIGITAR CNPJ */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('nome');
+                  setBusca('');
+                  setSugestoes([]);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  modoBusca === 'nome'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🔍 Buscar pelo Nome da Empresa
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('cnpj');
+                  setBusca('');
+                  setSugestoes([]);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  modoBusca === 'cnpj'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🏢 Digitar / Colar CNPJ
+              </button>
+            </div>
+
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Consulta Oficial Gratuita (Receita Federal)
+              Base Nacional Oficial (Receita Federal)
             </span>
           </div>
 
+          {/* CAMPO DE ENTRADA */}
           <div className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -236,9 +331,9 @@ export default function HomePage() {
                 value={busca}
                 onChange={(e) => {
                   const val = e.target.value;
-                  // Se o usuário estiver digitando dígitos, aplica máscara visual de CNPJ suave
-                  const digitos = val.replace(/\D/g, '');
-                  if (/^\d+$/.test(val.replace(/[./-]/g, '')) && digitos.length <= 14) {
+                  if (modoBusca === 'cnpj') {
+                    // Máscara automática de CNPJ
+                    const digitos = val.replace(/\D/g, '').slice(0, 14);
                     if (digitos.length <= 2) setBusca(digitos);
                     else if (digitos.length <= 5) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2)}`);
                     else if (digitos.length <= 8) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2, 5)}.${digitos.slice(5)}`);
@@ -251,7 +346,11 @@ export default function HomePage() {
                 onFocus={() => {
                   if (sugestoes.length > 0) setMostrarDropdown(true);
                 }}
-                placeholder="Cole ou digite o CNPJ (ex: 12.345.678/0001-90)..."
+                placeholder={
+                  modoBusca === 'nome'
+                    ? 'Digite o nome da sua empresa (ex: Padaria Central, Drogaria Pacheco)...'
+                    : 'Cole ou digite o CNPJ (ex: 12.345.678/0001-90)...'
+                }
                 className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
               />
 
@@ -304,11 +403,11 @@ export default function HomePage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Consultando...</span>
+                  <span>Buscando...</span>
                 </>
               ) : (
                 <>
-                  <span>Consultar CNPJ</span>
+                  <span>{modoBusca === 'nome' ? 'Buscar Empresa' : 'Consultar CNPJ'}</span>
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
@@ -317,7 +416,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* AVISO DE CONSULTA NA RECEITA FEDERAL EM ANDAMENTO */}
+          {/* STATUS DE CONSULTA NA RECEITA FEDERAL */}
           {buscandoReceita && (
             <div className="mt-2.5 px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs font-medium flex items-center gap-2 animate-fade-in">
               <svg className="animate-spin h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
@@ -328,26 +427,45 @@ export default function HomePage() {
             </div>
           )}
 
+          {/* LINKS DE ALTERNÂNCIA E AJUDA */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Ao informar o CNPJ, buscamos automaticamente Razão Social, CNAE e Grau de Risco (NR-4) na base oficial.
-            </span>
+            {modoBusca === 'nome' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('cnpj');
+                  setBusca('');
+                }}
+                className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2 text-left"
+              >
+                Não encontrou pelo nome? Digite o CNPJ diretamente aqui →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('nome');
+                  setBusca('');
+                }}
+                className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2 text-left"
+              >
+                Prefere buscar pelo nome fantasia da empresa? Clique aqui →
+              </button>
+            )}
+
             <a
               href={`https://www.google.com/search?q=${encodeURIComponent('consultar cnpj ' + (busca || 'minha empresa'))}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 shrink-0 font-medium"
+              className="text-slate-400 hover:text-slate-600 hover:underline inline-flex items-center gap-1 shrink-0"
             >
-              Não lembra o CNPJ? Pesquisar no Google ↗
+              Consultar no Google ↗
             </a>
           </div>
 
           {/* DROPDOWN DE SUGESTÕES */}
           {mostrarDropdown && sugestoes.length > 0 && (
-            <div className="absolute left-6 right-6 top-[102px] z-20 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-80 overflow-y-auto animate-fade-in divide-y divide-slate-100">
+            <div className="absolute left-6 right-6 top-[138px] z-20 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-80 overflow-y-auto animate-fade-in divide-y divide-slate-100">
               <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                 <span>{sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'}</span>
                 <span className="text-[10px] text-slate-400 font-normal">Clique para vincular e gerar score</span>
@@ -489,7 +607,7 @@ export default function HomePage() {
                       grau_risco: 3,
                     })
                   }
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left transition flex items-center justify-between group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left transition flex items-center justify-between group cursor-pointer"
                 >
                   <div>
                     <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
@@ -509,40 +627,70 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* MODAL DE CHECKOUT PIX R$ 19,90 */}
+      {/* MODAL DE CHECKOUT PIX R$ 19,90 COM POLING REAL E QR CODE */}
       {modalCheckoutAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-            <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
+            {/* Cabeçalho do Modal */}
+            <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-black text-sm">
                   ✓
                 </div>
                 <div>
                   <h3 className="text-base font-bold tracking-tight">Diagnóstico Completo SST</h3>
-                  <p className="text-xs text-slate-400">Emissão oficial da CET</p>
+                  <p className="text-xs text-slate-400">Emissão oficial da CET • R$ 19,90</p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setModalCheckoutAberto(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg"
+                onClick={() => {
+                  setModalCheckoutAberto(false);
+                  if (pollingRef.current) clearInterval(pollingRef.current);
+                }}
+                className="p-1 text-slate-400 hover:text-white rounded-lg text-lg"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="bg-blue-50/80 rounded-2xl p-4 border border-blue-200/80 text-xs text-blue-900 space-y-1">
-                <div className="font-bold text-sm text-blue-950">
-                  {empresaSelecionada?.razao_social || 'Sua Empresa'}
-                </div>
-                <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
-              </div>
+              {/* Se o pagamento já foi confirmado */}
+              {pagamentoConcluido ? (
+                <div className="text-center py-4 space-y-4 animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl font-black shadow-inner">
+                    ✓
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-extrabold text-slate-900">
+                      Pagamento Confirmado!
+                    </h4>
+                    <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                      Sua empresa está vinculada. Agora responda às <strong>perguntas estratégicas</strong> da ficha técnica para emissão do laudo definitivo.
+                    </p>
+                  </div>
 
-              {!pixCopiaCola ? (
+                  <div className="pt-2">
+                    <Link
+                      href={tokenFicha ? `/ficha/${tokenFicha}` : '/ficha'}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition shadow-md"
+                    >
+                      <span>Acessar Ficha & Responder Perguntas Estratégicas</span>
+                      <span>→</span>
+                    </Link>
+                  </div>
+                </div>
+              ) : !pixCopiaCola ? (
+                // FORMULÁRIO DE DADOS INICIAIS
                 <form onSubmit={handleGerarPix} className="space-y-3.5">
+                  <div className="bg-blue-50/80 rounded-2xl p-3.5 border border-blue-200/80 text-xs text-blue-900 space-y-1">
+                    <div className="font-bold text-sm text-blue-950">
+                      {empresaSelecionada?.razao_social || 'Sua Empresa'}
+                    </div>
+                    <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Seu Nome Completo:
@@ -559,7 +707,7 @@ export default function HomePage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      WhatsApp para receber o relatório:
+                      WhatsApp para envio do relatório:
                     </label>
                     <input
                       type="tel"
@@ -571,14 +719,33 @@ export default function HomePage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      E-mail (opcional):
+                    </label>
+                    <input
+                      type="email"
+                      value={emailLead}
+                      onChange={(e) => setEmailLead(e.target.value)}
+                      placeholder="contato@empresa.com.br"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                    />
+                  </div>
+
                   <div className="pt-2">
                     <button
                       type="submit"
                       disabled={gerandoCheckout}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3 px-4 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-bold py-3.5 px-4 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {gerandoCheckout ? (
-                        <span>Gerando Chave PIX...</span>
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Gerando Cobrança PIX...</span>
+                        </>
                       ) : (
                         <>
                           <span>Pagar R$ 19,90 via PIX Imediato</span>
@@ -589,49 +756,69 @@ export default function HomePage() {
                   </div>
                 </form>
               ) : (
+                // EXIBIÇÃO DO QR CODE E CHAVE PIX
                 <div className="space-y-4 text-center animate-fade-in">
-                  <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-semibold">
-                    Chave PIX gerada com sucesso! Valor: R$ 19,90
+                  <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between">
+                    <span>Cobrança PIX Gerada com Sucesso</span>
+                    <span className="font-bold">R$ 19,90</span>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="block text-xs font-bold text-slate-600 uppercase">
+                  {/* IMAGEM DO QR CODE */}
+                  {pixQrCode && (
+                    <div className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl shadow-inner w-fit mx-auto">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={pixQrCode}
+                        alt="QR Code PIX"
+                        className="w-48 h-48 rounded-lg object-contain"
+                      />
+                      <span className="text-[11px] text-slate-500 mt-2 font-medium">
+                        Aponte a câmera do aplicativo do seu banco
+                      </span>
+                    </div>
+                  )}
+
+                  {/* CHAVE COPIA E COLA */}
+                  <div className="space-y-2 text-left">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">
                       PIX Copia e Cola:
                     </label>
-                    <div className="p-2.5 bg-slate-100 rounded-xl font-mono text-[11px] text-slate-700 break-all select-all border border-slate-200">
+                    <div className="p-2.5 bg-slate-100 rounded-xl font-mono text-[11px] text-slate-700 break-all select-all border border-slate-200 max-h-20 overflow-y-auto">
                       {pixCopiaCola}
                     </div>
                     <button
                       type="button"
                       onClick={copiarPix}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition"
+                      className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      📋 Copiar Código PIX
+                      <span>{copiado ? '✓ Código Copiado!' : '📋 Copiar Código PIX'}</span>
                     </button>
                   </div>
 
-                  {checkoutUrl && (
-                    <a
-                      href={checkoutUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-xs text-blue-600 hover:underline font-semibold"
-                    >
-                      Ou abrir fatura no Asaas →
-                    </a>
-                  )}
+                  {/* INDICADOR DE AGUARDANDO PAGAMENTO */}
+                  <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200/80 text-xs text-blue-900 flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                    <span>Aguardando pagamento... A liberação é automática.</span>
+                  </div>
 
-                  <div className="pt-2">
+                  {/* BOTÕES DE AÇÃO: VERIFICAR MANUALMENTE E SIMULAR (TESTES) */}
+                  <div className="pt-2 flex flex-col gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setPagamentoConcluido(true);
-                        setModalCheckoutAberto(false);
-                        alert('Pagamento registrado! Nosso especialista CET já foi notificado e entrará em contato via WhatsApp para envio do laudo.');
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-800 font-medium"
+                      disabled={verificandoPagamento}
+                      onClick={() => pedidoId && checarStatusPagamento(pedidoId, false)}
+                      className="text-xs text-blue-700 hover:text-blue-900 font-bold py-1.5 underline underline-offset-2"
                     >
-                      Já realizei o pagamento
+                      {verificandoPagamento ? 'Verificando no banco...' : 'Já paguei, verificar agora'}
+                    </button>
+
+                    {/* Botão de simulação segura em homologação/testes */}
+                    <button
+                      type="button"
+                      onClick={() => pedidoId && checarStatusPagamento(pedidoId, true)}
+                      className="text-[11px] text-slate-400 hover:text-slate-600 font-medium py-1"
+                    >
+                      [Modo Teste] Simular Aprovação Imediata
                     </button>
                   </div>
                 </div>
