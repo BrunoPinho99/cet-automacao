@@ -21,6 +21,30 @@ interface EmpresaSugestao {
 // Base demonstrativa de empresas populares de vários segmentos para busca imediata por nome
 const EMPRESAS_DEMO: EmpresaSugestao[] = [
   {
+    cnpj: '10.612.223/0001-63',
+    razao_social: 'CET — Clínica Especializada em Medicina e Segurança do Trabalho Ltda',
+    nome_fantasia: 'CET Segurança e Medicina do Trabalho',
+    cidade: 'São Paulo',
+    uf: 'SP',
+    cnae: '8630-5/03',
+    cnae_descricao: 'Atividade médica ambulatorial, exames ocupacionais e SST',
+    porte: 'Demais',
+    grau_risco: 2,
+    origem: 'local',
+  },
+  {
+    cnpj: '19.190.880/0001-34',
+    razao_social: 'CET Engenharia, Laudos Ocupacionais e eSocial Ltda',
+    nome_fantasia: 'CET Engenharia Ocupacional',
+    cidade: 'Campinas',
+    uf: 'SP',
+    cnae: '7112-0/00',
+    cnae_descricao: 'Serviços de engenharia, PGR, PCMSO e consultoria em segurança ocupacional',
+    porte: 'EPP',
+    grau_risco: 3,
+    origem: 'local',
+  },
+  {
     cnpj: '00.000.000/0001-91',
     razao_social: 'Banco do Brasil S.A.',
     nome_fantasia: 'Banco do Brasil',
@@ -365,10 +389,10 @@ export async function GET(request: Request) {
     const termoLower = termo.toLowerCase();
     const demoFiltradas = EMPRESAS_DEMO.filter((e) => {
       const matchRazao = e.razao_social.toLowerCase().includes(termoLower);
-      const matchFantasia = e.nome_fantasia?.toLowerCase().includes(termoLower);
-      const matchCnpj = e.cnpj.replace(/\D/g, '').includes(apenasDigitos);
+      const matchFantasia = e.nome_fantasia ? e.nome_fantasia.toLowerCase().includes(termoLower) : false;
+      const matchCnpj = apenasDigitos.length >= 4 ? e.cnpj.replace(/\D/g, '').includes(apenasDigitos) : false;
       const matchCidade = e.cidade.toLowerCase().includes(termoLower);
-      const matchCnae = e.cnae_descricao?.toLowerCase().includes(termoLower);
+      const matchCnae = e.cnae_descricao ? e.cnae_descricao.toLowerCase().includes(termoLower) : false;
       return matchRazao || matchFantasia || matchCnpj || matchCidade || matchCnae;
     });
 
@@ -384,18 +408,25 @@ export async function GET(request: Request) {
       }
     });
 
-    // Se o usuário digitou um nome e não achou exato, permite vincular e autogerar o diagnóstico
-    if (todosResultados.length === 0 && termo.length >= 3 && !/^\d+$/.test(termo)) {
-      todosResultados.push({
-        cnpj: 'Clique para autogerar o diagnóstico desta empresa',
-        razao_social: termo.toUpperCase(),
-        nome_fantasia: termo,
-        cidade: 'São Paulo',
-        uf: 'SP',
-        cnae_descricao: 'Comércio / Serviços Gerais',
-        porte: 'Pequeno Porte',
-        grau_risco: 2,
-      });
+    // Se o usuário digitou um nome textual, oferece sempre a opção de usar o nome digitado diretamente
+    if (termo.length >= 2 && !/^\d+$/.test(termo)) {
+      const jaExisteExato = todosResultados.some(
+        (r) => r.razao_social.toLowerCase() === termoLower || r.nome_fantasia?.toLowerCase() === termoLower
+      );
+
+      if (!jaExisteExato) {
+        todosResultados.push({
+          cnpj: 'Preencher CNPJ nos campos abaixo',
+          razao_social: termo.toUpperCase(),
+          nome_fantasia: termo,
+          cidade: 'São Paulo',
+          uf: 'SP',
+          cnae_descricao: 'Medicina e Segurança do Trabalho / Serviços Gerais',
+          porte: 'Demais',
+          grau_risco: 2,
+          origem: 'local',
+        });
+      }
     }
 
     return NextResponse.json({ resultados: todosResultados.slice(0, 8) });

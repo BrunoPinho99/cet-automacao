@@ -399,13 +399,14 @@ export default function FichaPage({
                           key={i}
                           type="button"
                           onClick={() => {
+                            const digits = (emp.cnpj || '').replace(/\D/g, '');
                             setRespostasBloco(prev => ({
                               ...prev,
-                              cnpj: emp.cnpj,
+                              ...(digits.length === 14 ? { cnpj: emp.cnpj } : {}),
                               razao_social: emp.razao_social,
                               nome_fantasia: emp.nome_fantasia || emp.razao_social,
-                              cidade: emp.cidade,
-                              uf: emp.uf,
+                              cidade: emp.cidade || prev.cidade,
+                              uf: emp.uf || prev.uf,
                               atividade_real: emp.cnae_descricao || prev.atividade_real || 'Comércio e Serviços Gerais',
                             }));
                             setBuscaEmpresaFicha(emp.razao_social);
