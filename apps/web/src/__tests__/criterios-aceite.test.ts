@@ -29,10 +29,11 @@ describe('Fase 4: Critérios de Aceite (MVP)', () => {
 
   it('1. O mesmo CNPJ não cria empresa duplicada', async () => {
     const payload = {
-      cnpj: '11222333000199',
-      razao_social: 'Empresa Teste LTDA',
-      protocolo: 'TEST-123',
-      contato: 'teste@email.com'
+      nome: 'Responsável Teste',
+      telefone: '11987654321',
+      cnpj: '10612223000163',
+      canal: 'web',
+      primeira_intencao: 'Diagnóstico SST',
     };
 
     // Primeira submissão
@@ -51,11 +52,11 @@ describe('Fase 4: Critérios de Aceite (MVP)', () => {
     const res2 = await POSTLead(req2);
     expect(res2.status).toBe(201);
 
-    const count = await prisma.empresa.count({ where: { cnpj: '11222333000199' } });
+    const count = await prisma.empresa.count({ where: { cnpj: '10612223000163' } });
     expect(count).toBe(1); // Não deve duplicar
   });
 
-  it('2. Empresa estratégica gera alerta e tarefa na rota X', async () => {
+  it('2. Empresa com acidente recente aciona gatilho crítico para Rota A', async () => {
     const empresaInput = {
       trabalhadores_proprios: 150,
       trabalhadores_terceiros: 50,
@@ -71,10 +72,9 @@ describe('Fase 4: Critérios de Aceite (MVP)', () => {
     };
 
     const result = classificarRota(empresaInput, fichaInput);
-    // 200 vidas no total, tem acidente recente e prazo urgente -> deve ir para Rota C ou X. 
-    // Acidente recente ou urgencia pode ser gatilho crítico.
+    // Acidente recente é gatilho crítico inegociável -> força Rota A imediata
     expect(result.gatilhoCritico).toBe(true);
-    expect(['C', 'X'].includes(result.rota)).toBe(true);
+    expect(result.rota).toBe('A');
   });
 
   it('4. Pagamento confirmado libera UM ÚNICO relatório, mesmo com webhook repetido', async () => {
