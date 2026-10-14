@@ -111,3 +111,24 @@ Ações operacionais quando cada integração cair.
 2. Verifique se a variável `API_URL` aponta para a instância do Next.js local (ex: `http://localhost:3000/api`).
 3. Para falhas injetadas (ex: Ploomes), verifique os registros de **Fila Morta** no banco de dados e através do Painel Admin em `/admin/paineis`. Os eventos mortos **devem** aparecer lá.
 4. Para reprocessar os eventos mortos gerados no piloto, clique no botão "Reprocessar" na UI ou utilize o endpoint da fila morta.
+
+---
+
+## Consulta Nacional de Empresas / CNPJ (Solução 2)
+
+**Funcionamento:** A rota `/api/empresas/busca` provê busca rápida de empresas do Brasil inteiro com redundância tripla gratuita:
+1. `BrasilAPI` (timeout 4.5s)
+2. `Minha Receita` (timeout 4.5s)
+3. `CNPJ.ws` pública
+
+**Auto-Cache no PostgreSQL:**
+- Toda consulta bem-sucedida de CNPJ salva ou atualiza o registro na tabela `empresas` via `prisma.empresa.upsert`.
+- Se as APIs públicas externas sofrerem instabilidade temporária, o banco local e a base demonstrativa continuam respondendo normalmente sem interromper o fluxo do usuário.
+
+---
+
+## Trava de Liberação de Diagnóstico e Relatório
+
+**Regra de Ouro:** O diagnóstico completo e o botão de download de PDF **NUNCA** são liberados antes da confirmação do pagamento no Asaas (ou liberação expressa registrada pela equipe em `/admin`).
+- Rotas protegidas: `/api/portal`, `/api/relatorios/[id]`, `/portal/[token]`.
+- Se o pagamento estiver pendente, o portal exibe o QR Code PIX e chave Copia e Cola com valor de **R$ 19,90** e status "Aguardando confirmação bancária".
