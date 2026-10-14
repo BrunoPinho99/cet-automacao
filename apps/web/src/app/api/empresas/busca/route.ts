@@ -358,7 +358,7 @@ async function buscarEmpresasNacionaisPorNome(termo: string): Promise<EmpresaSug
       signal: AbortSignal.timeout(3500),
     });
 
-    let data = res.ok ? await res.json() : null;
+    const data = res.ok ? await res.json() : null;
     let lista = data?.resultados_paginacao || [];
 
     // 2. Se trouxer poucos resultados, tentar por nome fantasia

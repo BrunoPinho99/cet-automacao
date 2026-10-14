@@ -66,3 +66,7 @@ jobs:
         
       - name: Test
         run: pnpm run test
+        env:
+          DATABASE_URL: "postgresql://cet:cet_secret@localhost:5432/cet_automacao_test?schema=public"
+          DIRECT_URL: "postgresql://cet:cet_secret@localhost:5432/cet_automacao_test?schema=public"
+          REDIS_URL: "redis://localhost:6379"
