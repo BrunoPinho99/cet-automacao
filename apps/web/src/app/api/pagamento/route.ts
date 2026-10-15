@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
 import { DomainEvents } from '@cet/shared';
-import { asaasClient } from '@/lib/asaas';
+import { asaasClient, getAsaasConfig } from '@/lib/asaas';
 import crypto from 'node:crypto';
 
 // Formata telefone para E.164 (+55DDD9XXXXXXXX)
@@ -145,8 +145,8 @@ export async function GET(request: Request) {
     }
 
     // Se o pedido está pendente e possui ID no Asaas, checar na API do Asaas em tempo real
-    const asaasKey = process.env.ASAAS_API_KEY || '';
-    const hasRealAsaasKey = asaasKey && asaasKey !== 'OBTER_NO_PAINEL_ASAAS';
+    const { apiKey } = getAsaasConfig();
+    const hasRealAsaasKey = !!apiKey && apiKey !== 'OBTER_NO_PAINEL_ASAAS';
     if (hasRealAsaasKey && pedido.status !== 'pago' && pedido.asaas_payment_id && !pedido.asaas_payment_id.startsWith('simulado')) {
       try {
         const asaasPay = await asaasClient.getPayment(pedido.asaas_payment_id);
@@ -197,13 +197,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { ficha_id, plano = 'essencial', empresa, cnpj, whatsapp, nome, email } = body;
+    const {
+      ficha_id,
+      empresa,
+      cnpj,
+      whatsapp,
+      nome,
+      email,
+      metodo = 'pix',
+      cartao,
+    } = body;
 
-    // Valores oficiais das Rotas B e C:
-    // Essencial: R$ 19,90 | Completo: R$ 29,90
-    const isCompleto = plano === 'completo';
-    const valorCobrar = isCompleto ? 29.90 : 19.90;
-    const produtoNome = isCompleto ? 'diagnostico_completo' : 'diagnostico_essencial';
+    // Valor Oficial Único: R$ 19,90 COMPLETO (Taxa única)
+    const valorCobrar = 19.90;
+    const produtoNome = 'diagnostico_completo';
 
     let targetLeadId: string = '';
     let targetFichaToken: string = '';
@@ -265,7 +272,7 @@ export async function POST(request: Request) {
           protocolo,
           contato_id: contatoDb.id,
           empresa_id: empresaDb?.id || undefined,
-          primeira_intencao: `Contratação de Diagnóstico SST (${isCompleto ? 'Completo R$ 29,90' : 'Essencial R$ 19,90'})`,
+          primeira_intencao: `Contratação de Diagnóstico Completo SST (R$ 19,90)`,
         },
       });
       targetLeadId = leadDb.id;
@@ -317,10 +324,10 @@ export async function POST(request: Request) {
       telE164 = ficha.lead.contato?.telefone_e164 || telE164;
     }
 
-    // Chave de idempotência única por lead + produto + valor
+    // Chave de idempotência única por lead + valor + timestamp
     const idempotencyKey = crypto
       .createHash('sha256')
-      .update(`${targetLeadId}-${valorCobrar}-${produtoNome}-${Date.now().toString().slice(0, 8)}`)
+      .update(`${targetLeadId}-${valorCobrar}-${produtoNome}-${metodo}-${Date.now().toString().slice(0, 8)}`)
       .digest('hex');
 
     let asaasCustomerId = 'simulado_cust_' + targetLeadId;
@@ -334,13 +341,14 @@ export async function POST(request: Request) {
       `CET${targetLeadId.slice(-6)}`
     );
     let pixQrCodeImage = '';
+    let pagamentoAprovadoNaHora = false;
 
-    const asaasKey = process.env.ASAAS_API_KEY || '';
-    const hasRealAsaasKey = asaasKey && asaasKey !== 'OBTER_NO_PAINEL_ASAAS';
+    const { apiKey } = getAsaasConfig();
+    const hasRealAsaasKey = !!apiKey && apiKey !== 'OBTER_NO_PAINEL_ASAAS';
 
     if (hasRealAsaasKey) {
       try {
-        // 1. Criar ou Obter Customer no Asaas
+        // 1. Criar ou Obter Customer no Asaas (Deduplicando se já existir)
         const isValidCpfCnpj = (docCnpj.length === 11 || docCnpj.length === 14) && !/^(\d)\1+$/.test(docCnpj);
         const customerPayload: any = {
           name: (razaoSocial || nomeCliente).slice(0, 70),
@@ -354,55 +362,110 @@ export async function POST(request: Request) {
           customerPayload.email = email;
         }
 
-        asaasCustomerId = await asaasClient.createCustomer(customerPayload);
+        asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
 
-        // 2. Criar Cobrança no Asaas (PIX)
+        // 2. Data de vencimento
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 2);
         const dueDateString = dueDate.toISOString().split('T')[0];
 
-        const paymentPayload = {
-          customer: asaasCustomerId,
-          billingType: 'PIX' as const,
-          value: valorCobrar,
-          dueDate: dueDateString,
-          description: `Diagnóstico CET - ${isCompleto ? 'Completo (R$ 29,90)' : 'Essencial (R$ 19,90)'}`,
-          externalReference: idempotencyKey,
-        };
-
-        const asaasPayment = await asaasClient.createPayment(paymentPayload);
-        asaasPaymentId = asaasPayment.id;
-        checkoutUrl = asaasPayment.invoiceUrl || checkoutUrl;
-
-        // 3. Obter QR Code Oficial do Asaas
-        try {
-          const pixInfo = await asaasClient.getPixQrCode(asaasPaymentId);
-          if (pixInfo?.payload) {
-            pixPayload = pixInfo.payload;
+        // 3. SE FOR CARTÃO DE CRÉDITO (CHECKOUT TRANSPARENTE)
+        if (metodo === 'cartao') {
+          if (!cartao || !cartao.numero || !cartao.nomeTitular || !cartao.validade || !cartao.cvv) {
+            return NextResponse.json(
+              { erro: 'Por favor, preencha todos os dados do cartão de crédito (número, titular, validade e CVV).' },
+              { status: 400 }
+            );
           }
-          if (pixInfo?.encodedImage) {
-            pixQrCodeImage = `data:image/png;base64,${pixInfo.encodedImage}`;
+
+          const validadeLimpa = cartao.validade.replace(/\s/g, '');
+          const partesValidade = validadeLimpa.split('/');
+          const mesValidade = (partesValidade[0] || '12').padStart(2, '0');
+          let anoValidade = partesValidade[1] || '2026';
+          if (anoValidade.length === 2) {
+            anoValidade = `20${anoValidade}`;
           }
-        } catch (pixErr) {
-          console.warn('[Asaas QR Code] Erro ao buscar QR Code:', pixErr);
+
+          const asaasPayment = await asaasClient.createPayment({
+            customer: asaasCustomerId,
+            billingType: 'CREDIT_CARD',
+            value: valorCobrar,
+            dueDate: dueDateString,
+            description: 'Diagnóstico Completo SST - CET Segurança e Medicina do Trabalho',
+            externalReference: idempotencyKey,
+            creditCard: {
+              holderName: cartao.nomeTitular.trim(),
+              number: cartao.numero.replace(/\D/g, ''),
+              expiryMonth: mesValidade,
+              expiryYear: anoValidade,
+              ccv: cartao.cvv.replace(/\D/g, ''),
+            },
+            creditCardHolderInfo: {
+              name: cartao.nomeTitular.trim(),
+              email: email || 'financeiro@empresa.com.br',
+              cpfCnpj: (cartao.cpfTitular || docCnpj || '00000000000').replace(/\D/g, ''),
+              phone: telE164,
+              mobilePhone: telE164,
+              postalCode: (cartao.cep || '01310100').replace(/\D/g, ''),
+              addressNumber: cartao.numeroEndereco || '1',
+            },
+          });
+
+          asaasPaymentId = asaasPayment.id;
+          checkoutUrl = asaasPayment.invoiceUrl || checkoutUrl;
+          pagamentoAprovadoNaHora = asaasPayment.status === 'CONFIRMED' || asaasPayment.status === 'RECEIVED';
+        } else {
+          // 4. SE FOR PIX
+          const paymentPayload = {
+            customer: asaasCustomerId,
+            billingType: 'PIX' as const,
+            value: valorCobrar,
+            dueDate: dueDateString,
+            description: 'Diagnóstico Completo SST - CET Segurança e Medicina do Trabalho',
+            externalReference: idempotencyKey,
+          };
+
+          const asaasPayment = await asaasClient.createPayment(paymentPayload);
+          asaasPaymentId = asaasPayment.id;
+          checkoutUrl = asaasPayment.invoiceUrl || checkoutUrl;
+
+          // Obter QR Code Oficial do Asaas
+          try {
+            const pixInfo = await asaasClient.getPixQrCode(asaasPaymentId);
+            if (pixInfo?.payload) {
+              pixPayload = pixInfo.payload;
+            }
+            if (pixInfo?.encodedImage) {
+              pixQrCodeImage = `data:image/png;base64,${pixInfo.encodedImage}`;
+            }
+          } catch (pixErr) {
+            console.warn('[Asaas QR Code] Erro ao buscar QR Code:', pixErr);
+          }
         }
       } catch (asaasErr: any) {
         console.error('[Asaas API] Falha na integração externa:', asaasErr?.message);
+        if (metodo === 'cartao') {
+          return NextResponse.json(
+            { erro: asaasErr?.message || 'Falha ao processar o pagamento com cartão no Asaas. Verifique os dados e tente novamente.' },
+            { status: 400 }
+          );
+        }
       }
     }
 
-    // Se não tiver imagem base64 do Asaas, gera QR Code visual via gerador público seguro
+    // Se não tiver imagem base64 do Asaas no PIX, gera QR Code visual via gerador público seguro
     if (!pixQrCodeImage) {
       pixQrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixPayload)}`;
     }
 
-    // 3. Salvar Pedido no Banco de Dados com status pendente
+    // Salvar Pedido no Banco de Dados
     const pedidoCriado = await prisma.pedido.create({
       data: {
         lead_id: targetLeadId,
         produto: produtoNome,
         valor_centavos: Math.round(valorCobrar * 100),
-        status: 'pendente',
+        status: pagamentoAprovadoNaHora ? 'pago' : 'pendente',
+        pago_em: pagamentoAprovadoNaHora ? new Date() : null,
         asaas_customer_id: asaasCustomerId,
         asaas_payment_id: asaasPaymentId,
         checkout_url: checkoutUrl,
@@ -410,8 +473,24 @@ export async function POST(request: Request) {
       },
     });
 
+    if (pagamentoAprovadoNaHora) {
+      await prisma.domainEvent.create({
+        data: {
+          tipo: DomainEvents.PAGAMENTO_CONFIRMADO,
+          payload: {
+            pedido_id: pedidoCriado.id,
+            lead_id: pedidoCriado.lead_id,
+            valor_centavos: pedidoCriado.valor_centavos,
+            payment_id: asaasPaymentId,
+          },
+        },
+      }).catch(() => {});
+    }
+
     return NextResponse.json({
       sucesso: true,
+      pago: pagamentoAprovadoNaHora,
+      status: pagamentoAprovadoNaHora ? 'pago' : 'pendente',
       pedido_id: pedidoCriado.id,
       token_ficha: targetFichaToken,
       checkout_url: pedidoCriado.checkout_url,
@@ -420,7 +499,6 @@ export async function POST(request: Request) {
       pix_qr_code: pixQrCodeImage,
       valor: valorCobrar,
       plano: produtoNome,
-      status: 'pendente',
     });
   } catch (error: any) {
     console.error('[Pagamento Error]:', error);

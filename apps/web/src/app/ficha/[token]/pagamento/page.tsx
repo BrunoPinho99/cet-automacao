@@ -64,14 +64,12 @@ export default async function PagamentoPage({ params }: PagamentoPageProps) {
             score={scoreTotal}
             empresaNome={ficha.lead.empresa?.razao_social || 'Sua Empresa'}
             cnpj={ficha.lead.empresa?.cnpj}
-            checkoutUrl={checkoutUrl && !checkoutUrl.includes('pagamento_pendente') ? checkoutUrl : undefined}
+            checkoutUrl={checkoutUrl && !checkoutUrl.includes('pagamento_pendente') ? checkoutUrl : '#checkout-section'}
           />
 
-          {!checkoutUrl || checkoutUrl.includes('pagamento_pendente') ? (
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-              <CheckoutButton fichaId={ficha.id} />
-            </div>
-          ) : null}
+          <div id="checkout-section" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-md">
+            <CheckoutButton fichaId={ficha.id} token={token} />
+          </div>
         </div>
       )}
     </div>

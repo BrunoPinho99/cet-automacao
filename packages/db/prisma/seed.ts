@@ -79,8 +79,7 @@ async function main() {
       chave: 'precos',
       valor: {
         triagem: 0,
-        essencial: 1990,   // R$ 19,90 em centavos
-        completo: 2990,    // R$ 29,90 em centavos
+        completo: 1990,    // R$ 19,90 em centavos (diagnóstico completo)
       },
     },
     {

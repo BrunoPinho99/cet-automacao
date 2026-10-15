@@ -58,9 +58,20 @@ export default function HomePage() {
   const [erroFormulario, setErroFormulario] = useState<string | null>(null);
   const [mostrarFormulario, setMostrarFormulario] = useState(true);
 
-  // Estados do Modal de Checkout R$ 19,90
+  // Estados do Modal de Checkout R$ 19,90 (PIX e Cartão Asaas)
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
+  const [metodoCheckout, setMetodoCheckout] = useState<'pix' | 'cartao'>('pix');
   const [gerandoCheckout, setGerandoCheckout] = useState(false);
+  const [erroCheckout, setErroCheckout] = useState('');
+
+  // Dados do Cartão de Crédito
+  const [numeroCartao, setNumeroCartao] = useState('');
+  const [nomeCartao, setNomeCartao] = useState('');
+  const [validadeCartao, setValidadeCartao] = useState('');
+  const [cvvCartao, setCvvCartao] = useState('');
+  const [cpfCartao, setCpfCartao] = useState('');
+  const [cepCartao, setCepCartao] = useState('');
+
   const [pixCopiaCola, setPixCopiaCola] = useState('');
   const [pixQrCode, setPixQrCode] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
@@ -292,13 +303,79 @@ export default function HomePage() {
     setPagamentoConcluido(false);
   };
 
-  // Disparar geração de PIX e iniciar acompanhamento
-  const handleGerarPix = async (e: React.FormEvent) => {
+  // Formatações auxiliares para Cartão de Crédito
+  function formatarNumeroCartao(val: string) {
+    const digitos = val.replace(/\D/g, '').slice(0, 16);
+    return digitos.replace(/(\d{4})(?=\d)/g, '$1 ');
+  }
+
+  function formatarValidade(val: string) {
+    const digitos = val.replace(/\D/g, '').slice(0, 4);
+    if (digitos.length <= 2) return digitos;
+    return `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+  }
+
+  function formatarCpf(val: string) {
+    const digitos = val.replace(/\D/g, '').slice(0, 11);
+    if (digitos.length <= 3) return digitos;
+    if (digitos.length <= 6) return `${digitos.slice(0, 3)}.${digitos.slice(3)}`;
+    if (digitos.length <= 9) return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6)}`;
+    return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
+  }
+
+  // Processar pagamento via PIX ou Cartão de Crédito Transparente (R$ 19,90)
+  const handleProcessarPagamento = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErroCheckout('');
+
     const cleanPhone = whatsappLead.replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 9) {
-      alert('Por favor, informe um WhatsApp válido para receber o diagnóstico.');
+      setErroCheckout('Por favor, informe um WhatsApp válido para receber o diagnóstico.');
       return;
+    }
+
+    const bodyPayload: any = {
+      plano: 'completo', // R$ 19,90 oficial
+      empresa: empresaSelecionada?.razao_social,
+      cnpj: empresaSelecionada?.cnpj,
+      whatsapp: whatsappLead,
+      nome: nomeLead || 'Responsável',
+      email: emailLead || undefined,
+      metodo: metodoCheckout,
+    };
+
+    if (metodoCheckout === 'cartao') {
+      const numLimpo = numeroCartao.replace(/\D/g, '');
+      if (!numLimpo || numLimpo.length < 13) {
+        setErroCheckout('Informe um número de cartão de crédito válido.');
+        return;
+      }
+      if (!nomeCartao.trim()) {
+        setErroCheckout('Informe o nome impresso no cartão.');
+        return;
+      }
+      if (!validadeCartao.includes('/') || validadeCartao.replace(/\D/g, '').length < 4) {
+        setErroCheckout('Informe a validade do cartão no formato MM/AA.');
+        return;
+      }
+      if (!cvvCartao.trim() || cvvCartao.length < 3) {
+        setErroCheckout('Informe o código de segurança (CVV).');
+        return;
+      }
+      const cpfLimpo = cpfCartao.replace(/\D/g, '');
+      if (!cpfLimpo || cpfLimpo.length < 11) {
+        setErroCheckout('Informe o CPF do titular do cartão.');
+        return;
+      }
+
+      bodyPayload.cartao = {
+        numero: numeroCartao,
+        nomeTitular: nomeCartao,
+        validade: validadeCartao,
+        cvv: cvvCartao,
+        cpfTitular: cpfCartao,
+        cep: cepCartao,
+      };
     }
 
     setGerandoCheckout(true);
@@ -306,33 +383,35 @@ export default function HomePage() {
       const res = await fetch('/api/pagamento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          plano: 'essencial',
-          empresa: empresaSelecionada?.razao_social,
-          cnpj: empresaSelecionada?.cnpj,
-          whatsapp: whatsappLead,
-          nome: nomeLead || 'Responsável',
-          email: emailLead || undefined,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const erroJson = await res.json().catch(() => ({}));
-        throw new Error(erroJson.erro || 'Falha ao processar pagamento');
+        throw new Error(data.erro || 'Falha ao processar pagamento com o Asaas.');
       }
 
-      const data = await res.json();
       setPedidoId(data.pedido_id);
-      setTokenFicha(data.token_ficha);
-      setPixCopiaCola(data.pix_copia_cola);
-      setPixQrCode(data.pix_qr_code);
+      if (data.token_ficha) {
+        setTokenFicha(data.token_ficha);
+      }
       setCheckoutUrl(data.checkout_url || '');
 
-      // Inicia polling automático do status de pagamento
-      iniciarPollingPagamento(data.pedido_id);
+      // Se pagou no cartão e já aprovou na hora pelo Asaas
+      if (data.pago) {
+        setPagamentoConcluido(true);
+        return;
+      }
+
+      // Se for PIX
+      if (metodoCheckout === 'pix') {
+        setPixCopiaCola(data.pix_copia_cola || '');
+        setPixQrCode(data.pix_qr_code || '');
+        iniciarPollingPagamento(data.pedido_id);
+      }
     } catch (err: any) {
       console.error('Erro ao gerar pagamento:', err);
-      alert(err.message || 'Erro ao gerar cobrança. Tente novamente.');
+      setErroCheckout(err.message || 'Erro ao processar pagamento. Verifique os dados e tente novamente.');
     } finally {
       setGerandoCheckout(false);
     }
@@ -1192,10 +1271,10 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* MODAL DE CHECKOUT PIX R$ 19,90 COM POLING REAL E QR CODE */}
+      {/* MODAL DE CHECKOUT TRANSPARENTE ASAAS - R$ 19,90 (PIX E CARTÃO) */}
       {modalCheckoutAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
             {/* Cabeçalho do Modal */}
             <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -1204,7 +1283,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold tracking-tight">Diagnóstico Completo SST</h3>
-                  <p className="text-xs text-slate-400">Emissão oficial da CET • R$ 19,90</p>
+                  <p className="text-xs text-slate-400">Checkout Transparente Oficial Asaas • R$ 19,90</p>
                 </div>
               </div>
 
@@ -1229,10 +1308,10 @@ export default function HomePage() {
                   </div>
                   <div className="space-y-1">
                     <h4 className="text-xl font-extrabold text-slate-900">
-                      Pagamento Confirmado!
+                      Pagamento Aprovado com Sucesso!
                     </h4>
                     <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
-                      Sua empresa está vinculada. Agora responda às <strong>perguntas estratégicas</strong> da ficha técnica para emissão do laudo definitivo.
+                      Seu Diagnóstico Completo de SST foi liberado. Responda às <strong>perguntas estratégicas</strong> da ficha técnica para emissão do laudo definitivo em PDF.
                     </p>
                   </div>
 
@@ -1241,75 +1320,226 @@ export default function HomePage() {
                       href={tokenFicha ? `/ficha/${tokenFicha}` : '/ficha'}
                       className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition shadow-md"
                     >
-                      <span>Acessar Ficha & Responder Perguntas Estratégicas</span>
+                      <span>Acessar Ficha & Concluir Meu Diagnóstico</span>
                       <span>→</span>
                     </Link>
                   </div>
                 </div>
               ) : !pixCopiaCola ? (
-                // FORMULÁRIO DE DADOS INICIAIS
-                <form onSubmit={handleGerarPix} className="space-y-3.5">
-                  <div className="bg-blue-50/80 rounded-2xl p-3.5 border border-blue-200/80 text-xs text-blue-900 space-y-1">
-                    <div className="font-bold text-sm text-blue-950">
-                      {empresaSelecionada?.razao_social || 'Sua Empresa'}
+                // FORMULÁRIO DE CHECKOUT (PIX OU CARTÃO)
+                <form onSubmit={handleProcessarPagamento} className="space-y-4">
+                  {/* Seletor de Método de Pagamento */}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMetodoCheckout('pix');
+                        setErroCheckout('');
+                      }}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        metodoCheckout === 'pix'
+                          ? 'bg-white text-emerald-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>⚡ PIX Imediato</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMetodoCheckout('cartao');
+                        setErroCheckout('');
+                      }}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        metodoCheckout === 'cartao'
+                          ? 'bg-white text-blue-700 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>💳 Cartão de Crédito</span>
+                    </button>
+                  </div>
+
+                  {/* Resumo da Empresa Selecionada */}
+                  <div className="bg-blue-50/80 rounded-2xl p-3 border border-blue-200/80 text-xs text-blue-900 flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-sm text-blue-950">
+                        {empresaSelecionada?.razao_social || 'Sua Empresa'}
+                      </div>
+                      <div className="font-mono text-[11px] text-blue-800">
+                        CNPJ: {empresaSelecionada?.cnpj}
+                      </div>
                     </div>
-                    <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-500 uppercase block font-semibold">Valor Único</span>
+                      <span className="text-base font-extrabold text-emerald-700">R$ 19,90</span>
+                    </div>
                   </div>
 
-                  {/* CONFIRMAÇÃO DOS DADOS DO RESPONSÁVEL */}
-                  <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 leading-relaxed flex items-start gap-2">
-                    <span className="text-emerald-600 font-bold shrink-0 text-xs mt-0.5">✓</span>
-                    <span>
-                      <strong>Dados Confirmados:</strong> O diagnóstico executivo completo e as diretrizes de regularização dos programas de SST serão emitidos em nome do responsável abaixo.
-                    </span>
+                  {/* Alerta de Erro se houver */}
+                  {erroCheckout && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2">
+                      <span className="text-red-600 font-bold shrink-0">⚠️</span>
+                      <p>{erroCheckout}</p>
+                    </div>
+                  )}
+
+                  {/* DADOS DO RESPONSÁVEL */}
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Seu Nome Completo:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={nomeLead}
+                        onChange={(e) => setNomeLead(e.target.value)}
+                        placeholder="Ex: João da Silva"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          WhatsApp:
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={whatsappLead}
+                          onChange={(e) => setWhatsappLead(e.target.value)}
+                          placeholder="(11) 98765-4321"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          E-mail (opcional):
+                        </label>
+                        <input
+                          type="email"
+                          value={emailLead}
+                          onChange={(e) => setEmailLead(e.target.value)}
+                          placeholder="contato@empresa.com.br"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Seu Nome Completo:
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={nomeLead}
-                      onChange={(e) => setNomeLead(e.target.value)}
-                      placeholder="Ex: João da Silva"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
-                    />
-                  </div>
+                  {/* SE FOR CARTÃO DE CRÉDITO: CAMPOS DO CARTÃO TRANSPARENTE */}
+                  {metodoCheckout === 'cartao' && (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-fade-in">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <span className="text-xs font-bold text-slate-800">Dados do Cartão de Crédito</span>
+                        <span className="text-[10px] text-slate-500">🔒 Ambiente Seguro Asaas</span>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      WhatsApp para envio do relatório:
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={whatsappLead}
-                      onChange={(e) => setWhatsappLead(e.target.value)}
-                      placeholder="(11) 98765-4321"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Número do Cartão:
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={19}
+                          value={numeroCartao}
+                          onChange={(e) => setNumeroCartao(formatarNumeroCartao(e.target.value))}
+                          placeholder="0000 0000 0000 0000"
+                          className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono tracking-wide focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      E-mail (opcional):
-                    </label>
-                    <input
-                      type="email"
-                      value={emailLead}
-                      onChange={(e) => setEmailLead(e.target.value)}
-                      placeholder="contato@empresa.com.br"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Nome Impresso no Cartão:
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={nomeCartao}
+                          onChange={(e) => setNomeCartao(e.target.value.toUpperCase())}
+                          placeholder="NOME COMO NO CARTAO"
+                          className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                        />
+                      </div>
 
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            Validade:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={5}
+                            value={validadeCartao}
+                            onChange={(e) => setValidadeCartao(formatarValidade(e.target.value))}
+                            placeholder="MM/AA"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            CVV:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={4}
+                            value={cvvCartao}
+                            onChange={(e) => setCvvCartao(e.target.value.replace(/\D/g, ''))}
+                            placeholder="123"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            CPF do Titular:
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={14}
+                            value={cpfCartao}
+                            onChange={(e) => setCpfCartao(formatarCpf(e.target.value))}
+                            placeholder="000.000.000-00"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                            CEP (opcional):
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={9}
+                            value={cepCartao}
+                            onChange={(e) => setCepCartao(e.target.value)}
+                            placeholder="00000-000"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* BOTÃO DE CONFIRMAÇÃO DO CHECKOUT */}
                   <div className="pt-2">
                     <button
                       type="submit"
                       disabled={gerandoCheckout}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-bold py-3.5 px-4 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      className={`w-full text-white font-bold py-3.5 px-4 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                        metodoCheckout === 'cartao'
+                          ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                          : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
+                      }`}
                     >
                       {gerandoCheckout ? (
                         <>
@@ -1317,12 +1547,16 @@ export default function HomePage() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          <span>Gerando Cobrança PIX...</span>
+                          <span>{metodoCheckout === 'cartao' ? 'Processando Cartão com Asaas...' : 'Gerando Cobrança PIX...'}</span>
                         </>
                       ) : (
                         <>
-                          <span>Pagar R$ 19,90 via PIX Imediato</span>
-                          <span className="text-emerald-200">→</span>
+                          <span>
+                            {metodoCheckout === 'cartao'
+                              ? 'Pagar R$ 19,90 no Cartão (Aprovação Imediata)'
+                              : 'Pagar R$ 19,90 via PIX Imediato'}
+                          </span>
+                          <span>→</span>
                         </>
                       )}
                     </button>
@@ -1383,6 +1617,18 @@ export default function HomePage() {
                       className="text-xs text-blue-700 hover:text-blue-900 font-bold py-1.5 underline underline-offset-2"
                     >
                       {verificandoPagamento ? 'Verificando no banco...' : 'Já paguei, verificar agora'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPixCopiaCola('');
+                        setPixQrCode('');
+                        if (pollingRef.current) clearInterval(pollingRef.current);
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
+                    >
+                      ← Trocar forma de pagamento
                     </button>
 
                     {/* Botão de simulação segura em homologação/testes */}

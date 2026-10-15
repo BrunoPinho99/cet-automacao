@@ -124,7 +124,7 @@ async function main() {
       scoreTotalSst: 91,
       scoreComercialTotal: 30,
       statusPedido: 'CONFIRMADO',
-      valorPedidoCentavos: 2990, // R$ 29,90
+      valorPedidoCentavos: 1990, // R$ 19,90
       etapaFunil: 'Concluído Digital',
       mensagens: [
         { direcao: 'entrada', texto: 'Oi, realizei o pagamento via PIX para o diagnóstico digital.' },
@@ -152,7 +152,7 @@ async function main() {
       scoreTotalSst: Math.max(20, Math.min(95, 100 - ((empresa.grau_risco ?? 2) * 20))),
       scoreComercialTotal: empresa.trabalhadores_proprios > 100 ? 85 : (empresa.trabalhadores_proprios >= 20 ? 60 : 35),
       statusPedido: i % 3 === 0 ? 'CONFIRMADO' : (i % 3 === 1 ? 'PENDENTE' : 'CRIADO'),
-      valorPedidoCentavos: empresa.trabalhadores_proprios > 100 ? 3500000 : (empresa.trabalhadores_proprios >= 20 ? 950000 : 2990),
+      valorPedidoCentavos: empresa.trabalhadores_proprios > 100 ? 3500000 : (empresa.trabalhadores_proprios >= 20 ? 950000 : 1990),
       etapaFunil: i % 2 === 0 ? 'Proposta Comercial' : 'Em Diagnóstico',
       mensagens: []
     };

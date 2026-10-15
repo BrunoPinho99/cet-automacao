@@ -124,9 +124,11 @@ Digite o número para continuar:
   // Diagnóstico e Pagamento - Rotas B e C
   OFERTA_DIAGNOSTICO: `Sua triagem foi calculada com sucesso! 🎉
 
-Escolha a opção desejada:
-1 - Diagnóstico Essencial (R$ 19,90)
-2 - Diagnóstico Completo (R$ 29,90)`,
+O Diagnóstico Completo de SST para sua empresa está disponível por apenas R$ 19,90 (taxa única).
+Inclui plano de ação prioritário, mapa de riscos e checklist de conformidade NR.
+
+Acesse o link seguro para concluir e liberar seu laudo na hora:
+👉 {{link_pagamento}}`,
 
   // Pós-Venda e Relatório (após confirmação webhook Asaas)
   RELATORIO_PRONTO: `Seu diagnóstico da CET está pronto! Prioridade: *{{prioridade}}*.

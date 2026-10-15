@@ -1,89 +1,175 @@
-import { env } from 'node:process';
+export interface AsaasCreditCard {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
 
-const ASAAS_API_URL = env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
-const ASAAS_API_KEY = env.ASAAS_API_KEY || '';
-
-interface AsaasCustomerPayload {
+export interface AsaasCreditCardHolderInfo {
   name: string;
+  email: string;
   cpfCnpj: string;
+  postalCode?: string;
+  addressNumber?: string;
+  addressComplement?: string;
+  phone: string;
+  mobilePhone?: string;
+}
+
+export interface AsaasCustomerPayload {
+  name: string;
+  cpfCnpj?: string;
   email?: string;
   mobilePhone?: string;
   externalReference?: string;
 }
 
-interface AsaasPaymentPayload {
-  customer: string; // ID do customer no Asaas
-  billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD';
+export interface AsaasPaymentPayload {
+  customer: string;
+  billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'UNDEFINED';
   value: number;
-  dueDate: string; // YYYY-MM-DD
+  dueDate: string;
   description: string;
   externalReference?: string;
+  creditCard?: AsaasCreditCard;
+  creditCardHolderInfo?: AsaasCreditCardHolderInfo;
+  remoteIp?: string;
+}
+
+export function getAsaasConfig() {
+  const apiKey = (process.env.ASAAS_API_KEY || '').trim();
+  let apiUrl = (process.env.ASAAS_API_URL || '').trim();
+  if (!apiUrl) {
+    if (apiKey.includes('sandbox') || process.env.ASAAS_ENV === 'sandbox') {
+      apiUrl = 'https://sandbox.asaas.com/api/v3';
+    } else {
+      apiUrl = 'https://api.asaas.com/v3';
+    }
+  }
+  return { apiKey, apiUrl };
 }
 
 /**
- * Cliente básico para a API do Asaas
+ * Cliente para a API do Asaas (Produção e Sandbox)
  */
 export const asaasClient = {
-  async createCustomer(data: AsaasCustomerPayload) {
-    if (!ASAAS_API_KEY) throw new Error('ASAAS_API_KEY não configurada');
+  async getOrCreateCustomer(data: AsaasCustomerPayload): Promise<string> {
+    const { apiKey, apiUrl } = getAsaasConfig();
+    if (!apiKey || apiKey === 'OBTER_NO_PAINEL_ASAAS') {
+      throw new Error('ASAAS_API_KEY não configurada');
+    }
 
-    const res = await fetch(`${ASAAS_API_URL}/customers`, {
+    if (data.cpfCnpj) {
+      const cleanDoc = data.cpfCnpj.replace(/\D/g, '');
+      if (cleanDoc.length === 11 || cleanDoc.length === 14) {
+        try {
+          const searchRes = await fetch(`${apiUrl}/customers?cpfCnpj=${cleanDoc}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              access_token: apiKey,
+            },
+          });
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            if (searchData.data && searchData.data.length > 0) {
+              return searchData.data[0].id as string;
+            }
+          }
+        } catch (err) {
+          console.warn('[Asaas] Busca de customer falhou:', err);
+        }
+      }
+    }
+
+    return this.createCustomer(data);
+  },
+
+  async createCustomer(data: AsaasCustomerPayload): Promise<string> {
+    const { apiKey, apiUrl } = getAsaasConfig();
+    if (!apiKey || apiKey === 'OBTER_NO_PAINEL_ASAAS') {
+      throw new Error('ASAAS_API_KEY não configurada');
+    }
+
+    const res = await fetch(`${apiUrl}/customers`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        access_token: ASAAS_API_KEY,
+        access_token: apiKey,
       },
       body: JSON.stringify(data),
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Falha ao criar cliente no Asaas: ${error}`);
+      const errorText = await res.text();
+      let errorDesc = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.errors && errorJson.errors.length > 0) {
+          errorDesc = errorJson.errors.map((e: any) => e.description).join('; ');
+        }
+      } catch {}
+      throw new Error(`Falha ao cadastrar cliente no Asaas: ${errorDesc}`);
     }
 
     const result = await res.json();
-    return result.id as string; // Retorna o asaas_customer_id
+    return result.id as string;
   },
 
   async createPayment(data: AsaasPaymentPayload) {
-    if (!ASAAS_API_KEY) throw new Error('ASAAS_API_KEY não configurada');
+    const { apiKey, apiUrl } = getAsaasConfig();
+    if (!apiKey || apiKey === 'OBTER_NO_PAINEL_ASAAS') {
+      throw new Error('ASAAS_API_KEY não configurada');
+    }
 
-    const res = await fetch(`${ASAAS_API_URL}/payments`, {
+    const res = await fetch(`${apiUrl}/payments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        access_token: ASAAS_API_KEY,
+        access_token: apiKey,
       },
       body: JSON.stringify(data),
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Falha ao criar cobrança no Asaas: ${error}`);
+      const errorText = await res.text();
+      let errorDesc = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.errors && errorJson.errors.length > 0) {
+          errorDesc = errorJson.errors.map((e: any) => e.description).join('; ');
+        }
+      } catch {}
+      throw new Error(`Falha ao processar pagamento no Asaas: ${errorDesc}`);
     }
 
     const result = await res.json();
-    
     return {
       id: result.id as string,
-      invoiceUrl: result.invoiceUrl as string,
+      status: (result.status as string) || 'PENDING',
+      invoiceUrl: (result.invoiceUrl as string) || '',
+      bankSlipUrl: (result.bankSlipUrl as string) || '',
     };
   },
 
   async getPixQrCode(paymentId: string) {
-    if (!ASAAS_API_KEY) throw new Error('ASAAS_API_KEY não configurada');
+    const { apiKey, apiUrl } = getAsaasConfig();
+    if (!apiKey || apiKey === 'OBTER_NO_PAINEL_ASAAS') {
+      throw new Error('ASAAS_API_KEY não configurada');
+    }
 
-    const res = await fetch(`${ASAAS_API_URL}/payments/${paymentId}/pixQrCode`, {
+    const res = await fetch(`${apiUrl}/payments/${paymentId}/pixQrCode`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        access_token: ASAAS_API_KEY,
+        access_token: apiKey,
       },
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Falha ao buscar QR Code PIX: ${error}`);
+      const errorText = await res.text();
+      throw new Error(`Falha ao buscar QR Code PIX: ${errorText}`);
     }
 
     const result = await res.json();
@@ -95,21 +181,24 @@ export const asaasClient = {
   },
 
   async getPayment(paymentId: string) {
-    if (!ASAAS_API_KEY) throw new Error('ASAAS_API_KEY não configurada');
+    const { apiKey, apiUrl } = getAsaasConfig();
+    if (!apiKey || apiKey === 'OBTER_NO_PAINEL_ASAAS') {
+      throw new Error('ASAAS_API_KEY não configurada');
+    }
 
-    const res = await fetch(`${ASAAS_API_URL}/payments/${paymentId}`, {
+    const res = await fetch(`${apiUrl}/payments/${paymentId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        access_token: ASAAS_API_KEY,
+        access_token: apiKey,
       },
     });
 
     if (!res.ok) {
-      const error = await res.text();
-      throw new Error(`Falha ao consultar cobrança no Asaas: ${error}`);
+      const errorText = await res.text();
+      throw new Error(`Falha ao consultar cobrança no Asaas: ${errorText}`);
     }
 
     return await res.json();
-  }
+  },
 };

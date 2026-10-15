@@ -300,8 +300,8 @@ export function SstScoreGauge({
             {checkoutUrl ? (
               <a
                 href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={checkoutUrl.startsWith('#') ? undefined : '_blank'}
+                rel={checkoutUrl.startsWith('#') ? undefined : 'noopener noreferrer'}
                 className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base transition-all shadow-md hover:shadow-lg text-center"
               >
                 <span>Desbloquear Diagnóstico Completo por R$ 19,90</span>
