@@ -19,6 +19,14 @@ interface EmpresaItem {
   bairro?: string;
 }
 
+function formatarTelefoneInput(valor: string) {
+  const digits = valor.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length > 0 ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
 export default function HomePage() {
   // Modo de busca: 'nome' (busca fácil por nome da empresa) ou 'cnpj' (inserção direta do CNPJ)
   const [modoBusca, setModoBusca] = useState<'nome' | 'cnpj'>('nome');
@@ -30,12 +38,29 @@ export default function HomePage() {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<EmpresaItem | null>(null);
   const [scoreCalculado, setScoreCalculado] = useState<number | null>(null);
 
+  // Estados dos Dados de Contato Obrigatórios (preenchidos antes do score)
+  const [nomeLead, setNomeLead] = useState('');
+  const [whatsappLead, setWhatsappLead] = useState('');
+  const [emailLead, setEmailLead] = useState('');
+
+  // Estados das Perguntas Estratégicas sobre Programas Necessários de SST
+  const [temPgr, setTemPgr] = useState<'vigente' | 'vencido' | 'nao_possui' | 'nao_sei'>('nao_possui');
+  const [temPcmso, setTemPcmso] = useState<'vigente' | 'vencido' | 'nao_possui' | 'nao_sei'>('nao_possui');
+  const [temLtcat, setTemLtcat] = useState<'vigente' | 'vencido' | 'nao_possui' | 'nao_sei'>('nao_possui');
+  const [temAso, setTemAso] = useState<'em_dia' | 'parcial' | 'nao_realiza'>('parcial');
+  const [enviaEsocial, setEnviaEsocial] = useState<'transmite' | 'pendente' | 'nunca_enviou'>('nunca_enviou');
+  const [qtdColaboradores, setQtdColaboradores] = useState<'1_5' | '6_20' | '21_50' | '50_plus'>('1_5');
+  const [teveAcidenteOuFiscalizacao, setTeveAcidenteOuFiscalizacao] = useState<'nao' | 'sim'>('nao');
+
+  // Estados de controle e feedback do cálculo
+  const [calculandoScore, setCalculandoScore] = useState(false);
+  const [pontosCriticos, setPontosCriticos] = useState<string[]>([]);
+  const [erroFormulario, setErroFormulario] = useState<string | null>(null);
+  const [mostrarFormulario, setMostrarFormulario] = useState(true);
+
   // Estados do Modal de Checkout R$ 19,90
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
   const [gerandoCheckout, setGerandoCheckout] = useState(false);
-  const [whatsappLead, setWhatsappLead] = useState('');
-  const [nomeLead, setNomeLead] = useState('');
-  const [emailLead, setEmailLead] = useState('');
   const [pixCopiaCola, setPixCopiaCola] = useState('');
   const [pixQrCode, setPixQrCode] = useState('');
   const [checkoutUrl, setCheckoutUrl] = useState('');
@@ -47,6 +72,8 @@ export default function HomePage() {
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const scoreRef = useRef<HTMLDivElement>(null);
 
   // Limpa timer de polling ao desmontar
   useEffect(() => {
@@ -117,15 +144,15 @@ export default function HomePage() {
     setBusca(empresa.razao_social);
     setMostrarDropdown(false);
 
-    // Geração do SCORE GRATUITO na hora:
-    const risco = empresa.grau_risco || 2;
-    let baseScore = 28;
-    if (risco >= 3) {
-      baseScore = 24;
-    } else if (risco === 1) {
-      baseScore = 34;
-    }
-    setScoreCalculado(baseScore);
+    // Conforme regra: NÃO exibe o score imediatamente antes do preenchimento das perguntas e contato!
+    setScoreCalculado(null);
+    setMostrarFormulario(true);
+    setErroFormulario(null);
+
+    // Rola suavemente até o formulário do diagnóstico
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
   };
 
   const handleLimparBusca = () => {
@@ -133,6 +160,131 @@ export default function HomePage() {
     setEmpresaSelecionada(null);
     setScoreCalculado(null);
     setSugestoes([]);
+    setErroFormulario(null);
+    setMostrarFormulario(true);
+  };
+
+  // Submissão do formulário: validação rigorosa de contato e cálculo real do Score SST
+  const handleCalcularScore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroFormulario(null);
+
+    if (!nomeLead.trim()) {
+      setErroFormulario('Por favor, informe seu Nome Completo para identificação técnica.');
+      return;
+    }
+
+    const cleanPhone = whatsappLead.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErroFormulario('Por favor, informe um WhatsApp válido com DDD (mínimo 10 dígitos) para receber o relatório.');
+      return;
+    }
+
+    const emailLimpo = emailLead.trim();
+    if (!emailLimpo || !emailLimpo.includes('@') || !emailLimpo.includes('.')) {
+      setErroFormulario('Por favor, informe um e-mail válido para envio oficial do diagnóstico.');
+      return;
+    }
+
+    setCalculandoScore(true);
+
+    try {
+      // Registra o lead e o contato na base de dados em segundo plano
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: nomeLead.trim(),
+          telefone: whatsappLead,
+          email: emailLimpo,
+          cnpj: empresaSelecionada?.cnpj,
+          canal: 'formulario_web',
+          primeira_intencao: 'score_sst',
+        }),
+      }).catch((err) => console.warn('Registro de lead:', err));
+
+      // Simulação rápida para feedback pericial
+      await new Promise((resolve) => setTimeout(resolve, 550));
+
+      // Cálculo Real do Score com base no que o usuário respondeu
+      let nota = 100;
+      const pontos: string[] = [];
+
+      // 1. PGR (NR-01)
+      if (temPgr === 'nao_possui') {
+        nota -= 26;
+        pontos.push('Ausência de PGR (NR-01)');
+      } else if (temPgr === 'vencido') {
+        nota -= 16;
+        pontos.push('PGR Vencido / Desatualizado');
+      } else if (temPgr === 'nao_sei') {
+        nota -= 12;
+        pontos.push('PGR Não Comprovado');
+      }
+
+      // 2. PCMSO (NR-07)
+      if (temPcmso === 'nao_possui') {
+        nota -= 22;
+        pontos.push('Ausência de PCMSO (NR-07)');
+      } else if (temPcmso === 'vencido') {
+        nota -= 14;
+        pontos.push('PCMSO Vencido');
+      } else if (temPcmso === 'nao_sei') {
+        nota -= 10;
+        pontos.push('PCMSO Não Comprovado');
+      }
+
+      // 3. Exames Médicos Ocupacionais (ASO)
+      if (temAso === 'nao_realiza') {
+        nota -= 18;
+        pontos.push('Exames Ocupacionais (ASO) Não Realizados');
+      } else if (temAso === 'parcial') {
+        nota -= 10;
+        pontos.push('Exames Periódicos (ASO) em Atraso');
+      }
+
+      // 4. eSocial SST (S-2210, S-2220, S-2240)
+      if (enviaEsocial === 'nunca_enviou') {
+        nota -= 22;
+        pontos.push('eSocial SST Nunca Transmitido');
+      } else if (enviaEsocial === 'pendente') {
+        nota -= 14;
+        pontos.push('eSocial SST Pendente de Regularização');
+      }
+
+      // 5. LTCAT / Insalubridade
+      if (temLtcat === 'nao_possui') {
+        nota -= 10;
+        pontos.push('Ausência de LTCAT / Laudo de Riscos');
+      } else if (temLtcat === 'vencido') {
+        nota -= 6;
+        pontos.push('LTCAT Desatualizado');
+      }
+
+      // 6. Histórico de Notificação / Acidente
+      if (teveAcidenteOuFiscalizacao === 'sim') {
+        nota -= 10;
+        pontos.push('Histórico de Fiscalização / Acidente Recente');
+      }
+
+      // 7. Agravante por Grau de Risco do CNAE
+      const risco = empresaSelecionada?.grau_risco || 2;
+      if (risco >= 3 && (temPgr !== 'vigente' || temPcmso !== 'vigente')) {
+        nota -= 6;
+        pontos.push(`Grau de Risco Elevado (NR-4 Risco ${risco})`);
+      }
+
+      const scoreFinal = Math.max(18, Math.min(98, Math.round(nota)));
+      setPontosCriticos(pontos);
+      setScoreCalculado(scoreFinal);
+
+      // Rola até o Score SST
+      setTimeout(() => {
+        scoreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    } finally {
+      setCalculandoScore(false);
+    }
   };
 
   const handleAbrirCheckout = () => {
@@ -623,14 +775,382 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* ÁREA DO VELOCÍMETRO / MEDIDOR EM GRADIENTE COM SCORE BAIXO */}
+        {/* FORMULÁRIO DE PERGUNTAS ESTRATÉGICAS & DADOS DE CONTATO (PREENCHIDOS ANTES DO SCORE) */}
+        {empresaSelecionada && (mostrarFormulario || scoreCalculado === null) && (
+          <div
+            ref={formRef}
+            className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xl space-y-6 animate-fade-in"
+          >
+            {/* Cabeçalho do formulário */}
+            <div className="border-b border-slate-100 pb-5 space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider">
+                <span>Passo Obrigatório</span>
+                <span>•</span>
+                <span>Questionário dos Programas SST & Contato</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Diagnóstico de Conformidade & Riscos SST
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Para calcular com precisão o <strong>Score SST</strong> de <span className="font-semibold text-slate-900">{empresaSelecionada.razao_social}</span>, informe seus dados de contato e a situação real dos programas obrigatórios perante o Ministério do Trabalho e eSocial.
+              </p>
+            </div>
+
+            {erroFormulario && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+                <span className="text-red-600 text-base">⚠️</span>
+                <span>{erroFormulario}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCalcularScore} className="space-y-6">
+              {/* BLOCO 1: DADOS DE CONTATO DO RESPONSÁVEL */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Dados do Responsável pelo Diagnóstico
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Nome */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Nome Completo: <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={nomeLead}
+                      onChange={(e) => setNomeLead(e.target.value)}
+                      placeholder="Ex: João da Silva"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition"
+                    />
+                  </div>
+
+                  {/* WhatsApp */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>WhatsApp com DDD: <span className="text-red-500">*</span></span>
+                      <span className="text-[10px] text-emerald-600 font-semibold">📱 Envio do Laudo</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={whatsappLead}
+                      onChange={(e) => setWhatsappLead(formatarTelefoneInput(e.target.value))}
+                      placeholder="(11) 98765-4321"
+                      maxLength={15}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition font-mono"
+                    />
+                  </div>
+
+                  {/* E-mail */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      E-mail Corporativo: <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={emailLead}
+                      onChange={(e) => setEmailLead(e.target.value)}
+                      placeholder="contato@empresa.com.br"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BLOCO 2: PROGRAMAS DE SST OBRIGATÓRIOS */}
+              <div className="space-y-5 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Programas & Exigências Ocupacionais (NRs e eSocial)
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Pergunta 1: PGR */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📄</span>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800">
+                          PGR — Programa de Gerenciamento de Riscos (NR-01)
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Identificação de riscos operacionais e plano de prevenção.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {[
+                        { id: 'vigente', label: 'Possui Vigente' },
+                        { id: 'vencido', label: 'Possui Vencido' },
+                        { id: 'nao_possui', label: 'Não Possui' },
+                        { id: 'nao_sei', label: 'Não Tenho Certeza' },
+                      ].map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => setTemPgr(op.id as any)}
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
+                            temPgr === op.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                          {temPgr === op.id ? '✓ ' : ''}{op.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pergunta 2: PCMSO */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">🩺</span>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800">
+                          PCMSO — Controle Médico de Saúde Ocupacional (NR-07)
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Planejamento de exames coordenado por médico do trabalho.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {[
+                        { id: 'vigente', label: 'Possui Vigente' },
+                        { id: 'vencido', label: 'Possui Vencido' },
+                        { id: 'nao_possui', label: 'Não Possui' },
+                        { id: 'nao_sei', label: 'Não Tenho Certeza' },
+                      ].map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => setTemPcmso(op.id as any)}
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
+                            temPcmso === op.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                          {temPcmso === op.id ? '✓ ' : ''}{op.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pergunta 3: Exames Ocupacionais / ASO */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📋</span>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800">
+                          Exames Médicos Ocupacionais (ASO)
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Exames admissionais, periódicos e demissionais dos colaboradores.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      {[
+                        { id: 'em_dia', label: 'Todos em Dia' },
+                        { id: 'parcial', label: 'Exames em Atraso' },
+                        { id: 'nao_realiza', label: 'Não Realiza' },
+                      ].map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => setTemAso(op.id as any)}
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
+                            temAso === op.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                          {temAso === op.id ? '✓ ' : ''}{op.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pergunta 4: Transmissão ao eSocial */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📡</span>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800">
+                          Eventos de SST no eSocial (S-2210, S-2220, S-2240)
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Comunicação de acidentes, monitoramento e agentes nocivos.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      {[
+                        { id: 'transmite', label: 'Transmite em Dia' },
+                        { id: 'pendente', label: 'Pendente / Dúvida' },
+                        { id: 'nunca_enviou', label: 'Nunca Enviou' },
+                      ].map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => setEnviaEsocial(op.id as any)}
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
+                            enviaEsocial === op.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                          {enviaEsocial === op.id ? '✓ ' : ''}{op.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pergunta 5: LTCAT */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">⚖️</span>
+                      <div>
+                        <span className="block text-xs font-bold text-slate-800">
+                          LTCAT / Laudo de Insalubridade e Periculosidade
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Laudo para previdência social, PPP e adicionais trabalhistas.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {[
+                        { id: 'vigente', label: 'Possui Emitido' },
+                        { id: 'vencido', label: 'Desatualizado' },
+                        { id: 'nao_possui', label: 'Não Possui' },
+                        { id: 'nao_sei', label: 'Não Sei Informar' },
+                      ].map((op) => (
+                        <button
+                          key={op.id}
+                          type="button"
+                          onClick={() => setTemLtcat(op.id as any)}
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
+                            temLtcat === op.id
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}
+                        >
+                          {temLtcat === op.id ? '✓ ' : ''}{op.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pergunta 6 & 7: Equipe e Histórico */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3.5">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
+                        <span>👥 Nº Estimado de Colaboradores CLT / Ativos:</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        {[
+                          { id: '1_5', label: '1 a 5' },
+                          { id: '6_20', label: '6 a 20' },
+                          { id: '21_50', label: '21 a 50' },
+                          { id: '50_plus', label: '50+' },
+                        ].map((op) => (
+                          <button
+                            key={op.id}
+                            type="button"
+                            onClick={() => setQtdColaboradores(op.id as any)}
+                            className={`px-2 py-1.5 text-xs font-semibold rounded-lg border transition text-center cursor-pointer ${
+                              qtdColaboradores === op.id
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {op.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
+                        <span>⚠️ Notificação, Fiscalização ou Acidente nos últimos 12 meses?</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'nao', label: 'Não, sem ocorrências' },
+                          { id: 'sim', label: 'Sim, houve notificação' },
+                        ].map((op) => (
+                          <button
+                            key={op.id}
+                            type="button"
+                            onClick={() => setTeveAcidenteOuFiscalizacao(op.id as any)}
+                            className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
+                              teveAcidenteOuFiscalizacao === op.id
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {teveAcidenteOuFiscalizacao === op.id ? '✓ ' : ''}{op.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* BOTÃO PRINCIPAL DE CÁLCULO */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={calculandoScore}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-extrabold py-4 px-6 rounded-2xl text-base sm:text-lg transition shadow-lg hover:shadow-xl flex items-center justify-center gap-3 cursor-pointer group"
+                >
+                  {calculandoScore ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Apurando Conformidade e Calculando Score SST...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>⚡ Calcular Score SST da Minha Empresa</span>
+                      <span className="text-emerald-200 group-hover:translate-x-1 transition-transform">→</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-center text-slate-400 mt-2">
+                  🔒 Seus dados estão seguros e protegidos pela LGPD. O cálculo é imediato e confidencial.
+                </p>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ÁREA DO VELOCÍMETRO / MEDIDOR DE SCORE SST (SÓ APARECE APÓS PREENCHER O QUESTIONÁRIO E CONTATO) */}
         {scoreCalculado !== null && empresaSelecionada && (
-          <div className="space-y-6 animate-fade-in">
+          <div ref={scoreRef} className="space-y-6 animate-fade-in pt-2">
             <SstScoreGauge
               score={scoreCalculado}
               empresaNome={empresaSelecionada.razao_social}
               cnpj={empresaSelecionada.cnpj}
               onContratarDiagnostico={handleAbrirCheckout}
+              pontosCriticos={pontosCriticos}
+              onEditarRespostas={() => {
+                setMostrarFormulario(true);
+                formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             />
           </div>
         )}
@@ -745,11 +1265,11 @@ export default function HomePage() {
                     <div>CNPJ: <span className="font-mono">{empresaSelecionada?.cnpj}</span></div>
                   </div>
 
-                  {/* AVISO METODOLÓGICO: AS PERGUNTAS ESTRATÉGICAS CONTINUAM NA ETAPA SEGUINTE */}
-                  <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
-                    <span className="text-amber-600 font-bold shrink-0 text-xs mt-0.5">ℹ️</span>
+                  {/* CONFIRMAÇÃO DOS DADOS DO RESPONSÁVEL */}
+                  <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 leading-relaxed flex items-start gap-2">
+                    <span className="text-emerald-600 font-bold shrink-0 text-xs mt-0.5">✓</span>
                     <span>
-                      <strong>Aviso Metodológico:</strong> O Score do CNPJ é uma análise prévia. O laudo definitivo depende do preenchimento das <strong>perguntas estratégicas de SST</strong> (equipe, laudos PGR/PCMSO e eSocial) na próxima etapa.
+                      <strong>Dados Confirmados:</strong> O diagnóstico executivo completo e as diretrizes de regularização dos programas de SST serão emitidos em nome do responsável abaixo.
                     </span>
                   </div>
 

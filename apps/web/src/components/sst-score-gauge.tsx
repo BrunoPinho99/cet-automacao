@@ -8,6 +8,8 @@ interface SstScoreGaugeProps {
   cnpj?: string;
   onContratarDiagnostico?: () => void;
   checkoutUrl?: string;
+  pontosCriticos?: string[];
+  onEditarRespostas?: () => void;
 }
 
 export function SstScoreGauge({
@@ -16,6 +18,8 @@ export function SstScoreGauge({
   cnpj,
   onContratarDiagnostico,
   checkoutUrl,
+  pontosCriticos,
+  onEditarRespostas,
 }: SstScoreGaugeProps) {
   // Garante que o score fique entre 0 e 100
   const valorScore = Math.max(0, Math.min(100, Math.round(score)));
@@ -216,39 +220,49 @@ export function SstScoreGauge({
                 {mensagemAlerta}
               </p>
               <div className="pt-2 text-[11px] font-semibold text-red-800 flex flex-wrap gap-2">
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-red-200">
-                  ⚠️ Ausência de PGR / PCMSO
-                </span>
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-red-200">
-                  ⚠️ eSocial SST Não Transmitido
-                </span>
-                <span className="bg-white/80 px-2 py-0.5 rounded border border-red-200">
-                  ⚠️ Risco de Fiscalização
-                </span>
+                {(pontosCriticos && pontosCriticos.length > 0
+                  ? pontosCriticos
+                  : ['Ausência de PGR / PCMSO', 'eSocial SST Não Transmitido', 'Risco de Fiscalização']
+                ).map((item, idx) => (
+                  <span key={idx} className="bg-white/80 px-2 py-0.5 rounded border border-red-200">
+                    ⚠️ {item}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* AVISO METODOLÓGICO: A consulta de CNPJ não substitui as perguntas estratégicas */}
-        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-lg">
-            📋
+        {/* RESUMO DO DIAGNÓSTICO BASEADO NO QUESTIONÁRIO */}
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start justify-between gap-3.5">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-lg">
+              📋
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2">
+                <span>Diagnóstico Apurado das Declarações</span>
+                <span className="text-[10px] font-semibold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full">
+                  Questionário SST Preenchido
+                </span>
+              </h4>
+              <p className="text-xs text-blue-800 leading-relaxed">
+                Este score preliminar foi apurado com base no enquadramento fiscal do CNAE e nas informações de programas (PGR, PCMSO, ASO e eSocial) declaradas no formulário.
+              </p>
+              <p className="text-xs text-blue-900 leading-relaxed font-semibold">
+                ⚡ Próximo passo: Para receber o <strong>laudo técnico detalhado</strong> com valores de multas aplicáveis, plano de ação corretivo e protocolo de regularização com ART/CREA, libere o relatório executivo abaixo.
+              </p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2">
-              <span>Triagem Cadastral Preliminar</span>
-              <span className="text-[10px] font-semibold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full">
-                Receita Federal
-              </span>
-            </h4>
-            <p className="text-xs text-blue-800 leading-relaxed">
-              Este score preliminar gratuito avalia o enquadramento fiscal do seu CNAE e Grau de Risco (NR-4) perante as exigências do Ministério do Trabalho.
-            </p>
-            <p className="text-xs text-blue-900 leading-relaxed font-semibold">
-              ⚡ Importante: Esta estimativa inicial <u>não substitui</u> a análise das <strong>perguntas estratégicas</strong> sobre a realidade física da empresa (número de colaboradores, máquinas operadas, riscos químicos/físicos/ergonômicos, vigência de laudos PGR/PCMSO e transmissões ao eSocial).
-            </p>
-          </div>
+          {onEditarRespostas && (
+            <button
+              type="button"
+              onClick={onEditarRespostas}
+              className="shrink-0 text-xs text-blue-700 hover:text-blue-950 font-bold underline underline-offset-2 py-1 px-3 bg-white/70 hover:bg-white rounded-lg border border-blue-200 transition cursor-pointer"
+            >
+              ✏️ Editar Respostas
+            </button>
+          )}
         </div>
 
         {/* CARD CTA: GERAR DIAGNÓSTICO POR R$ 19,90 */}
