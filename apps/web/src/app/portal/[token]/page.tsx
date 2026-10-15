@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { infoPorte } from '@/lib/porte';
+import { CheckoutButton } from '@/app/ficha/[token]/pagamento/checkout-button';
 
 export default function PortalClientePage({
   params,
@@ -186,21 +187,34 @@ export default function PortalClientePage({
                 </p>
               </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link
-                  href={`/ficha/${token}/pagamento`}
-                  className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2"
-                >
-                  <span>Pagar R$ 19,90 e Liberar Diagnóstico</span>
-                  <span>→</span>
-                </Link>
+              {/* CHECKOUT TRANSPARENTE EMBUTIDO NO PORTAL */}
+              {data.ficha_id && (
+                <div className="pt-4 max-w-lg mx-auto text-left bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-md">
+                  <div className="mb-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        Pagamento Seguro Asaas
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-800 mt-1">Concluir Pagamento e Liberar Laudo</h4>
+                    </div>
+                    <span className="text-base font-extrabold text-emerald-700">R$ 19,90</span>
+                  </div>
 
+                  <CheckoutButton
+                    fichaId={data.ficha_id}
+                    token={token}
+                    onSucesso={() => carregarPortal()}
+                  />
+                </div>
+              )}
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => carregarPortal()}
-                  className="w-full sm:w-auto px-5 py-3 border border-slate-300 hover:bg-white text-slate-700 font-semibold rounded-xl text-xs sm:text-sm transition"
+                  className="w-full sm:w-auto px-5 py-2.5 border border-slate-300 hover:bg-white text-slate-700 font-semibold rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1.5"
                 >
-                  Já realizei o pagamento (Verificar)
+                  <span>🔄 Já realizei o pagamento (Verificar no Asaas)</span>
                 </button>
               </div>
             </div>

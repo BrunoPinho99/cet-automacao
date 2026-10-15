@@ -201,6 +201,11 @@ export async function POST(request: Request) {
       ficha_id,
       empresa,
       cnpj,
+      cidade,
+      uf,
+      cnae_descricao,
+      score,
+      respostas_questionario,
       whatsapp,
       nome,
       email,
@@ -230,22 +235,52 @@ export async function POST(request: Request) {
         );
       }
 
-      // 1. Criar ou Obter Empresa no banco
+      // 1. Criar ou Obter Empresa no banco (Garantindo que a empresa nunca seja nula)
       let empresaDb = null;
       if (docCnpj && docCnpj.length === 14) {
         empresaDb = await prisma.empresa.upsert({
           where: { cnpj: docCnpj },
           update: {
             razao_social: razaoSocial,
+            cidade: cidade || undefined,
+            uf: uf || undefined,
+            cnae_informado: cnae_descricao ? cnae_descricao.slice(0, 10) : undefined,
+            atividade_real: cnae_descricao || undefined,
           },
           create: {
             cnpj: docCnpj,
             razao_social: razaoSocial,
-            cidade: 'São Paulo',
-            uf: 'SP',
+            cidade: cidade || 'São Paulo',
+            uf: uf || 'SP',
+            cnae_informado: cnae_descricao ? cnae_descricao.slice(0, 10) : undefined,
+            atividade_real: cnae_descricao || 'Comércio e Serviços Gerais',
             grau_risco: 2,
           },
         });
+      } else {
+        // Busca por razão social ou cria empresa genérica vinculada
+        const existente = await prisma.empresa.findFirst({
+          where: { razao_social: razaoSocial },
+        });
+        if (existente) {
+          empresaDb = existente;
+        } else {
+          const cnpjUnico = `99${Date.now().toString().slice(-10)}${Math.floor(Math.random() * 90 + 10)}`;
+          empresaDb = await prisma.empresa.create({
+            data: {
+              cnpj: (docCnpj && docCnpj.length === 14) ? docCnpj : cnpjUnico,
+              razao_social: razaoSocial,
+              cidade: cidade || 'São Paulo',
+              uf: uf || 'SP',
+              cnae_informado: cnae_descricao ? cnae_descricao.slice(0, 10) : undefined,
+              atividade_real: cnae_descricao || 'Comércio e Serviços Gerais',
+              grau_risco: 2,
+            },
+          }).catch(async () => {
+            const fallbackEmpresa = await prisma.empresa.findFirst();
+            return fallbackEmpresa!;
+          });
+        }
       }
 
       // 2. Criar ou Obter Contato no banco
@@ -254,13 +289,13 @@ export async function POST(request: Request) {
         update: {
           nome: nomeCliente,
           email: email || undefined,
-          empresa_id: empresaDb?.id || undefined,
+          empresa_id: empresaDb.id,
         },
         create: {
           nome: nomeCliente,
           telefone_e164: telE164,
           email: email || undefined,
-          empresa_id: empresaDb?.id || undefined,
+          empresa_id: empresaDb.id,
         },
       });
 
@@ -271,31 +306,77 @@ export async function POST(request: Request) {
           canal: 'landing_page',
           protocolo,
           contato_id: contatoDb.id,
-          empresa_id: empresaDb?.id || undefined,
+          empresa_id: empresaDb.id,
           primeira_intencao: `Contratação de Diagnóstico Completo SST (R$ 19,90)`,
         },
       });
       targetLeadId = leadDb.id;
 
-      // 4. Criar Ficha Inteligente com respostas preliminares
+      // 4. Criar Ficha Inteligente com respostas preliminares e status concluída
       const fichaDb = await prisma.ficha.create({
         data: {
           lead_id: leadDb.id,
-          status: 'iniciada',
-          bloco_atual: 1,
+          status: 'concluida',
+          bloco_atual: 2,
           respostas: {
             bloco_1: {
-              cnpj: docCnpj.length === 14 ? docCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : '',
+              cnpj: docCnpj.length === 14 ? docCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : docCnpj,
               razao_social: razaoSocial,
               nome_fantasia: razaoSocial,
-              cidade: empresaDb?.cidade || 'São Paulo',
-              uf: empresaDb?.uf || 'SP',
-              atividade_real: 'Comércio e Serviços Gerais',
+              cidade: empresaDb.cidade || 'São Paulo',
+              uf: empresaDb.uf || 'SP',
+              atividade_real: cnae_descricao || 'Comércio e Serviços Gerais',
             },
+            questionario_sst: respostas_questionario || {},
           },
         },
       });
       targetFichaToken = fichaDb.token_retomada;
+
+      // 5. Gravar Score SST calculado
+      const valorScoreSst = typeof score === 'number' ? Math.round(score) : 28;
+      const classificacao = valorScoreSst >= 81 ? 'regular' : valorScoreSst >= 61 ? 'atencao' : valorScoreSst >= 41 ? 'alto_risco' : 'critico';
+      await prisma.scoreSST.upsert({
+        where: { ficha_id: fichaDb.id },
+        update: {
+          total: valorScoreSst,
+          classificacao,
+          por_eixo: (respostas_questionario || {}) as unknown as import('@prisma/client').Prisma.InputJsonValue,
+          itens_nao_aplicaveis: [],
+          versao_regras: 'v1.0.0',
+        },
+        create: {
+          ficha_id: fichaDb.id,
+          total: valorScoreSst,
+          classificacao,
+          por_eixo: (respostas_questionario || {}) as unknown as import('@prisma/client').Prisma.InputJsonValue,
+          itens_nao_aplicaveis: [],
+          versao_regras: 'v1.0.0',
+        },
+      }).catch((e: unknown) => console.warn('[ScoreSST Create]', e));
+
+      // 6. Gravar Rota Lead (Porte)
+      const qtdColab = respostas_questionario?.qtdColaboradores;
+      const rotaCodigo = qtdColab === '50_plus' || respostas_questionario?.teveAcidenteOuFiscalizacao === 'sim' ? 'A' : (qtdColab === '21_50' ? 'B' : 'C');
+      await prisma.rota.upsert({
+        where: { ficha_id: fichaDb.id },
+        update: {
+          rota: rotaCodigo,
+          rota_completa: rotaCodigo,
+          gatilho_critico: rotaCodigo === 'A',
+          motivos: ['Classificação automática apurada na triagem web'],
+          sla_minutos: rotaCodigo === 'A' ? 10 : (rotaCodigo === 'B' ? 120 : 999),
+        },
+        create: {
+          ficha_id: fichaDb.id,
+          rota: rotaCodigo,
+          rota_completa: rotaCodigo,
+          gatilho_critico: rotaCodigo === 'A',
+          motivos: ['Classificação automática apurada na triagem web'],
+          sla_minutos: rotaCodigo === 'A' ? 10 : (rotaCodigo === 'B' ? 120 : 999),
+        },
+      }).catch((e: unknown) => console.warn('[Rota Create]', e));
+
     } else {
       // =========================================================================
       // CENÁRIO 2: Requisição com ficha_id existente
@@ -318,9 +399,11 @@ export async function POST(request: Request) {
 
       targetLeadId = ficha.lead_id;
       targetFichaToken = ficha.token_retomada;
+      const respostasJson: any = ficha.respostas || {};
+      const bloco1 = respostasJson.bloco_1 || {};
       nomeCliente = ficha.lead.contato?.nome || nomeCliente;
-      razaoSocial = ficha.lead.empresa?.razao_social || razaoSocial;
-      docCnpj = ficha.lead.empresa?.cnpj || docCnpj;
+      razaoSocial = ficha.lead.empresa?.razao_social || bloco1.razao_social || razaoSocial;
+      docCnpj = ficha.lead.empresa?.cnpj || (bloco1.cnpj || '').replace(/\D/g, '') || docCnpj;
       telE164 = ficha.lead.contato?.telefone_e164 || telE164;
     }
 
@@ -332,7 +415,8 @@ export async function POST(request: Request) {
 
     let asaasCustomerId = 'simulado_cust_' + targetLeadId;
     let asaasPaymentId = 'simulado_pay_' + Date.now();
-    let checkoutUrl = `https://cet-automacao.vercel.app/portal/${targetFichaToken}?pagamento_pendente=true`;
+    // A URL padrão de checkout aponta para a tela de pagamento da ficha (NUNCA para o portal)
+    let checkoutUrl = `https://cet-automacao.vercel.app/ficha/${targetFichaToken}/pagamento`;
     let pixPayload = gerarPixPayloadEstatico(
       'financeiro@cetseguranca.com.br',
       'CET CLINICA ESPECIALIZADA',
@@ -349,14 +433,18 @@ export async function POST(request: Request) {
     if (hasRealAsaasKey) {
       try {
         // 1. Criar ou Obter Customer no Asaas (Deduplicando se já existir)
-        const isValidCpfCnpj = (docCnpj.length === 11 || docCnpj.length === 14) && !/^(\d)\1+$/.test(docCnpj);
+        let docClienteFinal = docCnpj;
+        if ((!docClienteFinal || docClienteFinal.length < 11) && cartao?.cpfTitular) {
+          docClienteFinal = cartao.cpfTitular.replace(/\D/g, '');
+        }
+        const isValidCpfCnpj = (docClienteFinal.length === 11 || docClienteFinal.length === 14) && !/^(\d)\1+$/.test(docClienteFinal);
         const customerPayload: any = {
           name: (razaoSocial || nomeCliente).slice(0, 70),
           mobilePhone: telE164,
           externalReference: targetLeadId,
         };
         if (isValidCpfCnpj) {
-          customerPayload.cpfCnpj = docCnpj;
+          customerPayload.cpfCnpj = docClienteFinal;
         }
         if (email && email.includes('@')) {
           customerPayload.email = email;

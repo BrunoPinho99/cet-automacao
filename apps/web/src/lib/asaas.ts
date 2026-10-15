@@ -40,13 +40,19 @@ export interface AsaasPaymentPayload {
 export function getAsaasConfig() {
   const apiKey = (process.env.ASAAS_API_KEY || '').trim();
   let apiUrl = (process.env.ASAAS_API_URL || '').trim();
-  if (!apiUrl) {
-    if (apiKey.includes('sandbox') || process.env.ASAAS_ENV === 'sandbox') {
-      apiUrl = 'https://sandbox.asaas.com/api/v3';
-    } else {
-      apiUrl = 'https://api.asaas.com/v3';
-    }
+
+  // Verifica se é explicitamente sandbox pela chave ou env var
+  const isExplicitSandbox =
+    process.env.ASAAS_ENV === 'sandbox' ||
+    apiKey.toLowerCase().includes('sandbox');
+
+  if (isExplicitSandbox) {
+    apiUrl = 'https://sandbox.asaas.com/api/v3';
+  } else if (!apiUrl || apiUrl.includes('sandbox.asaas.com')) {
+    // Chave real de produção (ex.: conta Paulo Eduardo): sempre usar API oficial de produção
+    apiUrl = 'https://api.asaas.com/v3';
   }
+
   return { apiKey, apiUrl };
 }
 

@@ -6,9 +6,10 @@ import Link from 'next/link';
 interface CheckoutButtonProps {
   fichaId: string;
   token?: string;
+  onSucesso?: () => void;
 }
 
-export function CheckoutButton({ fichaId, token }: CheckoutButtonProps) {
+export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProps) {
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -120,6 +121,7 @@ export function CheckoutButton({ fichaId, token }: CheckoutButtonProps) {
       // Se pagou no cartão e já foi aprovado na hora
       if (data.pago) {
         setPago(true);
+        onSucesso?.();
         return;
       }
 
@@ -146,6 +148,7 @@ export function CheckoutButton({ fichaId, token }: CheckoutButtonProps) {
         const data = await res.json();
         if (data.pago) {
           setPago(true);
+          onSucesso?.();
           if (data.token_ficha) {
             setTokenFicha(data.token_ficha);
           }

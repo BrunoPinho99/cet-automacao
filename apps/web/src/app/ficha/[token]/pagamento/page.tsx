@@ -62,9 +62,13 @@ export default async function PagamentoPage({ params }: PagamentoPageProps) {
         <div className="space-y-6">
           <SstScoreGauge
             score={scoreTotal}
-            empresaNome={ficha.lead.empresa?.razao_social || 'Sua Empresa'}
-            cnpj={ficha.lead.empresa?.cnpj}
-            checkoutUrl={checkoutUrl && !checkoutUrl.includes('pagamento_pendente') ? checkoutUrl : '#checkout-section'}
+            empresaNome={
+              (ficha.lead.empresa?.razao_social && ficha.lead.empresa.razao_social !== 'Desconhecida')
+                ? ficha.lead.empresa.razao_social
+                : ((ficha.respostas as any)?.bloco_1?.razao_social || 'Sua Empresa')
+            }
+            cnpj={ficha.lead.empresa?.cnpj || (ficha.respostas as any)?.bloco_1?.cnpj}
+            checkoutUrl="#checkout-section"
           />
 
           <div id="checkout-section" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-md">
