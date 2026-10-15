@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm --filter @cet/web run build",
+  "buildCommand": "pnpm --filter @cet/web run build && rm -rf .next && cp -r apps/web/.next .next",
   "installCommand": "pnpm install --ignore-scripts && pnpm --filter @cet/db run generate"
 }
