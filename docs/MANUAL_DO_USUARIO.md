@@ -33,7 +33,7 @@ A interface adota a estética **SaaS 2026** nas cores institucionais **branco e 
   - Total de novos clientes e contatos recebidos;
   - Diagnósticos em andamento vs concluídos;
   - Clientes estratégicos de **Grande Porte** (antiga Rota A) com SLA prioritário de 10 minutos;
-  - Faturamento preliminar (Diagnósticos Essencial R$ 19,90 e Completo R$ 29,90).
+  - Faturamento preliminar (Diagnóstico Completo R$ 19,90).
 
 ### 2. Central de Atendimento & Gestão de Leads (CRUD)
 - **URL:** [`/admin/atendimento`](https://cet-automacao.vercel.app/admin/atendimento)
@@ -95,10 +95,9 @@ A triagem automática é **direcionada imediatamente** a um consultor sênior (S
 
 ### Fluxo 3: Ficha de Diagnóstico & Pagamento Asaas (Médio e Pequeno Porte)
 1. O cliente preenche a ficha no navegador (sem necessidade de senha).
-2. Ao final, escolhe o diagnóstico:
-   - **Essencial:** R$ 19,90
-   - **Completo:** R$ 29,90
-3. O sistema gera a cobrança segura no Asaas (PIX ou Cartão).
+2. Ao final, confirma o diagnóstico:
+   - **Diagnóstico Completo SST:** Taxa única de R$ 19,90
+3. O cliente realiza o pagamento via Checkout Transparente do Asaas (PIX Imediato com QR Code ou Cartão de Crédito).
 4. O cliente é informado que:
    > *"O valor pago pode virar crédito integral na contratação de serviços acima de R$ 500 realizados em até 7 dias."*
 5. Assim que o webhook do Asaas confirma o pagamento (com garantia de idempotência SHA-256):
