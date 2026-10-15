@@ -391,15 +391,6 @@ export default function HomePage() {
             <span className="block text-xs text-slate-500">Segurança e Medicina do Trabalho</span>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 rounded-lg px-3 py-1.5 transition"
-          >
-            Acesso Equipe / Login
-          </Link>
-        </div>
       </header>
 
       {/* CONTEÚDO PRINCIPAL */}
