@@ -107,11 +107,11 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                     onClick={onNavigate}
                     className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? 'bg-sky-50/80 text-sky-700 font-medium'
+                        ? 'bg-soft-lavender text-royal font-semibold'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                   >
-                    <span className={isActive ? 'text-sky-600' : 'text-slate-400'}>{item.icon}</span>
+                    <span className={isActive ? 'text-royal' : 'text-slate-400'}>{item.icon}</span>
                     <span>{item.name}</span>
                   </Link>
                 </li>
@@ -189,7 +189,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
             <div className="flex items-center gap-2.5 sm:gap-3">
               <div className="relative">
                 <div
-                  className="w-8 h-8 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center select-none"
+                  className="w-8 h-8 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center select-none"
                   title={`${session.email} (${session.role})`}
                 >
                   {initials}

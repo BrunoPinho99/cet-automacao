@@ -3,39 +3,80 @@
 /*
  * ==========================================================================
  * CET CLÍNICA — SISTEMA DE GESTÃO SST & ATENDIMENTO
- * DESIGN SYSTEM SAAS 2026: BRANCO E AZUL CET (#0891c7)
+ * DESIGN SYSTEM OFICIAL 2026: PALETA CORPORATIVA DE ALTA PRECISÃO
+ * 01 Royal Blue:    #0056FF
+ * 02 Azure Blue:    #2277FF
+ * 03 Black:         #000000
+ * 04 Soft Lavender: #E3E7FC
+ * 05 White:         #FFFFFF
+ * Gradient 1 (Futurewave):     linear-gradient(135deg, #2277FF 0%, #8FB9FF 100%)
+ * Gradient 2 (Midnight Surge): linear-gradient(135deg, #04194D 0%, #013394 50%, #0056FF 100%)
  * ==========================================================================
  */
 
 :root {
   --background: #f8fafc;
-  --foreground: #0f172a;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #0f172a;
-  --primary: #0891c7;
-  --primary-hover: #0284c7;
+  --card-foreground: #000000;
+
+  /* Cores Nominais Oficiais */
+  --royal-blue: #0056FF;
+  --azure-blue: #2277FF;
+  --black: #000000;
+  --soft-lavender: #E3E7FC;
+  --white: #FFFFFF;
+  --midnight-surge: #04194D;
+  --futurewave-light: #8FB9FF;
+
+  --primary: #0056FF;
+  --primary-hover: #0045d9;
   --primary-foreground: #ffffff;
   --secondary: #059669;
   --secondary-hover: #047857;
   --secondary-foreground: #ffffff;
-  --muted: #f0f9ff;
-  --muted-foreground: #64748b;
+  --muted: #E3E7FC;
+  --muted-foreground: #475569;
   --border: #e2e8f0;
-  --ring: #0891c7;
+  --ring: #0056FF;
 }
 
 @theme {
-  --color-blue-50: #f0f9ff;
-  --color-blue-100: #e0f2fe;
-  --color-blue-200: #bae6fd;
-  --color-blue-300: #7dd3fc;
-  --color-blue-400: #38bdf8;
-  --color-blue-500: #0ea5e9;
-  --color-blue-600: #0891c7; /* Azul Oficial da Logo CET */
-  --color-blue-700: #0284c7;
-  --color-blue-800: #0369a1;
-  --color-blue-900: #075985;
-  --color-blue-950: #0c4a6e;
+  /* Tokens Nominais */
+  --color-royal: #0056FF;
+  --color-royal-blue: #0056FF;
+  --color-azure: #2277FF;
+  --color-azure-blue: #2277FF;
+  --color-lavender: #E3E7FC;
+  --color-soft-lavender: #E3E7FC;
+  --color-midnight: #04194D;
+  --color-futurewave: #8FB9FF;
+
+  /* Escala Blue calibrada com 01 Royal Blue e 02 Azure Blue */
+  --color-blue-50: #f4f6fe;
+  --color-blue-100: #E3E7FC; /* 04 Soft Lavender */
+  --color-blue-200: #c9d5fc;
+  --color-blue-300: #9cbaff;
+  --color-blue-400: #5c93ff;
+  --color-blue-500: #2277FF; /* 02 Azure Blue */
+  --color-blue-600: #0056FF; /* 01 Royal Blue */
+  --color-blue-700: #0045d9;
+  --color-blue-800: #0036ab;
+  --color-blue-900: #04194D; /* Midnight Surge Base */
+  --color-blue-950: #020c24;
+
+  /* Escala Sky calibrada para componentes que utilizam sky-* */
+  --color-sky-50: #f4f6fe;
+  --color-sky-100: #E3E7FC; /* 04 Soft Lavender */
+  --color-sky-200: #c9d5fc;
+  --color-sky-300: #9cbaff;
+  --color-sky-400: #5c93ff;
+  --color-sky-500: #2277FF; /* 02 Azure Blue */
+  --color-sky-600: #0056FF; /* 01 Royal Blue */
+  --color-sky-700: #0045d9;
+  --color-sky-800: #0036ab;
+  --color-sky-900: #04194D;
+  --color-sky-950: #020c24;
 }
 
 html {
@@ -51,6 +92,47 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.011em;
+}
+
+/* Utilitários dos Gradientes da Paleta */
+.bg-gradient-futurewave {
+  background: linear-gradient(135deg, #2277FF 0%, #8FB9FF 100%);
+}
+
+.bg-gradient-midnight {
+  background: linear-gradient(135deg, #04194D 0%, #013394 50%, #0056FF 100%);
+}
+
+.bg-soft-lavender {
+  background-color: #E3E7FC;
+}
+
+.text-royal {
+  color: #0056FF;
+}
+
+.text-azure {
+  color: #2277FF;
+}
+
+.bg-royal {
+  background-color: #0056FF;
+}
+
+.bg-azure {
+  background-color: #2277FF;
+}
+
+.border-royal {
+  border-color: #0056FF;
+}
+
+.border-azure {
+  border-color: #2277FF;
+}
+
+.border-lavender {
+  border-color: #E3E7FC;
 }
 
 /* Micro-elevação SaaS 2026 */
@@ -70,8 +152,8 @@ body {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .saas-card-interactive:hover {
-  border-color: #7dd3fc;
-  box-shadow: 0 4px 12px -2px rgba(8, 145, 199, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  border-color: #2277FF;
+  box-shadow: 0 4px 14px -2px rgba(0, 86, 255, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 }
 
 /* Botões Modernos SaaS na Paleta Oficial CET */
@@ -84,15 +166,15 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   color: #ffffff;
-  background: #0891c7;
-  border: 1px solid #0284c7;
+  background: #0056FF;
+  border: 1px solid #0045d9;
   border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(8, 145, 199, 0.25);
+  box-shadow: 0 1px 2px 0 rgba(0, 86, 255, 0.25);
   transition: all 0.15s ease;
 }
 .btn-saas-primary:hover:not(:disabled) {
-  background: #0284c7;
-  box-shadow: 0 2px 4px 0 rgba(8, 145, 199, 0.35);
+  background: #0045d9;
+  box-shadow: 0 2px 6px 0 rgba(0, 86, 255, 0.35);
   transform: translateY(-0.5px);
 }
 .btn-saas-primary:active:not(:disabled) {
@@ -148,9 +230,9 @@ body {
   padding: 0.2rem 0.65rem;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #0369a1;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  color: #0056FF;
+  background: #E3E7FC;
+  border: 1px solid #c9d5fc;
   border-radius: 9999px;
 }
 

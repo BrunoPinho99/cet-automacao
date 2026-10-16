@@ -65,9 +65,9 @@ export default function WhatsAppConnectionPage() {
     <div className="w-full space-y-6">
       {/* 4. Banner de Alerta ("Instância desconectada.") */}
       {(mensagem || status !== 'open') && (
-        <div className="flex items-center justify-between bg-sky-50/60 border border-sky-200/80 border-l-4 border-l-sky-600 rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between bg-soft-lavender/60 border border-blue-200/80 border-l-4 border-l-royal rounded-lg px-4 py-3">
           <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-sky-700 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-royal shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-medium text-slate-800">
@@ -100,14 +100,14 @@ export default function WhatsAppConnectionPage() {
               </span>
             )}
             {status === 'connecting' && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 border border-sky-200 px-3.5 py-1 text-xs font-medium text-sky-700">
-                <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+              <span className="inline-flex items-center gap-2 rounded-full bg-soft-lavender border border-blue-200 px-3.5 py-1 text-xs font-medium text-royal">
+                <span className="w-2 h-2 rounded-full bg-azure animate-pulse" />
                 Aguardando Leitura do QR Code
               </span>
             )}
             {(status === 'close' || status === 'disconnected') && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 border border-sky-200 px-3.5 py-1 text-xs font-medium text-sky-700">
-                <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+              <span className="inline-flex items-center gap-2 rounded-full bg-soft-lavender border border-blue-200 px-3.5 py-1 text-xs font-medium text-royal">
+                <span className="w-2 h-2 rounded-full bg-azure animate-pulse" />
                 Aguardando Leitura do QR Code
               </span>
             )}
@@ -177,9 +177,9 @@ export default function WhatsAppConnectionPage() {
                     </div>
                   </div>
 
-                  {/* Barra de progresso fina de 2px */}
+                  {/* Barra de progresso fina de 2px com Azure Blue */}
                   <div className="w-full max-w-[280px] h-1 bg-slate-200 rounded-full overflow-hidden mt-4 mb-2">
-                    <div className="h-full bg-sky-500 rounded-full animate-pulse w-full" />
+                    <div className="h-full bg-azure rounded-full animate-pulse w-full" />
                   </div>
 
                   {/* Texto e ícone discreto de atualização */}
@@ -192,12 +192,12 @@ export default function WhatsAppConnectionPage() {
                 </div>
               ) : (
                 <div className="text-center py-16 space-y-4">
-                  <div className="w-10 h-10 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <div className="w-10 h-10 border-2 border-royal border-t-transparent rounded-full animate-spin mx-auto" />
                   <p className="text-xs sm:text-sm text-slate-700 font-medium">Gerando QR Code de pareamento...</p>
                   <button
                     onClick={() => executarAcao('restart')}
                     disabled={loading}
-                    className="mt-2 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs disabled:opacity-50"
+                    className="mt-2 px-3.5 py-2 bg-royal hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-2xs disabled:opacity-50"
                   >
                     Gerar Novo Código
                   </button>
@@ -221,7 +221,7 @@ export default function WhatsAppConnectionPage() {
 
                   <ol className="space-y-5">
                     <li className="relative flex items-start gap-3.5">
-                      <span className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center shrink-0 z-10">
+                      <span className="w-7 h-7 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center shrink-0 z-10">
                         1
                       </span>
                       <span className="text-sm text-slate-600 leading-relaxed pt-0.5">
@@ -230,7 +230,7 @@ export default function WhatsAppConnectionPage() {
                     </li>
 
                     <li className="relative flex items-start gap-3.5">
-                      <span className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center shrink-0 z-10">
+                      <span className="w-7 h-7 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center shrink-0 z-10">
                         2
                       </span>
                       <span className="text-sm text-slate-600 leading-relaxed pt-0.5">
@@ -239,7 +239,7 @@ export default function WhatsAppConnectionPage() {
                     </li>
 
                     <li className="relative flex items-start gap-3.5">
-                      <span className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center shrink-0 z-10">
+                      <span className="w-7 h-7 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center shrink-0 z-10">
                         3
                       </span>
                       <span className="text-sm text-slate-600 leading-relaxed pt-0.5">
@@ -248,7 +248,7 @@ export default function WhatsAppConnectionPage() {
                     </li>
 
                     <li className="relative flex items-start gap-3.5">
-                      <span className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center shrink-0 z-10">
+                      <span className="w-7 h-7 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center shrink-0 z-10">
                         4
                       </span>
                       <span className="text-sm text-slate-600 leading-relaxed pt-0.5">
@@ -257,7 +257,7 @@ export default function WhatsAppConnectionPage() {
                     </li>
 
                     <li className="relative flex items-start gap-3.5">
-                      <span className="w-7 h-7 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center shrink-0 z-10">
+                      <span className="w-7 h-7 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center shrink-0 z-10">
                         5
                       </span>
                       <span className="text-sm text-slate-600 leading-relaxed pt-0.5">

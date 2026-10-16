@@ -63,9 +63,9 @@ export function SstScoreGauge({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/80 shadow-lg overflow-hidden max-w-2xl mx-auto animate-fade-in">
-      {/* Cabeçalho do Score */}
-      <div className="p-6 sm:p-8 bg-slate-900 text-white text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-radial from-blue-900/40 via-transparent to-transparent pointer-events-none" />
+      {/* Cabeçalho do Score com Gradiente Midnight Surge */}
+      <div className="p-6 sm:p-8 bg-gradient-midnight text-white text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-radial from-blue-500/20 via-transparent to-transparent pointer-events-none" />
 
         {empresaNome && (
           <div className="mb-2">

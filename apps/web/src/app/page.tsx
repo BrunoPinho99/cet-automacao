@@ -549,6 +549,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+      {/* BARRA DE DESTAQUE SUPERIOR COM GRADIENTE FUTUREWAVE */}
+      <div className="h-1 bg-gradient-futurewave w-full" />
+
       {/* CABEÇALHO INSTITUCIONAL */}
       <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200 flex items-center justify-between px-4 sm:px-8">
         <div className="flex items-center gap-3">
@@ -565,12 +568,12 @@ export default function HomePage() {
       <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-4xl mx-auto w-full space-y-8">
         {/* Título de Apresentação */}
         <div className="text-center space-y-3">
-          <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 bg-soft-lavender text-royal border border-blue-200 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-azure animate-pulse" />
             Consulta Oficial Gratuita
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Descubra o <span className="text-blue-600">Score SST</span> da sua Empresa
+            Descubra o <span className="text-royal">Score SST</span> da sua Empresa
           </h1>
           <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
             Identifique o nível de risco ocupacional (NR-4) e pendências com as Normas Regulamentadoras da CLT e o eSocial.

@@ -46,7 +46,7 @@ export function buildRelatorioHtml(dados: RelatorioDados): string {
       overflow: hidden;
     }
     .header {
-      background: linear-gradient(135deg, #0691c8 0%, #0369a1 100%);
+      background: linear-gradient(135deg, #04194D 0%, #013394 50%, #0056FF 100%);
       color: #ffffff;
       padding: 32px 36px;
       display: flex;
@@ -99,7 +99,7 @@ export function buildRelatorioHtml(dados: RelatorioDados): string {
       content: "";
       width: 4px;
       height: 16px;
-      background: #0691c8;
+      background: #0056FF;
       border-radius: 2px;
       display: inline-block;
     }
@@ -135,7 +135,7 @@ export function buildRelatorioHtml(dados: RelatorioDados): string {
       width: fit-content;
       margin-top: 4px;
     }
-    .badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .badge-blue { background: #E3E7FC; color: #0056FF; border: 1px solid #c9d5fc; }
     .badge-green { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
     .badge-amber { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
     .score-banner {
@@ -179,11 +179,11 @@ export function buildRelatorioHtml(dados: RelatorioDados): string {
       transition: all 0.15s ease;
     }
     .btn-primary {
-      background: #0691c8;
+      background: #0056FF;
       color: #ffffff;
       border: none;
     }
-    .btn-primary:hover { background: #0284c7; }
+    .btn-primary:hover { background: #0045d9; }
     .footer {
       text-align: center;
       padding: 20px;
