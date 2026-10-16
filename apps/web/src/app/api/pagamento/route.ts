@@ -16,6 +16,49 @@ function normalizarTelefoneE164(tel: string): string {
   return `+55${digitos.padEnd(11, '0')}`;
 }
 
+// Validador matemático de CPF oficial da Receita Federal (módulo 11)
+function validarCpf(cpf: string): boolean {
+  const clean = cpf.replace(/\D/g, '');
+  if (clean.length !== 11 || /^(\d)\1+$/.test(clean)) return false;
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(clean.charAt(i)) * (10 - i);
+  let resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(clean.charAt(9))) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(clean.charAt(i)) * (11 - i);
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  return resto === parseInt(clean.charAt(10));
+}
+
+// Validador matemático de CNPJ oficial da Receita Federal (módulo 11)
+function validarCnpj(cnpj: string): boolean {
+  const clean = cnpj.replace(/\D/g, '');
+  if (clean.length !== 14 || /^(\d)\1+$/.test(clean)) return false;
+  let tamanho = clean.length - 2;
+  let numeros = clean.substring(0, tamanho);
+  const digitos = clean.substring(tamanho);
+  let soma = 0;
+  let pos = tamanho - 7;
+  for (let i = tamanho; i >= 1; i--) {
+    soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+  if (resultado !== parseInt(digitos.charAt(0))) return false;
+  tamanho = tamanho + 1;
+  numeros = clean.substring(0, tamanho);
+  soma = 0;
+  pos = tamanho - 7;
+  for (let i = tamanho; i >= 1; i--) {
+    soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+  return resultado === parseInt(digitos.charAt(1));
+}
+
 // Gera payload EMV PIX padrão BACEN (BR Code) com CRC16 válido aceito por todos os bancos
 function gerarPixPayloadEstatico(chavePix: string, nomeRecebedor: string, cidade: string, valor: number, txid: string = 'CET'): string {
   const formatField = (id: string, value: string) => `${id}${value.length.toString().padStart(2, '0')}${value}`;
@@ -437,20 +480,38 @@ export async function POST(request: Request) {
         if ((!docClienteFinal || docClienteFinal.length < 11) && cartao?.cpfTitular) {
           docClienteFinal = cartao.cpfTitular.replace(/\D/g, '');
         }
-        const isValidCpfCnpj = (docClienteFinal.length === 11 || docClienteFinal.length === 14) && !/^(\d)\1+$/.test(docClienteFinal);
+
+        let docValido: string | undefined = undefined;
+        if (docClienteFinal.length === 11 && validarCpf(docClienteFinal)) {
+          docValido = docClienteFinal;
+        } else if (docClienteFinal.length === 14 && validarCnpj(docClienteFinal)) {
+          docValido = docClienteFinal;
+        }
+
         const customerPayload: any = {
           name: (razaoSocial || nomeCliente).slice(0, 70),
           mobilePhone: telE164,
           externalReference: targetLeadId,
         };
-        if (isValidCpfCnpj) {
-          customerPayload.cpfCnpj = docClienteFinal;
+        if (docValido) {
+          customerPayload.cpfCnpj = docValido;
         }
         if (email && email.includes('@')) {
           customerPayload.email = email;
         }
 
-        asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
+        try {
+          asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
+        } catch (custErr: any) {
+          // Se o Asaas recusar por CPF/CNPJ inválido, tenta criar sem o documento (PIX não exige documento prévio)
+          if (customerPayload.cpfCnpj) {
+            console.warn('[Asaas Customer] Documento inválido no Asaas, tentando sem documento:', custErr?.message);
+            delete customerPayload.cpfCnpj;
+            asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
+          } else {
+            throw custErr;
+          }
+        }
 
         // 2. Data de vencimento
         const dueDate = new Date();
