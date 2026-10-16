@@ -94,7 +94,9 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
     <nav className="space-y-6">
       {navSections.map((sec) => (
         <div key={sec.group}>
-          <div className="px-3 mb-1.5 text-xs font-medium text-slate-400">{sec.group}</div>
+          <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            {sec.group}
+          </div>
           <ul className="space-y-0.5">
             {sec.items.map((item) => {
               const isActive = pathname === item.href;
@@ -103,13 +105,13 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                   <Link
                     href={item.href}
                     onClick={onNavigate}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm ${
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
-                        : 'text-slate-700 hover:bg-slate-100'
+                        ? 'bg-sky-50/80 text-sky-700 font-medium'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                   >
-                    <span className={isActive ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
+                    <span className={isActive ? 'text-sky-600' : 'text-slate-400'}>{item.icon}</span>
                     <span>{item.name}</span>
                   </Link>
                 </li>
@@ -138,13 +140,15 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
     }
   };
 
-  const nomeUsuario = session?.email.split('@')[0] || '';
+  const initials = session?.email
+    ? session.email.slice(0, 2).toUpperCase()
+    : 'AD';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
       <OnboardingModal forceOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
-      {/* CABEÇALHO ÚNICO COM A LOGO */}
+      {/* CABEÇALHO CORPORATIVO */}
       <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <button
@@ -168,34 +172,39 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setTutorialOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/80 rounded-md px-2.5 sm:px-3 py-1.5 transition"
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             title="Abrir guia rápido de uso do sistema"
           >
-            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>Como usar</span>
           </button>
 
           {session && (
-            <>
-              <div className="hidden sm:block text-right leading-tight">
-                <span className="block text-sm font-medium text-slate-800">{nomeUsuario}</span>
-                <span className="block text-xs text-slate-500 capitalize">{session.role}</span>
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="relative">
+                <div
+                  className="w-8 h-8 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-semibold flex items-center justify-center select-none"
+                  title={`${session.email} (${session.role})`}
+                >
+                  {initials}
+                </div>
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="text-sm text-slate-600 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 rounded-md px-3 py-1.5"
+                className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {loggingOut ? 'Saindo...' : 'Sair'}
               </button>
-            </>
+            </div>
           )}
         </div>
       </header>
@@ -233,8 +242,8 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           </div>
         )}
 
-        {/* CONTEÚDO */}
-        <main className="flex-1 min-w-0">
+        {/* CONTEÚDO PRINCIPAL COM FUNDO SLATE-50 */}
+        <main className="flex-1 min-w-0 bg-slate-50">
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</div>
         </main>
       </div>
