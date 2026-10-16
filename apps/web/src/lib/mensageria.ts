@@ -1,5 +1,6 @@
 import { prisma } from '@cet/db';
 import { enviarTexto } from './whatsapp-client';
+import { enviarMensagemInstagram } from './instagram-client';
 
 export interface EnviarMensagemInput {
   lead_id: string;
@@ -75,6 +76,23 @@ export async function enviarMensagem({
       }
     } catch (err: any) {
       console.error('[Mensageria] Erro ao comunicar com Evolution API:', err);
+      statusEnvio = 'falha';
+      erroEnvio = err.message;
+    }
+  } else if (canal === 'instagram' && lead?.contato?.telefone_e164) {
+    const igRecipientId = lead.contato.telefone_e164.replace(/^ig_/, '');
+    try {
+      const envioResult = await enviarMensagemInstagram(igRecipientId, conteudo);
+      if (envioResult.sucesso) {
+        if (envioResult.messageId) {
+          realWamid = envioResult.messageId;
+        }
+        statusEnvio = 'entregue';
+      } else {
+        statusEnvio = 'falha';
+        erroEnvio = envioResult.erro;
+      }
+    } catch (err: any) {
       statusEnvio = 'falha';
       erroEnvio = err.message;
     }
