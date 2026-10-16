@@ -146,5 +146,15 @@ describe('Fluxo Conversacional', () => {
       expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('5 -');
       expect(MENSAGENS.ABERTURA_OBRIGATORIA).toContain('6 -');
     });
+
+    it('deve reconhecer o trigger oficial "quero receber um diagnostico da minha empresa"', async () => {
+      const { TRIGGER_DIAGNOSTICO_OFICIAL, verificarTriggerDiagnostico, verificarGatilhoAtivacao } = await import('../src/lib/fluxo-conversa');
+      expect(TRIGGER_DIAGNOSTICO_OFICIAL).toBe('quero receber um diagnostico da minha empresa');
+      expect(verificarTriggerDiagnostico('quero receber um diagnostico da minha empresa')).toBe(true);
+      expect(verificarTriggerDiagnostico('Quero receber um diagnóstico da minha empresa!')).toBe(true);
+      expect(verificarTriggerDiagnostico('Olá, quero receber um diagnóstico da minha empresa')).toBe(true);
+      expect(verificarGatilhoAtivacao('quero receber um diagnostico da minha empresa')).toBe(true);
+      expect(verificarTriggerDiagnostico('bom dia')).toBe(false);
+    });
   });
 });

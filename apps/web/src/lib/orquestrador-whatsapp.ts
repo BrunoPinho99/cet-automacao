@@ -24,6 +24,7 @@ import {
   dentroDoHorarioComercial,
   verificarGatilhoRotaA,
   verificarGatilhoAtivacao,
+  verificarTriggerDiagnostico,
 } from './fluxo-conversa';
 import { VERSAO_CONSENTIMENTO_ATUAL, getHashConsentimento } from '@cet/shared';
 
@@ -195,7 +196,33 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
     }
   }
 
-  // 1. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
+  // 1. GATILHO OFICIAL PRIORITÁRIO: "quero receber um diagnostico da minha empresa"
+  if (conteudo && verificarTriggerDiagnostico(conteudo)) {
+    const intencaoTitulo = 'Diagnóstico Completo da Empresa';
+    if (ctx.contato_id) {
+      await prisma.consentimento.create({
+        data: {
+          contato_id: ctx.contato_id,
+          versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
+          texto_hash: getHashConsentimento(),
+          finalidade: 'triagem_atendimento_diagnostico_proposta',
+        },
+      }).catch((err) => console.error('[LGPD] Erro ao salvar consentimento via trigger:', err));
+    }
+
+    if (ctx.nome) {
+      await criarLeadEFicha(telefone, ctx, intencaoTitulo);
+    } else {
+      (ctx as any).intencaoPendente = intencaoTitulo;
+      ctx.estado = 'nome';
+      ctx.tentativas_invalidas = 0;
+      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
+      atualizarSessao(telefone, ctx);
+    }
+    return;
+  }
+
+  // 2. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
   await enviarTexto(telefone, MENSAGENS.ABERTURA_OBRIGATORIA);
 
   ctx.estado = 'menu';
@@ -283,7 +310,8 @@ async function tratarMenu(
 ): Promise<void> {
   const norm = resposta.trim().toLowerCase();
 
-  // Opções 1 a 4: Direcionamento para Ficha Inteligente
+  // Trigger Oficial de Diagnóstico ou Opções 1 a 4: Direcionamento para Ficha Inteligente
+  const opcaoDiagnosticoTrigger = verificarTriggerDiagnostico(resposta);
   const opcao1 = norm === '1' || norm.includes('empresa está regular') || norm.includes('regular') || norm.includes('regularidade');
   const opcao2 = norm === '2' || norm.includes('renovar') || norm.includes('documentos') || norm.includes('pgr') || norm.includes('pcmso') || norm.includes('ltcat');
   const opcao3 = norm === '3' || norm.includes('aso') || norm.includes('exame') || norm.includes('admissional') || norm.includes('demissional') || norm.includes('periodico');
@@ -295,8 +323,8 @@ async function tratarMenu(
   // Opção 6: Falar com especialista
   const opcao6 = norm === '6' || norm.includes('falar com') || norm.includes('consultor') || norm.includes('especialista') || norm.includes('humano') || norm.includes('atendente');
 
-  if (opcao1 || opcao2 || opcao3 || opcao4) {
-    let intencaoTitulo = 'Diagnóstico SST';
+  if (opcaoDiagnosticoTrigger || opcao1 || opcao2 || opcao3 || opcao4) {
+    let intencaoTitulo = opcaoDiagnosticoTrigger ? 'Diagnóstico Completo da Empresa' : 'Diagnóstico SST';
     if (opcao1) intencaoTitulo = 'Regularidade da Empresa';
     if (opcao2) intencaoTitulo = 'Documentos de SST (PGR/PCMSO)';
     if (opcao3) intencaoTitulo = 'Exames Ocupacionais e ASO';

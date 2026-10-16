@@ -29,8 +29,38 @@ export interface ContextoConversa {
   ultima_interacao: Date;
 }
 
+// Trigger Oficial de Diagnóstico da Empresa
+export const TRIGGER_DIAGNOSTICO_OFICIAL = 'quero receber um diagnostico da minha empresa';
+
+/**
+ * Identifica se a mensagem contém o gatilho oficial para Diagnóstico da Empresa.
+ * Insensível a maiúsculas, minúsculas, acentuação e pontuação.
+ */
+export function verificarTriggerDiagnostico(texto: string): boolean {
+  if (!texto || typeof texto !== 'string') return false;
+  const t = texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+
+  return (
+    t.includes('quero receber um diagnostico da minha empresa') ||
+    t.includes('quero receber um diagnostico') ||
+    t.includes('quero receber diagnostico da minha empresa') ||
+    t.includes('quero um diagnostico da minha empresa') ||
+    t.includes('receber um diagnostico da minha empresa') ||
+    t.includes('receber diagnostico da minha empresa')
+  );
+}
+
 // Palavras e padrões que ativam o atendimento inicial (evita conversas aleatórias/spam)
 export const GATILHOS_ATIVACAO = [
+  // Trigger oficial
+  'quero receber um diagnostico da minha empresa',
+  'quero receber um diagnóstico da minha empresa',
+  'quero receber um diagnostico',
+  'receber um diagnostico',
   // Saudações comuns
   'oi', 'ola', 'olá', 'opa', 'bom dia', 'boa tarde', 'boa noite', 'e ai', 'e aí', 'fala', 'salve', 'hello', 'hi',
   // Comerciais e Atendimento
@@ -47,6 +77,7 @@ export const GATILHOS_ATIVACAO = [
 
 export function verificarGatilhoAtivacao(texto: string): boolean {
   if (!texto || typeof texto !== 'string') return false;
+  if (verificarTriggerDiagnostico(texto)) return true;
   const t = texto.toLowerCase().trim();
 
   // Opção numérica isolada de 1 a 6
@@ -78,6 +109,15 @@ Por favor, digite o número da opção que melhor descreve o que você precisa h
 6 - Falar diretamente com um de nossos consultores
 
 _(Ao responder, você autoriza o uso dos dados para atendimento e proposta, conforme a LGPD)._`,
+
+  // Resposta humanizada direta para o trigger oficial de diagnóstico
+  RESPOSTA_TRIGGER_DIAGNOSTICO: `Olá! Seja muito bem-vindo(a) à CET – Segurança e Medicina do Trabalho! 😊
+
+Perfeito! Vamos iniciar o Diagnóstico Completo de SST da sua empresa para avaliar riscos, pendências com as Normas Regulamentadoras (NRs) e o eSocial.
+
+Para gerarmos seu protocolo oficial de atendimento e sua análise, qual é o seu *nome completo*?
+
+_(Ao responder, você autoriza o uso dos dados para atendimento e emissão do diagnóstico, conforme a LGPD)._`,
 
   // 2. Menu de Opções
   MENU_TRIAGEM: `Por favor, digite o número da opção desejada:
