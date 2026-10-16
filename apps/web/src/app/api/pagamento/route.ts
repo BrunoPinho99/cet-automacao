@@ -153,8 +153,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ erro: 'Pedido não encontrado' }, { status: 404 });
     }
 
-    // Se solicitado para simular pagamento em teste/desenvolvimento
-    if (simularPagamento && pedido.status !== 'pago') {
+    // Se solicitado para simular pagamento em teste/desenvolvimento (estritamente bloqueado em produção)
+    if (simularPagamento && process.env.NODE_ENV !== 'production' && pedido.status !== 'pago') {
       const [pedidoAtualizado] = await prisma.$transaction([
         prisma.pedido.update({
           where: { id: pedido.id },

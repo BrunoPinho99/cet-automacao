@@ -57,7 +57,7 @@ async function main() {
       classificacaoSst: 'critico',
       scoreTotalSst: 28,
       scoreComercialTotal: 95,
-      statusPedido: 'CONFIRMADO',
+      statusPedido: 'PENDENTE',
       valorPedidoCentavos: 7800000, // R$ 78.000,00
       etapaFunil: 'Negociação Técnica',
       mensagens: [
@@ -102,7 +102,7 @@ async function main() {
       classificacaoSst: 'regular',
       scoreTotalSst: 86,
       scoreComercialTotal: 72,
-      statusPedido: 'CONFIRMADO',
+      statusPedido: 'PENDENTE',
       valorPedidoCentavos: 850000,
       etapaFunil: 'Renovação Anual',
       mensagens: [
@@ -123,7 +123,7 @@ async function main() {
       classificacaoSst: 'regular',
       scoreTotalSst: 91,
       scoreComercialTotal: 30,
-      statusPedido: 'CONFIRMADO',
+      statusPedido: 'PENDENTE',
       valorPedidoCentavos: 1990, // R$ 19,90
       etapaFunil: 'Concluído Digital',
       mensagens: [
@@ -151,7 +151,7 @@ async function main() {
       classificacaoSst: (empresa.grau_risco ?? 2) >= 3 ? 'alto_risco' : ((empresa.grau_risco ?? 2) === 2 ? 'atencao' : 'regular'),
       scoreTotalSst: Math.max(20, Math.min(95, 100 - ((empresa.grau_risco ?? 2) * 20))),
       scoreComercialTotal: empresa.trabalhadores_proprios > 100 ? 85 : (empresa.trabalhadores_proprios >= 20 ? 60 : 35),
-      statusPedido: i % 3 === 0 ? 'CONFIRMADO' : (i % 3 === 1 ? 'PENDENTE' : 'CRIADO'),
+      statusPedido: 'PENDENTE',
       valorPedidoCentavos: empresa.trabalhadores_proprios > 100 ? 3500000 : (empresa.trabalhadores_proprios >= 20 ? 950000 : 1990),
       etapaFunil: i % 2 === 0 ? 'Proposta Comercial' : 'Em Diagnóstico',
       mensagens: []

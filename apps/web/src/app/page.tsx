@@ -1738,15 +1738,6 @@ export default function HomePage() {
                     >
                       ← Trocar forma de pagamento
                     </button>
-
-                    {/* Botão de simulação segura em homologação/testes */}
-                    <button
-                      type="button"
-                      onClick={() => pedidoId && checarStatusPagamento(pedidoId, true)}
-                      className="text-[11px] text-slate-400 hover:text-slate-600 font-medium py-1"
-                    >
-                      [Modo Teste] Simular Aprovação Imediata
-                    </button>
                   </div>
                 </div>
               )}

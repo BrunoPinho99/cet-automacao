@@ -573,12 +573,12 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
           <table className="w-full min-w-[860px] divide-y divide-slate-100 text-left text-sm">
             <thead className="bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th scope="col" className="py-3.5 pl-5 sm:pl-6 pr-3 min-w-[240px]">Empresa / CNPJ</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[190px]">Contato Principal</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[150px]">Equipe & Local</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[140px]">Porte da Empresa</th>
-                <th scope="col" className="px-3 py-3.5 min-w-[130px]">Pagamento</th>
-                <th scope="col" className="py-3.5 pl-3 pr-5 sm:pr-6 text-right min-w-[130px]">Ações</th>
+                <th scope="col" className="py-3.5 pl-5 sm:pl-6 pr-3 min-w-[230px]">Empresa / CNPJ</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[180px]">Contato Principal</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[130px]">Porte da Empresa</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[130px]">Status Pagamento</th>
+                <th scope="col" className="px-3 py-3.5 min-w-[140px]">Equipe & Local</th>
+                <th scope="col" className="py-3.5 pl-3 pr-5 sm:pr-6 text-right min-w-[120px]">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -656,16 +656,6 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                         )}
                       </td>
 
-                      {/* Funcionários & Local */}
-                      <td className="px-3 py-3.5 text-slate-600">
-                        <div className="font-medium text-slate-800">
-                          {empresa?.cidade || '-'}/{empresa?.uf || '-'}
-                        </div>
-                        <div className="text-xs text-slate-500 mt-0.5">
-                          {empresa?.trabalhadores_proprios ?? 0} próprios • {empresa?.trabalhadores_terceiros ?? 0} terc.
-                        </div>
-                      </td>
-
                       {/* Porte da Empresa */}
                       <td className="px-3 py-3.5 whitespace-nowrap">
                         {(() => {
@@ -693,20 +683,35 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
                         })()}
                       </td>
 
-                      {/* Pagamento */}
+                      {/* Status Pagamento */}
                       <td className="px-3 py-3.5 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                             isPago
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              : 'bg-amber-50 text-amber-800 border border-amber-200'
                           }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${isPago ? 'bg-emerald-500' : 'bg-slate-400'}`}
+                            className={`w-1.5 h-1.5 rounded-full ${isPago ? 'bg-emerald-500' : 'bg-amber-500'}`}
                           />
                           {isPago ? 'Confirmado' : 'Pendente'}
                         </span>
+                        {pedido?.valor_centavos ? (
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                            R$ {(pedido.valor_centavos / 100).toFixed(2).replace('.', ',')}
+                          </div>
+                        ) : null}
+                      </td>
+
+                      {/* Funcionários & Local */}
+                      <td className="px-3 py-3.5 text-slate-600">
+                        <div className="font-medium text-slate-800">
+                          {empresa?.cidade || '-'}/{empresa?.uf || '-'}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {empresa?.trabalhadores_proprios ?? 0} próprios • {empresa?.trabalhadores_terceiros ?? 0} terc.
+                        </div>
                       </td>
 
                       {/* Ações */}
