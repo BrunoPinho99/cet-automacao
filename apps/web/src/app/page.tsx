@@ -63,6 +63,7 @@ export default function HomePage() {
   const [metodoCheckout, setMetodoCheckout] = useState<'pix' | 'cartao'>('pix');
   const [gerandoCheckout, setGerandoCheckout] = useState(false);
   const [erroCheckout, setErroCheckout] = useState('');
+  const [docPagador, setDocPagador] = useState('');
 
   // Dados do Cartão de Crédito
   const [numeroCartao, setNumeroCartao] = useState('');
@@ -301,9 +302,12 @@ export default function HomePage() {
   const handleAbrirCheckout = () => {
     setModalCheckoutAberto(true);
     setPagamentoConcluido(false);
+    if (!docPagador && empresaSelecionada?.cnpj) {
+      setDocPagador(empresaSelecionada.cnpj);
+    }
   };
 
-  // Formatações auxiliares para Cartão de Crédito
+  // Formatações auxiliares
   function formatarNumeroCartao(val: string) {
     const digitos = val.replace(/\D/g, '').slice(0, 16);
     return digitos.replace(/(\d{4})(?=\d)/g, '$1 ');
@@ -323,6 +327,63 @@ export default function HomePage() {
     return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
   }
 
+  function formatarCpfCnpj(val: string) {
+    const digitos = val.replace(/\D/g, '').slice(0, 14);
+    if (digitos.length <= 11) {
+      if (digitos.length <= 3) return digitos;
+      if (digitos.length <= 6) return `${digitos.slice(0, 3)}.${digitos.slice(3)}`;
+      if (digitos.length <= 9) return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6)}`;
+      return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
+    }
+    return digitos
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+
+  function validarDocumento(doc: string): boolean {
+    const clean = doc.replace(/\D/g, '');
+    if (clean.length === 11) {
+      if (/^(\d)\1+$/.test(clean)) return false;
+      let soma = 0;
+      for (let i = 0; i < 9; i++) soma += parseInt(clean.charAt(i)) * (10 - i);
+      let resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+      if (resto !== parseInt(clean.charAt(9))) return false;
+      soma = 0;
+      for (let i = 0; i < 10; i++) soma += parseInt(clean.charAt(i)) * (11 - i);
+      resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+      return resto === parseInt(clean.charAt(10));
+    }
+    if (clean.length === 14) {
+      if (/^(\d)\1+$/.test(clean)) return false;
+      let tamanho = clean.length - 2;
+      let numeros = clean.substring(0, tamanho);
+      const digitos = clean.substring(tamanho);
+      let soma = 0;
+      let pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      if (resultado !== parseInt(digitos.charAt(0))) return false;
+      tamanho = tamanho + 1;
+      numeros = clean.substring(0, tamanho);
+      soma = 0;
+      pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      return resultado === parseInt(digitos.charAt(1));
+    }
+    return false;
+  }
+
   // Processar pagamento via PIX ou Cartão de Crédito Transparente (R$ 19,90)
   const handleProcessarPagamento = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -334,10 +395,25 @@ export default function HomePage() {
       return;
     }
 
+    const cleanDoc = (docPagador || empresaSelecionada?.cnpj || '').replace(/\D/g, '');
+    if (!cleanDoc) {
+      setErroCheckout('Por favor, informe o CPF ou CNPJ do pagador (obrigatório para emissão do PIX oficial).');
+      return;
+    }
+    if (!validarDocumento(cleanDoc)) {
+      setErroCheckout(
+        cleanDoc.length <= 11
+          ? 'O CPF informado é inválido. Digite um CPF válido para registrar o PIX oficial no Banco Central.'
+          : 'O CNPJ informado é inválido. Digite um CNPJ válido para registrar o PIX oficial no Banco Central.'
+      );
+      return;
+    }
+
     const bodyPayload: any = {
       plano: 'completo', // R$ 19,90 oficial
       empresa: empresaSelecionada?.razao_social,
-      cnpj: empresaSelecionada?.cnpj,
+      cnpj: cleanDoc.length === 14 ? cleanDoc : empresaSelecionada?.cnpj,
+      documento: cleanDoc,
       cidade: empresaSelecionada?.cidade,
       uf: empresaSelecionada?.uf,
       cnae_descricao: empresaSelecionada?.cnae_descricao,
@@ -375,7 +451,7 @@ export default function HomePage() {
         setErroCheckout('Informe o código de segurança (CVV).');
         return;
       }
-      const cpfLimpo = cpfCartao.replace(/\D/g, '');
+      const cpfLimpo = (cpfCartao || cleanDoc).replace(/\D/g, '');
       if (!cpfLimpo || cpfLimpo.length < 11) {
         setErroCheckout('Informe o CPF do titular do cartão.');
         return;
@@ -386,7 +462,7 @@ export default function HomePage() {
         nomeTitular: nomeCartao,
         validade: validadeCartao,
         cvv: cvvCartao,
-        cpfTitular: cpfCartao,
+        cpfTitular: cpfLimpo,
         cep: cepCartao,
       };
     }
@@ -1440,6 +1516,25 @@ export default function HomePage() {
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>CPF ou CNPJ do Pagador:</span>
+                        <span className="text-[10px] text-emerald-600 font-bold">✓ Exigência Banco Central</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={18}
+                        value={docPagador}
+                        onChange={(e) => setDocPagador(formatarCpfCnpj(e.target.value))}
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        O Banco Central exige CPF ou CNPJ válido do pagador para registrar a cobrança PIX oficial (Asaas Produção).
+                      </p>
                     </div>
                   </div>
 

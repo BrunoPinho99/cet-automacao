@@ -13,6 +13,7 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
   const [metodo, setMetodo] = useState<'pix' | 'cartao'>('pix');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [docPagador, setDocPagador] = useState('');
 
   // Dados do Cartão de Crédito
   const [numeroCartao, setNumeroCartao] = useState('');
@@ -60,6 +61,63 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
     return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
   }
 
+  function formatarCpfCnpj(val: string) {
+    const digitos = val.replace(/\D/g, '').slice(0, 14);
+    if (digitos.length <= 11) {
+      if (digitos.length <= 3) return digitos;
+      if (digitos.length <= 6) return `${digitos.slice(0, 3)}.${digitos.slice(3)}`;
+      if (digitos.length <= 9) return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6)}`;
+      return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
+    }
+    return digitos
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+
+  function validarDocumento(doc: string): boolean {
+    const clean = doc.replace(/\D/g, '');
+    if (clean.length === 11) {
+      if (/^(\d)\1+$/.test(clean)) return false;
+      let soma = 0;
+      for (let i = 0; i < 9; i++) soma += parseInt(clean.charAt(i)) * (10 - i);
+      let resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+      if (resto !== parseInt(clean.charAt(9))) return false;
+      soma = 0;
+      for (let i = 0; i < 10; i++) soma += parseInt(clean.charAt(i)) * (11 - i);
+      resto = (soma * 10) % 11;
+      if (resto === 10 || resto === 11) resto = 0;
+      return resto === parseInt(clean.charAt(10));
+    }
+    if (clean.length === 14) {
+      if (/^(\d)\1+$/.test(clean)) return false;
+      let tamanho = clean.length - 2;
+      let numeros = clean.substring(0, tamanho);
+      const digitos = clean.substring(tamanho);
+      let soma = 0;
+      let pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      if (resultado !== parseInt(digitos.charAt(0))) return false;
+      tamanho = tamanho + 1;
+      numeros = clean.substring(0, tamanho);
+      soma = 0;
+      pos = tamanho - 7;
+      for (let i = tamanho; i >= 1; i--) {
+        soma += parseInt(numeros.charAt(tamanho - i)) * pos--;
+        if (pos < 2) pos = 9;
+      }
+      resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11);
+      return resultado === parseInt(digitos.charAt(1));
+    }
+    return false;
+  }
+
   // Gera pagamento via PIX ou Cartão
   async function handleGerarPagamento(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -67,10 +125,16 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
       setLoading(true);
       setError('');
 
+      const cleanDoc = docPagador.replace(/\D/g, '');
+      if (metodo === 'pix' && cleanDoc && !validarDocumento(cleanDoc)) {
+        throw new Error(cleanDoc.length <= 11 ? 'CPF inválido.' : 'CNPJ inválido.');
+      }
+
       const bodyPayload: any = {
         ficha_id: fichaId,
         plano: 'completo',
         metodo,
+        documento: cleanDoc || undefined,
       };
 
       if (metodo === 'cartao') {
@@ -86,7 +150,8 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
         if (!cvvCartao.trim() || cvvCartao.length < 3) {
           throw new Error('Informe o código de segurança (CVV).');
         }
-        if (!cpfCartao.replace(/\D/g, '') || cpfCartao.replace(/\D/g, '').length < 11) {
+        const cpfLimpo = (cpfCartao || cleanDoc).replace(/\D/g, '');
+        if (!cpfLimpo || cpfLimpo.length < 11) {
           throw new Error('Informe o CPF do titular do cartão.');
         }
 
@@ -95,7 +160,7 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
           nomeTitular: nomeCartao,
           validade: validadeCartao,
           cvv: cvvCartao,
-          cpfTitular: cpfCartao,
+          cpfTitular: cpfLimpo,
           cep: cepCartao,
         };
       }
@@ -358,6 +423,25 @@ export function CheckoutButton({ fichaId, token, onSucesso }: CheckoutButtonProp
             <p className="font-bold">Aprovação em segundos via Banco Central (Asaas)</p>
             <p className="text-[11px] text-emerald-800">
               Ao clicar no botão abaixo, geramos o QR Code dinâmico e o código Copia e Cola para pagamento imediato no seu banco.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span>CPF ou CNPJ do Pagador:</span>
+              <span className="text-[10px] text-emerald-600 font-bold">✓ Exigência BACEN</span>
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={18}
+              value={docPagador}
+              onChange={(e) => setDocPagador(formatarCpfCnpj(e.target.value))}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-white"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Necessário para emissão do PIX oficial registrado no Banco Central pelo Asaas.
             </p>
           </div>
 

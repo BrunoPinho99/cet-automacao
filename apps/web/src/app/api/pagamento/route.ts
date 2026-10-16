@@ -254,6 +254,8 @@ export async function POST(request: Request) {
       email,
       metodo = 'pix',
       cartao,
+      documento,
+      cpf,
     } = body;
 
     // Valor Oficial Único: R$ 19,90 COMPLETO (Taxa única)
@@ -263,9 +265,41 @@ export async function POST(request: Request) {
     let targetLeadId: string = '';
     let targetFichaToken: string = '';
     let nomeCliente = nome || 'Responsável';
-    let docCnpj = (cnpj || '').replace(/\D/g, '');
+    const docInformado = (documento || cpf || cnpj || '').replace(/\D/g, '');
+    let docCnpj = docInformado.length === 14 ? docInformado : (cnpj || '').replace(/\D/g, '');
+    let docCpf = docInformado.length === 11 ? docInformado : (cartao?.cpfTitular || '').replace(/\D/g, '');
     let razaoSocial = empresa || 'Empresa Cliente';
     let telE164 = normalizarTelefoneE164(whatsapp || '11999999999');
+
+    // Validação estrita do documento do pagador (obrigatório para registro no BACEN/Asaas)
+    const docParaValidar = docInformado || (metodo === 'cartao' ? docCpf : docCnpj);
+    if (!docParaValidar) {
+      return NextResponse.json(
+        { erro: 'Para gerar o pagamento oficial registrado no Banco Central e Asaas, informe o CPF ou CNPJ do pagador.' },
+        { status: 400 }
+      );
+    }
+
+    if (docParaValidar.length === 11) {
+      if (!validarCpf(docParaValidar)) {
+        return NextResponse.json(
+          { erro: 'O CPF informado é inválido. Por favor, confira os números digitados.' },
+          { status: 400 }
+        );
+      }
+    } else if (docParaValidar.length === 14) {
+      if (!validarCnpj(docParaValidar)) {
+        return NextResponse.json(
+          { erro: 'O CNPJ informado é inválido. Por favor, confira os números digitados.' },
+          { status: 400 }
+        );
+      }
+    } else {
+      return NextResponse.json(
+        { erro: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido do pagador.' },
+        { status: 400 }
+      );
+    }
 
     // =========================================================================
     // CENÁRIO 1: Requisição originada da Landing Page (cria lead + ficha + pedido)
@@ -460,13 +494,7 @@ export async function POST(request: Request) {
     let asaasPaymentId = 'simulado_pay_' + Date.now();
     // A URL padrão de checkout aponta para a tela de pagamento da ficha (NUNCA para o portal)
     let checkoutUrl = `https://cet-automacao.vercel.app/ficha/${targetFichaToken}/pagamento`;
-    let pixPayload = gerarPixPayloadEstatico(
-      'financeiro@cetseguranca.com.br',
-      'CET CLINICA ESPECIALIZADA',
-      'SAO PAULO',
-      valorCobrar,
-      `CET${targetLeadId.slice(-6)}`
-    );
+    let pixPayload = '';
     let pixQrCodeImage = '';
     let pagamentoAprovadoNaHora = false;
 
@@ -475,45 +503,22 @@ export async function POST(request: Request) {
 
     if (hasRealAsaasKey) {
       try {
-        // 1. Criar ou Obter Customer no Asaas (Deduplicando se já existir)
-        let docClienteFinal = docCnpj;
-        if ((!docClienteFinal || docClienteFinal.length < 11) && cartao?.cpfTitular) {
-          docClienteFinal = cartao.cpfTitular.replace(/\D/g, '');
-        }
-
-        let docValido: string | undefined = undefined;
-        if (docClienteFinal.length === 11 && validarCpf(docClienteFinal)) {
-          docValido = docClienteFinal;
-        } else if (docClienteFinal.length === 14 && validarCnpj(docClienteFinal)) {
-          docValido = docClienteFinal;
-        }
+        // 1. Criar ou Obter Customer no Asaas com documento oficial validado
+        let docClienteFinal = docParaValidar;
 
         const customerPayload: any = {
           name: (razaoSocial || nomeCliente).slice(0, 70),
           mobilePhone: telE164,
           externalReference: targetLeadId,
+          cpfCnpj: docClienteFinal,
         };
-        if (docValido) {
-          customerPayload.cpfCnpj = docValido;
-        }
         if (email && email.includes('@')) {
           customerPayload.email = email;
         }
 
-        try {
-          asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
-        } catch (custErr: any) {
-          // Se o Asaas recusar por CPF/CNPJ inválido, tenta criar sem o documento (PIX não exige documento prévio)
-          if (customerPayload.cpfCnpj) {
-            console.warn('[Asaas Customer] Documento inválido no Asaas, tentando sem documento:', custErr?.message);
-            delete customerPayload.cpfCnpj;
-            asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
-          } else {
-            throw custErr;
-          }
-        }
+        asaasCustomerId = await asaasClient.getOrCreateCustomer(customerPayload);
 
-        // 2. Data de vencimento
+        // 2. Data de vencimento (2 dias para pagamento)
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 2);
         const dueDateString = dueDate.toISOString().split('T')[0];
@@ -552,7 +557,7 @@ export async function POST(request: Request) {
             creditCardHolderInfo: {
               name: cartao.nomeTitular.trim(),
               email: email || 'financeiro@empresa.com.br',
-              cpfCnpj: (cartao.cpfTitular || docCnpj || '00000000000').replace(/\D/g, ''),
+              cpfCnpj: docClienteFinal,
               phone: telE164,
               mobilePhone: telE164,
               postalCode: (cartao.cep || '01310100').replace(/\D/g, ''),
@@ -564,7 +569,7 @@ export async function POST(request: Request) {
           checkoutUrl = asaasPayment.invoiceUrl || checkoutUrl;
           pagamentoAprovadoNaHora = asaasPayment.status === 'CONFIRMED' || asaasPayment.status === 'RECEIVED';
         } else {
-          // 4. SE FOR PIX
+          // 4. SE FOR PIX (REGISTRO OFICIAL NO BACEN VIA ASAAS)
           const paymentPayload = {
             customer: asaasCustomerId,
             billingType: 'PIX' as const,
@@ -578,32 +583,39 @@ export async function POST(request: Request) {
           asaasPaymentId = asaasPayment.id;
           checkoutUrl = asaasPayment.invoiceUrl || checkoutUrl;
 
-          // Obter QR Code Oficial do Asaas
-          try {
-            const pixInfo = await asaasClient.getPixQrCode(asaasPaymentId);
-            if (pixInfo?.payload) {
-              pixPayload = pixInfo.payload;
-            }
-            if (pixInfo?.encodedImage) {
-              pixQrCodeImage = `data:image/png;base64,${pixInfo.encodedImage}`;
-            }
-          } catch (pixErr) {
-            console.warn('[Asaas QR Code] Erro ao buscar QR Code:', pixErr);
+          // Obter QR Code Oficial do Banco Central / Asaas
+          const pixInfo = await asaasClient.getPixQrCode(asaasPaymentId);
+          if (pixInfo?.payload) {
+            pixPayload = pixInfo.payload;
+          }
+          if (pixInfo?.encodedImage) {
+            pixQrCodeImage = `data:image/png;base64,${pixInfo.encodedImage}`;
           }
         }
       } catch (asaasErr: any) {
-        console.error('[Asaas API] Falha na integração externa:', asaasErr?.message);
-        if (metodo === 'cartao') {
-          return NextResponse.json(
-            { erro: asaasErr?.message || 'Falha ao processar o pagamento com cartão no Asaas. Verifique os dados e tente novamente.' },
-            { status: 400 }
-          );
-        }
+        console.error('[Asaas API] Falha na integração de pagamento oficial:', asaasErr?.message);
+        return NextResponse.json(
+          { erro: asaasErr?.message || 'Falha ao processar pagamento oficial junto ao Asaas. Verifique os dados informados.' },
+          { status: 400 }
+        );
       }
+    } else {
+      // Se não houver chave real do Asaas configurada
+      return NextResponse.json(
+        { erro: 'Integração oficial Asaas não configurada no servidor. Contate o suporte técnico.' },
+        { status: 503 }
+      );
+    }
+
+    if (metodo === 'pix' && !pixPayload) {
+      return NextResponse.json(
+        { erro: 'Não foi possível gerar a cobrança PIX oficial. Tente novamente em alguns segundos.' },
+        { status: 502 }
+      );
     }
 
     // Se não tiver imagem base64 do Asaas no PIX, gera QR Code visual via gerador público seguro
-    if (!pixQrCodeImage) {
+    if (!pixQrCodeImage && pixPayload) {
       pixQrCodeImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixPayload)}`;
     }
 
