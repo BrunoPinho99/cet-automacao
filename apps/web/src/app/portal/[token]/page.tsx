@@ -221,41 +221,35 @@ export default function PortalClientePage({
           ) : (
             /* LIBERADO SE PAGO */
             <div className="space-y-4 animate-fade-in">
-              {data.relatorio ? (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-                        diagnostico_sst_completo.pdf
-                      </h3>
-                      <p className="text-xs text-emerald-700 font-medium mt-0.5">
-                        ✓ Pago e Liberado para download
-                      </p>
-                    </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
                   </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+                      diagnostico_sst_completo.pdf
+                    </h3>
+                    <p className="text-xs text-emerald-700 font-medium mt-0.5">
+                      ✓ Pago e Liberado para download
+                    </p>
+                  </div>
+                </div>
 
-                  <a 
-                    href={`/api/relatorios/${data.relatorio.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md text-center"
-                  >
-                    Baixar PDF
-                  </a>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-600" />
-                  <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                    Gerando seu relatório oficial, aguarde um instante...
-                  </p>
-                </div>
-              )}
+                <a 
+                  href={`/api/relatorios/${data.relatorio?.id || data.ficha_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-md text-center inline-flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  <span>Baixar PDF</span>
+                </a>
+              </div>
             </div>
           )}
         </div>

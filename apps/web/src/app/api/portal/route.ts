@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@cet/db';
 import { asaasClient, getAsaasConfig } from '@/lib/asaas';
 import { DomainEvents } from '@cet/shared';
+import { obterOuGerarRelatorio } from '@/lib/relatorio-generator';
 
 export async function GET(request: Request) {
   try {
@@ -97,6 +98,19 @@ export async function GET(request: Request) {
       rota: 'C',
     };
 
+    // Se estiver pago mas ainda não tiver o registro de relatório criado, gera imediatamente
+    let relatorioFinal = ficha.relatorio;
+    if (isPago && !relatorioFinal) {
+      try {
+        await obterOuGerarRelatorio(ficha.id);
+        relatorioFinal = await prisma.relatorio.findUnique({
+          where: { ficha_id: ficha.id },
+        });
+      } catch (errRelatorio) {
+        console.warn('[Portal] Aviso ao gerar relatório para ficha paga:', errRelatorio);
+      }
+    }
+
     return NextResponse.json({
       ficha_id: ficha.id,
       token: ficha.token_retomada,
@@ -109,10 +123,10 @@ export async function GET(request: Request) {
       score_sst: scoreSstFinal,
       score_comercial: ficha.score_comercial,
       rota: rotaFinal,
-      // Se não estiver pago, NÃO retorna dados do relatório
-      relatorio: isPago && ficha.relatorio ? {
-        id: ficha.relatorio.id,
-        gerado_em: ficha.relatorio.gerado_em,
+      // Se estiver pago, retorna os dados para download imediato
+      relatorio: isPago ? {
+        id: relatorioFinal?.id || ficha.id,
+        gerado_em: relatorioFinal?.gerado_em || new Date(),
       } : null,
       checkout_url: `/ficha/${token}/pagamento`,
     });
