@@ -557,7 +557,7 @@ export async function POST(request: Request) {
             creditCardHolderInfo: {
               name: cartao.nomeTitular.trim(),
               email: email || 'financeiro@empresa.com.br',
-              cpfCnpj: docClienteFinal,
+              cpfCnpj: (cartao.cpfTitular || docClienteFinal).replace(/\D/g, ''),
               phone: telE164,
               mobilePhone: telE164,
               postalCode: (cartao.cep || '01310100').replace(/\D/g, ''),
