@@ -220,20 +220,20 @@ export default function PortalClientePage({
             </div>
           ) : (
             /* LIBERADO SE PAGO */
-            <div className="space-y-4 animate-fade-in">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-emerald-50/70 border border-emerald-200 rounded-2xl gap-4">
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-emerald-50/80 border border-emerald-200 rounded-2xl gap-4 shadow-xs">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center shrink-0">
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center shrink-0">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm sm:text-base">
-                      diagnostico_sst_completo.pdf
+                    <h3 className="font-extrabold text-slate-900 text-base">
+                      Laudo Executivo de Diagnóstico SST — Completo
                     </h3>
                     <p className="text-xs text-emerald-700 font-medium mt-0.5">
-                      ✓ Pago e Liberado para download
+                      ✓ Pagamento confirmado • Documento técnico liberado com autenticidade digital
                     </p>
                   </div>
                 </div>
@@ -247,8 +247,104 @@ export default function PortalClientePage({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                   </svg>
-                  <span>Baixar PDF</span>
+                  <span>Abrir Laudo Completo / Salvar PDF</span>
                 </a>
+              </div>
+
+              {/* PROGRAMAS OBRIGATÓRIOS IDENTIFICADOS */}
+              <div className="border border-slate-200 rounded-2xl p-5 sm:p-6 bg-slate-50/50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      Matriz de Conformidade Legal
+                    </span>
+                    <h4 className="text-sm font-bold text-slate-900 mt-1">
+                      Programas & Laudos Obrigatórios Para Sua Empresa
+                    </h4>
+                  </div>
+                  <span className="text-xs font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                    Risco de Multas: R$ 13.367 a R$ 100.142
+                  </span>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">PGR / GRO</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">NR-01</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Gerenciamento de Riscos e plano de ação contínuo.
+                    </p>
+                    <div className="text-[10px] font-semibold text-rose-500 pt-1">Multa: até R$ 6.708,08</div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">PCMSO</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">NR-07</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Controle Médico Ocupacional com coordenação de Médico do Trabalho.
+                    </p>
+                    <div className="text-[10px] font-semibold text-rose-500 pt-1">Multa: até R$ 4.053,00</div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">ASOs Ocupacionais</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">Art. 168 CLT</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Admissionais, periódicos e demissionais para todos os colaboradores.
+                    </p>
+                    <div className="text-[10px] font-semibold text-rose-500 pt-1">Multa: até R$ 4.025/func.</div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">LTCAT</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">Lei 8.213/91</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Laudo técnico das condições ambientais e comprovação ao INSS.
+                    </p>
+                    <div className="text-[10px] font-semibold text-rose-500 pt-1">Multa: até R$ 31.000,00</div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">eSocial SST</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">S-2220/2240</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Transmissão direta à Receita Federal para evitar autuação eletrônica.
+                    </p>
+                    <div className="text-[10px] font-semibold text-rose-500 pt-1">Multa: até R$ 181.284,63</div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">Ergonomia (AEP)</span>
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">NR-17</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Avaliação de postos de trabalho e prevenção de afastamentos por LER/DORT.
+                    </p>
+                    <div className="text-[10px] font-semibold text-amber-600 pt-1">Multa: até R$ 3.494,22</div>
+                  </div>
+                </div>
+
+                <div className="pt-2 text-right">
+                  <a
+                    href={`/api/relatorios/${data.relatorio?.id || data.ficha_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 underline inline-flex items-center gap-1"
+                  >
+                    Ver detalhes completos, impacto setorial e parecer no relatório PDF →
+                  </a>
+                </div>
               </div>
             </div>
           )}

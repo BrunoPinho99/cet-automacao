@@ -49,7 +49,7 @@ export async function GET(
       }
     }
 
-    const { buffer, mime, key } = await obterOuGerarRelatorio(id);
+    const { buffer, mime, key } = await obterOuGerarRelatorio(id, { forceRegenerate: true });
 
     // Se for visualização HTML direta no navegador
     if (format === 'html' || mime === 'text/html') {
