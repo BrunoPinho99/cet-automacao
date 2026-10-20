@@ -45,6 +45,7 @@ export async function enviarTexto(para: string, texto: string): Promise<EnvioRes
     const res = await enviarMensagemWhatsApp(para, texto);
     return { sucesso: true, wamid: res.key?.id };
   } catch (err: any) {
+    console.error(`[WhatsApp Client] Erro ao enviar mensagem para ${para}:`, err.message);
     return { sucesso: false, erro: err.message };
   }
 }

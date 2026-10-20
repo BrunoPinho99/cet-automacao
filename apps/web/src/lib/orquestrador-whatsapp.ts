@@ -53,8 +53,8 @@ export async function processarMensagem(
   // 2. Marcar como lida imediatamente
   await marcarComoLida(wamid);
 
-  // 3. Obter ou criar contexto de sessão
-  const ctx = obterSessao(telefone);
+  // 3. Obter ou criar contexto de sessão (persistente com banco de dados)
+  const ctx = await obterSessao(telefone);
 
   // 4. Localizar ou registrar lead para auditoria
   let lead = null;
@@ -100,10 +100,11 @@ export async function processarMensagem(
   }
 
   // 6. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
-  // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST ou números 1 a 6.
+  // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST, números 1 a 6 ou já tiver lead.
   if (ctx.estado === 'inicio') {
+    const jaTemContato = !!(ctx.contato_id || ctx.lead_id || lead);
     const ativou = verificarGatilhoAtivacao(conteudo);
-    if (!ativou) {
+    if (!ativou && !jaTemContato) {
       console.log(`[Orquestrador] Mensagem de ${telefone} ignorada (não ativou gatilho de atendimento): "${conteudo}"`);
       return;
     }
@@ -569,22 +570,78 @@ async function iniciarTransbordo(telefone: string, ctx: ContextoConversa): Promi
   console.log(`[Transbordo Humano] ${telefone} | Nome: ${ctx.nome || 'N/A'} | Protocolo: ${protocolo}`);
 }
 
-function obterSessao(telefone: string): ContextoConversa {
+async function obterSessao(telefone: string): Promise<ContextoConversa & { intencaoPendente?: string }> {
   const existente = sessoes.get(telefone);
 
   if (existente) {
     const agora = new Date();
     const diff = agora.getTime() - existente.ultima_interacao.getTime();
-    if (diff > SESSAO_TIMEOUT_MS) {
-      const nova = criarSessao(telefone);
-      sessoes.set(telefone, nova);
-      return nova;
+    if (diff < SESSAO_TIMEOUT_MS) {
+      existente.ultima_interacao = agora;
+      return existente;
     }
-    existente.ultima_interacao = agora;
-    return existente;
   }
 
-  const nova = criarSessao(telefone);
+  // Fallback no banco para ambientes serverless
+  const nova: ContextoConversa & { intencaoPendente?: string } = {
+    estado: 'inicio',
+    telefone,
+    tentativas_invalidas: 0,
+    ultima_interacao: new Date(),
+  };
+
+  try {
+    const contato = await prisma.contato.findUnique({
+      where: { telefone_e164: telefone },
+      include: {
+        leads: {
+          orderBy: { criado_em: 'desc' },
+          take: 1,
+          include: {
+            fichas: {
+              orderBy: { criado_em: 'desc' },
+              take: 1,
+            },
+            mensagens: {
+              orderBy: { criado_em: 'desc' },
+              take: 5,
+            },
+          },
+        },
+      },
+    });
+
+    if (contato && contato.leads.length > 0) {
+      const lead = contato.leads[0];
+      nova.contato_id = contato.id;
+      nova.lead_id = lead.id;
+      nova.nome = contato.nome;
+
+      if (lead.fichas && lead.fichas.length > 0) {
+        nova.ficha_token = lead.fichas[0].token_retomada;
+        if (lead.fichas[0].status !== 'concluida') {
+          nova.estado = 'ficha_criada';
+        }
+      }
+
+      // Se a última mensagem de saída foi de pergunta de nome ou menu
+      const ultimaMsgSaida = lead.mensagens.find((m) => m.direcao === 'saida');
+      if (ultimaMsgSaida) {
+        const txt = ultimaMsgSaida.conteudo || '';
+        if (txt.includes('qual é o seu *nome completo*') || txt.includes('nome completo')) {
+          nova.estado = 'nome';
+          nova.intencaoPendente = lead.primeira_intencao || 'Diagnóstico SST';
+        } else if (txt.includes('digite o número da opção') || txt.includes('1 - Saber se minha empresa')) {
+          nova.estado = 'menu';
+        } else if (txt.includes('preencha este formulário rápido') || txt.includes('/ficha/')) {
+          nova.estado = 'ficha_criada';
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Orquestrador] Erro ao recuperar sessão do banco:', err);
+  }
+
   sessoes.set(telefone, nova);
   return nova;
 }
