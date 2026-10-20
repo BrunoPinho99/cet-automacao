@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { gerarProtocolo } from '@/lib/validacoes';
 import { enviarMensagemInstagram } from '@/lib/instagram-client';
 import { verificarTriggerDiagnostico } from '@/lib/fluxo-conversa';
+import { linkCurtoFicha } from '@/lib/link-curto';
 
 const INSTAGRAM_VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN || 'cet_instagram_2026';
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET || '';
@@ -154,8 +155,7 @@ export async function POST(request: Request) {
               });
             }
 
-            const siteUrl = process.env.SITE_URL || 'https://cet-automacao.vercel.app';
-            const linkFicha = `${siteUrl}/ficha/${ficha.token_retomada}`;
+            const linkFicha = linkCurtoFicha(ficha.token_retomada);
 
             // 5. Montar resposta no Direct
             let respostaTexto = '';

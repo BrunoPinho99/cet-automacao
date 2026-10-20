@@ -27,6 +27,7 @@ import {
   verificarTriggerDiagnostico,
 } from './fluxo-conversa';
 import { VERSAO_CONSENTIMENTO_ATUAL, getHashConsentimento } from '@cet/shared';
+import { linkCurtoFicha } from './link-curto';
 
 // Cache em memória para sessões ativas (mantido com fallback para banco de dados)
 const sessoes = new Map<string, ContextoConversa & { intencaoPendente?: string }>();
@@ -185,7 +186,7 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
 
     if (lead.fichas.length > 0) {
       const ficha = lead.fichas[0];
-      const link = `${process.env.SITE_URL || 'https://cet-automacao.vercel.app'}/ficha/${ficha.token_retomada}`;
+      const link = linkCurtoFicha(ficha.token_retomada);
       const msg = MENSAGENS.FICHA_INCOMPLETA;
 
       await enviarTexto(telefone, msg);
@@ -466,8 +467,7 @@ async function criarLeadEFicha(
   ctx.tentativas_invalidas = 0;
   atualizarSessao(telefone, ctx);
 
-  const baseUrl = process.env.SITE_URL || 'https://cet-automacao.vercel.app';
-  const link = `${baseUrl}/ficha/${ficha.token_retomada}`;
+  const link = linkCurtoFicha(ficha.token_retomada);
 
   // 3. Direcionamento para a Ficha Inteligente com tom acolhedor
   const msg = MENSAGENS.FICHA_CRIADA
@@ -505,7 +505,7 @@ async function tratarPosFicha(
 
   if (norm === '1' || norm.includes('continuar') || norm.includes('preenchimento') || norm.includes('formulario') || norm.includes('link')) {
     if (ctx.ficha_token) {
-      const link = `${process.env.SITE_URL || 'https://cet-automacao.vercel.app'}/ficha/${ctx.ficha_token}`;
+      const link = linkCurtoFicha(ctx.ficha_token);
       await enviarTexto(telefone, `Aqui está o link para continuar seu preenchimento:\n👉 ${link}`);
     } else {
       await tratarInicio(telefone, ctx);
@@ -559,7 +559,7 @@ async function iniciarTransbordo(telefone: string, ctx: ContextoConversa): Promi
   } else {
     let msg: string = MENSAGENS.HORARIO_FORA;
     if (ctx.ficha_token) {
-      const link = `${process.env.SITE_URL || 'https://cet-automacao.vercel.app'}/ficha/${ctx.ficha_token}`;
+      const link = linkCurtoFicha(ctx.ficha_token);
       msg = msg.replace('{{link_ficha}}', link);
     } else {
       msg = msg.replace('\n👉 {{link_ficha}}', '');
@@ -633,7 +633,7 @@ async function obterSessao(telefone: string): Promise<ContextoConversa & { inten
           nova.intencaoPendente = lead.primeira_intencao || 'Diagnóstico SST';
         } else if (txt.includes('digite o número da opção') || txt.includes('1 - Saber se minha empresa')) {
           nova.estado = 'menu';
-        } else if (txt.includes('preencha este formulário rápido') || txt.includes('/ficha/')) {
+        } else if (txt.includes('preencha este formulário rápido') || txt.includes('/ficha/') || txt.includes('/f/')) {
           nova.estado = 'ficha_criada';
         }
       }
