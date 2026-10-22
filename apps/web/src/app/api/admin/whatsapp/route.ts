@@ -44,6 +44,31 @@ export async function GET() {
         if (connectData.instance?.state) {
           state = connectData.instance.state;
         }
+      } else {
+        // Se a instância ainda não existir na Evolution, cria automaticamente
+        try {
+          const createRes = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: API_KEY,
+            },
+            body: JSON.stringify({
+              instanceName: INSTANCE_NAME,
+              integration: 'WHATSAPP-BAILEYS',
+              qrcode: true,
+            }),
+          });
+
+          if (createRes.ok) {
+            const createData = await createRes.json();
+            qrcodeBase64 = createData.qrcode?.base64 || null;
+            pairingCode = createData.qrcode?.code || null;
+            state = 'connecting';
+          }
+        } catch (err) {
+          console.error('[WhatsApp Status API] Erro ao auto-criar instância:', err);
+        }
       }
     }
 

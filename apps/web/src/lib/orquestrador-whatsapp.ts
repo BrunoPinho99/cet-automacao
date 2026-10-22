@@ -51,39 +51,41 @@ export async function processarMensagem(
     return;
   }
 
-  // 2. Marcar como lida imediatamente
-  await marcarComoLida(wamid);
+  // 2. Marcar como lida em background (não bloqueia resposta)
+  marcarComoLida(wamid).catch(() => {});
 
-  // 3. Obter ou criar contexto de sessão (persistente com banco de dados)
+  // 3. Obter ou criar contexto de sessão (cache em memória ultra-rápido)
   const ctx = await obterSessao(telefone);
 
-  // 4. Localizar ou registrar lead para auditoria
+  // 4. Localizar ou registrar lead para auditoria (evita query duplicada se já estiver em sessão)
   let lead = null;
-  const contato = await prisma.contato.findUnique({
-    where: { telefone_e164: telefone },
-    include: {
-      leads: {
-        orderBy: { criado_em: 'desc' },
-        take: 1,
-        include: { atendente: true },
+  if (!ctx.contato_id) {
+    const contato = await prisma.contato.findUnique({
+      where: { telefone_e164: telefone },
+      include: {
+        leads: {
+          orderBy: { criado_em: 'desc' },
+          take: 1,
+          include: { atendente: true },
+        },
       },
-    },
-  });
+    });
 
-  if (contato && contato.leads.length > 0) {
-    lead = contato.leads[0];
-    ctx.contato_id = contato.id;
-    ctx.lead_id = lead.id;
-    if (contato.nome && !ctx.nome) {
-      ctx.nome = contato.nome;
+    if (contato && contato.leads.length > 0) {
+      lead = contato.leads[0];
+      ctx.contato_id = contato.id;
+      ctx.lead_id = lead.id;
+      if (contato.nome && !ctx.nome) {
+        ctx.nome = contato.nome;
+      }
     }
   }
 
-  // Se houver lead identificado, salvar a mensagem de entrada para histórico
-  if (lead) {
-    await prisma.mensagem.create({
+  // Se houver lead identificado, salvar a mensagem de entrada em background (não bloqueia resposta)
+  if (ctx.lead_id) {
+    prisma.mensagem.create({
       data: {
-        lead_id: lead.id,
+        lead_id: ctx.lead_id,
         direcao: 'entrada',
         canal: 'whatsapp',
         wamid,
@@ -95,12 +97,39 @@ export async function processarMensagem(
 
   // 5. REGRA DE SILÊNCIO: Se já houver atendente humano assumido OU a sessão estiver em transbordo
   // O robô NUNCA deve responder para não interferir na conversa humana.
-  if (lead?.atendente_id || ctx.estado === 'transbordo') {
+  if (ctx.estado === 'transbordo' || lead?.atendente_id) {
     console.log(`[Orquestrador] ${telefone} está sob atendimento humano / transbordo — robô em silêncio.`);
     return;
   }
 
-  // 6. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
+  // 6. FAST-TRACK DE GATILHO OFICIAL: "quero receber um diagnostico da minha empresa"
+  // Intercepta imediatamente em QUALQUER momento com resposta instantânea e mínima latência
+  if (conteudo && verificarTriggerDiagnostico(conteudo)) {
+    const intencaoTitulo = 'Diagnóstico Completo da Empresa';
+    if (ctx.contato_id) {
+      prisma.consentimento.create({
+        data: {
+          contato_id: ctx.contato_id,
+          versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
+          texto_hash: getHashConsentimento(),
+          finalidade: 'triagem_atendimento_diagnostico_proposta',
+        },
+      }).catch((err) => console.error('[LGPD] Erro ao salvar consentimento via trigger:', err));
+    }
+
+    if (ctx.nome) {
+      await criarLeadEFicha(telefone, ctx, intencaoTitulo);
+    } else {
+      (ctx as any).intencaoPendente = intencaoTitulo;
+      ctx.estado = 'nome';
+      ctx.tentativas_invalidas = 0;
+      atualizarSessao(telefone, ctx);
+      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
+    }
+    return;
+  }
+
+  // 7. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
   // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST, números 1 a 6 ou já tiver lead.
   if (ctx.estado === 'inicio') {
     const jaTemContato = !!(ctx.contato_id || ctx.lead_id || lead);
@@ -111,7 +140,7 @@ export async function processarMensagem(
     }
   }
 
-  // 7. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação e SLA de 10 min)
+  // 8. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação e SLA de 10 min)
   const gatilhoRotaA = verificarGatilhoRotaA({ texto: conteudo });
   if (gatilhoRotaA.ativa) {
     console.log(`[Orquestrador] Gatilho Rota A acionado para ${telefone}: ${gatilhoRotaA.motivo}`);
@@ -119,7 +148,7 @@ export async function processarMensagem(
     return;
   }
 
-  // 8. Determinar ação baseada no estado atual
+  // 9. Determinar ação baseada no estado atual
   const idResposta = interactiveId || conteudo;
 
   switch (ctx.estado) {
@@ -161,48 +190,59 @@ export async function processarMensagem(
 // =============================================================================
 
 async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: string): Promise<void> {
-  // Verificar se o contato já existe e possui ficha em andamento
-  const contato = await prisma.contato.findUnique({
-    where: { telefone_e164: telefone },
-    include: {
-      leads: {
-        orderBy: { criado_em: 'desc' },
-        take: 1,
-        include: {
-          fichas: {
-            where: { status: { not: 'concluida' } },
-            take: 1,
+  // 1. Se já possui ficha em andamento no contexto da sessão, retoma imediatamente
+  if (ctx.ficha_token) {
+    const link = linkCurtoFicha(ctx.ficha_token);
+    const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
+    await enviarTexto(telefone, msg);
+    ctx.estado = 'ficha_criada';
+    atualizarSessao(telefone, ctx);
+    return;
+  }
+
+  // 2. Se ainda não possui dados em memória, consulta o banco
+  if (!ctx.contato_id) {
+    const contato = await prisma.contato.findUnique({
+      where: { telefone_e164: telefone },
+      include: {
+        leads: {
+          orderBy: { criado_em: 'desc' },
+          take: 1,
+          include: {
+            fichas: {
+              where: { status: { not: 'concluida' } },
+              take: 1,
+            },
           },
         },
       },
-    },
-  });
+    });
 
-  if (contato && contato.leads.length > 0) {
-    const lead = contato.leads[0];
-    ctx.contato_id = contato.id;
-    ctx.lead_id = lead.id;
-    ctx.nome = contato.nome;
+    if (contato && contato.leads.length > 0) {
+      const lead = contato.leads[0];
+      ctx.contato_id = contato.id;
+      ctx.lead_id = lead.id;
+      ctx.nome = contato.nome;
 
-    if (lead.fichas.length > 0) {
-      const ficha = lead.fichas[0];
-      const link = linkCurtoFicha(ficha.token_retomada);
-      const msg = MENSAGENS.FICHA_INCOMPLETA;
+      if (lead.fichas.length > 0) {
+        const ficha = lead.fichas[0];
+        const link = linkCurtoFicha(ficha.token_retomada);
+        const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
 
-      await enviarTexto(telefone, msg);
-      await enviarTexto(telefone, `Link para continuar direto pelo celular:\n👉 ${link}`);
-      ctx.ficha_token = ficha.token_retomada;
-      ctx.estado = 'ficha_criada';
-      atualizarSessao(telefone, ctx);
-      return;
+        await enviarTexto(telefone, msg);
+        ctx.ficha_token = ficha.token_retomada;
+        ctx.estado = 'ficha_criada';
+        atualizarSessao(telefone, ctx);
+        return;
+      }
     }
   }
 
-  // 1. GATILHO OFICIAL PRIORITÁRIO: "quero receber um diagnostico da minha empresa"
+  // 3. GATILHO OFICIAL PRIORITÁRIO: "quero receber um diagnostico da minha empresa"
   if (conteudo && verificarTriggerDiagnostico(conteudo)) {
     const intencaoTitulo = 'Diagnóstico Completo da Empresa';
     if (ctx.contato_id) {
-      await prisma.consentimento.create({
+      prisma.consentimento.create({
         data: {
           contato_id: ctx.contato_id,
           versao_texto: VERSAO_CONSENTIMENTO_ATUAL,
@@ -218,8 +258,8 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
       (ctx as any).intencaoPendente = intencaoTitulo;
       ctx.estado = 'nome';
       ctx.tentativas_invalidas = 0;
-      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
       atualizarSessao(telefone, ctx);
+      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
     }
     return;
   }
@@ -443,23 +483,27 @@ async function criarLeadEFicha(
     ctx.contato_id = contato.id;
   }
 
+  // Criação atômica do Lead e Ficha em uma única consulta ao banco
   const lead = await prisma.lead.create({
     data: {
       contato_id: contatoId,
       canal: 'whatsapp',
       primeira_intencao: intencao,
       protocolo,
+      fichas: {
+        create: {
+          status: 'iniciada',
+          bloco_atual: 1,
+          respostas: {},
+        },
+      },
+    },
+    include: {
+      fichas: true,
     },
   });
 
-  const ficha = await prisma.ficha.create({
-    data: {
-      lead_id: lead.id,
-      status: 'iniciada',
-      bloco_atual: 1,
-      respostas: {},
-    },
-  });
+  const ficha = lead.fichas[0];
 
   ctx.lead_id = lead.id;
   ctx.ficha_token = ficha.token_retomada;
