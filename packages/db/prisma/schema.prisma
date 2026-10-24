@@ -56,8 +56,8 @@ model Contato {
   empresa_id      String?
   nome            String   @db.VarChar(255)
   cargo           String?  @db.VarChar(100)
-  // Formato E.164: +55XXXXXXXXXXX
-  telefone_e164   String   @unique @db.VarChar(20)
+  // Formato E.164 (+55XXXXXXXXXXX) ou identificador de canal (ex: ig_12345678901234567)
+  telefone_e164   String   @unique @db.VarChar(100)
   email           String?  @db.VarChar(255)
   canal_preferido String   @default("whatsapp") @db.VarChar(20)
   criado_em       DateTime @default(now())
