@@ -69,6 +69,7 @@ export async function POST(request: Request) {
             const senderId = event.sender?.id;
             const messageText = event.message?.text;
             const messageId = event.message?.mid;
+            const pageId = event.recipient?.id || entry.id;
 
             if (!senderId || !messageText) continue;
 
@@ -166,7 +167,7 @@ export async function POST(request: Request) {
             }
 
             // 6. Enviar resposta no Direct do Instagram
-            const envio = await enviarMensagemInstagram(senderId, respostaTexto);
+            const envio = await enviarMensagemInstagram(senderId, respostaTexto, pageId);
 
             // 7. Registrar mensagem de saída
             await prisma.mensagem.create({

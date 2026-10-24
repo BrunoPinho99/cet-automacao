@@ -19,7 +19,8 @@ export interface EnvioInstagramResult {
  */
 export async function enviarMensagemInstagram(
   recipientId: string,
-  texto: string
+  texto: string,
+  pageId?: string
 ): Promise<EnvioInstagramResult> {
   if (!INSTAGRAM_ACCESS_TOKEN || INSTAGRAM_ACCESS_TOKEN === 'OBTER_NO_META_DEVELOPER_PORTAL') {
     console.warn('[Instagram Client] INSTAGRAM_ACCESS_TOKEN não configurado — simulando envio no console:');
@@ -32,9 +33,10 @@ export async function enviarMensagemInstagram(
   }
 
   try {
-    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/me/messages`;
+    const target = pageId || 'me';
+    const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${target}/messages`;
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +48,28 @@ export async function enviarMensagemInstagram(
       }),
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // Fallback inteligente para 'me' caso o pageId retorne erro, ou vice-versa
+    if (!response.ok && target !== 'me') {
+      const fallbackUrl = `https://graph.facebook.com/${GRAPH_API_VERSION}/me/messages`;
+      const fallbackResponse = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${INSTAGRAM_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: { text: texto },
+        }),
+      });
+
+      if (fallbackResponse.ok) {
+        response = fallbackResponse;
+        data = await fallbackResponse.json();
+      }
+    }
 
     if (!response.ok) {
       const msgErro = data?.error?.message || 'Falha desconhecida na API do Instagram';
