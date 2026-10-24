@@ -33,7 +33,8 @@ export async function enviarMensagemInstagram(
   }
 
   try {
-    const target = pageId || 'me';
+    const defaultPageId = process.env.INSTAGRAM_PAGE_ID;
+    const target = pageId || defaultPageId || 'me';
     const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${target}/messages`;
 
     let response = await fetch(url, {
