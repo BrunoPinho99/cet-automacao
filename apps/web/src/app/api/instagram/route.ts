@@ -38,8 +38,8 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
 
-    // Validação de assinatura
-    if (INSTAGRAM_APP_SECRET) {
+    // Validação de assinatura (apenas se houver um secret real configurado)
+    if (INSTAGRAM_APP_SECRET && INSTAGRAM_APP_SECRET !== 'OBTER_NO_META_DEVELOPER_PORTAL') {
       const signature = request.headers.get('x-hub-signature-256');
       if (!signature) {
         console.warn('⚠️ Assinatura do Instagram ausente — ignorando payload');
