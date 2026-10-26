@@ -28,6 +28,7 @@ import {
 } from './fluxo-conversa';
 import { VERSAO_CONSENTIMENTO_ATUAL, getHashConsentimento } from '@cet/shared';
 import { linkCurtoFicha } from './link-curto';
+import { gerarRespostaGeminiCET } from './gemini-client';
 
 // Cache em memória para sessões ativas (mantido com fallback para banco de dados)
 const sessoes = new Map<string, ContextoConversa & { intencaoPendente?: string }>();
@@ -264,7 +265,26 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
     return;
   }
 
-  // 2. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
+  // 2. Se o usuário já iniciou com uma dúvida específica em texto livre (não apenas saudação simples)
+  const ehSaudacaoSimples = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'opa', 'ola!', 'oi!'].includes(conteudo?.trim().toLowerCase() || '');
+  if (conteudo && !ehSaudacaoSimples && conteudo.trim().length > 5 && !/^[1-6]$/.test(conteudo.trim())) {
+    try {
+      const respostaIA = await gerarRespostaGeminiCET(conteudo, {
+        nomeCliente: ctx.nome,
+      });
+      if (respostaIA) {
+        await enviarTexto(telefone, respostaIA);
+        ctx.estado = 'menu';
+        ctx.tentativas_invalidas = 0;
+        atualizarSessao(telefone, ctx);
+        return;
+      }
+    } catch (err) {
+      console.error('[Orquestrador] Erro ao responder início com Gemini:', err);
+    }
+  }
+
+  // 3. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
   await enviarTexto(telefone, MENSAGENS.ABERTURA_OBRIGATORIA);
 
   ctx.estado = 'menu';
@@ -394,6 +414,30 @@ async function tratarMenu(
     if (saudacao) {
       await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
       return;
+    }
+
+    // Se for uma dúvida, pergunta ou frase livre, responde com o Google Gemini inteligente da CET
+    try {
+      let protocolo: string | undefined;
+      if (ctx.lead_id) {
+        const leadDb = await prisma.lead.findUnique({ where: { id: ctx.lead_id } });
+        protocolo = leadDb?.protocolo;
+      }
+
+      const respostaIA = await gerarRespostaGeminiCET(resposta, {
+        nomeCliente: ctx.nome,
+        protocolo,
+        linkFicha: ctx.ficha_token ? linkCurtoFicha(ctx.ficha_token) : undefined,
+      });
+
+      if (respostaIA) {
+        await enviarTexto(telefone, respostaIA);
+        ctx.tentativas_invalidas = 0;
+        atualizarSessao(telefone, ctx);
+        return;
+      }
+    } catch (err) {
+      console.error('[Orquestrador] Erro ao consultar Gemini:', err);
     }
 
     ctx.tentativas_invalidas++;
