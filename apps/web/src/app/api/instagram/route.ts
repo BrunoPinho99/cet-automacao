@@ -36,6 +36,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    const rawBody = await request.text();
     console.log('[Instagram Webhook] Recebida chamada POST:', rawBody);
 
     // Validação de assinatura (apenas se houver um secret real configurado)
