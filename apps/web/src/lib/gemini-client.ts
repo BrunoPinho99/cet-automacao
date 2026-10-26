@@ -5,7 +5,10 @@
 
 import { PROMPT_SISTEMA_ASSISTENTE_CET } from './prompt-assistente-cet';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY ||
+  process.env.GOOGLE_API_KEY ||
+  '';
 
 interface MensagemHistorico {
   autor: 'usuario' | 'assistente';
@@ -26,7 +29,10 @@ export async function gerarRespostaGeminiCET(
   mensagemUsuario: string,
   opcoes: OpcoesGemini = {},
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || GEMINI_API_KEY;
+  const apiKey =
+    process.env.GEMINI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    GEMINI_API_KEY;
 
   if (!apiKey) {
     console.warn('[Gemini Client] GEMINI_API_KEY não configurada. Usando fallback de atendimento padrão.');
@@ -68,7 +74,7 @@ export async function gerarRespostaGeminiCET(
   });
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
