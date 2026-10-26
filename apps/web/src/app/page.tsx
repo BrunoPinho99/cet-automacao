@@ -28,7 +28,7 @@ function formatarTelefoneInput(valor: string) {
 }
 
 export default function HomePage() {
-  // Modo de busca: 'nome' ou 'cnpj'
+  // Modo de busca: 'nome' (busca fácil por nome da empresa) ou 'cnpj' (inserção direta do CNPJ)
   const [modoBusca, setModoBusca] = useState<'nome' | 'cnpj'>('nome');
   const [busca, setBusca] = useState('');
   const [buscando, setBuscando] = useState(false);
@@ -38,7 +38,7 @@ export default function HomePage() {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<EmpresaItem | null>(null);
   const [scoreCalculado, setScoreCalculado] = useState<number | null>(null);
 
-  // Estados dos Dados de Contato Obrigatórios
+  // Estados dos Dados de Contato Obrigatórios (preenchidos antes do score)
   const [nomeLead, setNomeLead] = useState('');
   const [whatsappLead, setWhatsappLead] = useState('');
   const [emailLead, setEmailLead] = useState('');
@@ -57,9 +57,6 @@ export default function HomePage() {
   const [pontosCriticos, setPontosCriticos] = useState<string[]>([]);
   const [erroFormulario, setErroFormulario] = useState<string | null>(null);
   const [mostrarFormulario, setMostrarFormulario] = useState(true);
-
-  // FAQ Accordion State
-  const [faqAberto, setFaqAberto] = useState<number | null>(null);
 
   // Estados do Modal de Checkout R$ 19,90 (PIX e Cartão Asaas)
   const [modalCheckoutAberto, setModalCheckoutAberto] = useState(false);
@@ -89,7 +86,6 @@ export default function HomePage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const scoreRef = useRef<HTMLDivElement>(null);
-  const searchSectionRef = useRef<HTMLDivElement>(null);
 
   // Limpa timer de polling ao desmontar
   useEffect(() => {
@@ -138,6 +134,7 @@ export default function HomePage() {
           setSugestoes(lista);
           setMostrarDropdown(true);
 
+          // Se digitou 14 dígitos de CNPJ exatos e veio apenas 1 resultado oficial, autovincula
           if (isCnpjCompleto && lista.length === 1) {
             handleSelecionarEmpresa(lista[0]);
           }
@@ -153,18 +150,21 @@ export default function HomePage() {
     return () => clearTimeout(timer);
   }, [busca]);
 
+  // Ao selecionar uma empresa na lista de busca
   const handleSelecionarEmpresa = (empresa: EmpresaItem) => {
     setEmpresaSelecionada(empresa);
     setBusca(empresa.razao_social);
     setMostrarDropdown(false);
 
+    // Conforme regra: NÃO exibe o score imediatamente antes do preenchimento das perguntas e contato!
     setScoreCalculado(null);
     setMostrarFormulario(true);
     setErroFormulario(null);
 
+    // Rola suavemente até o formulário do diagnóstico
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 140);
+    }, 120);
   };
 
   const handleLimparBusca = () => {
@@ -176,10 +176,7 @@ export default function HomePage() {
     setMostrarFormulario(true);
   };
 
-  const rolarParaBusca = () => {
-    searchSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
+  // Submissão do formulário: validação rigorosa de contato e cálculo real do Score SST
   const handleCalcularScore = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroFormulario(null);
@@ -191,20 +188,20 @@ export default function HomePage() {
 
     const cleanPhone = whatsappLead.replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 10) {
-      setErroFormulario('Por favor, informe um WhatsApp válido com DDD (mínimo 10 dígitos) para receber o parecer técnico.');
+      setErroFormulario('Por favor, informe um WhatsApp válido com DDD (mínimo 10 dígitos) para receber o relatório.');
       return;
     }
 
     const emailLimpo = emailLead.trim();
     if (!emailLimpo || !emailLimpo.includes('@') || !emailLimpo.includes('.')) {
-      setErroFormulario('Por favor, informe um e-mail válido para envio oficial do diagnóstico de SST.');
+      setErroFormulario('Por favor, informe um e-mail válido para envio oficial do diagnóstico.');
       return;
     }
 
     setCalculandoScore(true);
 
     try {
-      // Registra o lead na base de dados em segundo plano
+      // Registra o lead e o contato na base de dados em segundo plano
       fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,9 +215,10 @@ export default function HomePage() {
         }),
       }).catch((err) => console.warn('Registro de lead:', err));
 
-      // Simulação de processamento técnico pericial
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // Simulação rápida para feedback pericial
+      await new Promise((resolve) => setTimeout(resolve, 550));
 
+      // Cálculo Real do Score com base no que o usuário respondeu
       let nota = 100;
       const pontos: string[] = [];
 
@@ -269,7 +267,7 @@ export default function HomePage() {
       // 5. LTCAT / Insalubridade
       if (temLtcat === 'nao_possui') {
         nota -= 10;
-        pontos.push('Ausência de LTCAT / Laudo Previdenciário');
+        pontos.push('Ausência de LTCAT / Laudo de Riscos');
       } else if (temLtcat === 'vencido') {
         nota -= 6;
         pontos.push('LTCAT Desatualizado');
@@ -278,20 +276,21 @@ export default function HomePage() {
       // 6. Histórico de Notificação / Acidente
       if (teveAcidenteOuFiscalizacao === 'sim') {
         nota -= 10;
-        pontos.push('Histórico de Fiscalização / Notificação Recente');
+        pontos.push('Histórico de Fiscalização / Acidente Recente');
       }
 
-      // 7. Agravante por Grau de Risco do CNAE (NR-04)
+      // 7. Agravante por Grau de Risco do CNAE
       const risco = empresaSelecionada?.grau_risco || 2;
       if (risco >= 3 && (temPgr !== 'vigente' || temPcmso !== 'vigente')) {
         nota -= 6;
-        pontos.push(`Grau de Risco Elevado (NR-04 Grau ${risco})`);
+        pontos.push(`Grau de Risco Elevado (NR-4 Risco ${risco})`);
       }
 
       const scoreFinal = Math.max(18, Math.min(98, Math.round(nota)));
       setPontosCriticos(pontos);
       setScoreCalculado(scoreFinal);
 
+      // Rola até o Score SST
       setTimeout(() => {
         scoreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 150);
@@ -308,6 +307,7 @@ export default function HomePage() {
     }
   };
 
+  // Formatações auxiliares
   function formatarNumeroCartao(val: string) {
     const digitos = val.replace(/\D/g, '').slice(0, 16);
     return digitos.replace(/(\d{4})(?=\d)/g, '$1 ');
@@ -384,32 +384,33 @@ export default function HomePage() {
     return false;
   }
 
+  // Processar pagamento via PIX ou Cartão de Crédito Transparente (R$ 19,90)
   const handleProcessarPagamento = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroCheckout('');
 
     const cleanPhone = whatsappLead.replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 9) {
-      setErroCheckout('Por favor, informe um WhatsApp válido para envio do diagnóstico.');
+      setErroCheckout('Por favor, informe um WhatsApp válido para receber o diagnóstico.');
       return;
     }
 
     const cleanDoc = (docPagador || empresaSelecionada?.cnpj || '').replace(/\D/g, '');
     if (!cleanDoc) {
-      setErroCheckout('Por favor, informe o CPF ou CNPJ do pagador (obrigatório pelo Banco Central para cobrança oficial).');
+      setErroCheckout('Por favor, informe o CPF ou CNPJ do pagador (obrigatório para emissão do PIX oficial).');
       return;
     }
     if (!validarDocumento(cleanDoc)) {
       setErroCheckout(
         cleanDoc.length <= 11
-          ? 'O CPF informado é inválido. Digite um CPF válido.'
-          : 'O CNPJ informado é inválido. Digite um CNPJ válido.'
+          ? 'O CPF informado é inválido. Digite um CPF válido para registrar o PIX oficial no Banco Central.'
+          : 'O CNPJ informado é inválido. Digite um CNPJ válido para registrar o PIX oficial no Banco Central.'
       );
       return;
     }
 
     const bodyPayload: any = {
-      plano: 'completo',
+      plano: 'completo', // R$ 19,90 oficial
       empresa: empresaSelecionada?.razao_social,
       cnpj: cleanDoc.length === 14 ? cleanDoc : empresaSelecionada?.cnpj,
       documento: cleanDoc,
@@ -485,11 +486,13 @@ export default function HomePage() {
       }
       setCheckoutUrl(data.checkout_url || '');
 
+      // Se pagou no cartão e já aprovou na hora pelo Asaas
       if (data.pago) {
         setPagamentoConcluido(true);
         return;
       }
 
+      // Se for PIX
       if (metodoCheckout === 'pix') {
         setPixCopiaCola(data.pix_copia_cola || '');
         setPixQrCode(data.pix_qr_code || '');
@@ -503,6 +506,7 @@ export default function HomePage() {
     }
   };
 
+  // Consultar status do pagamento (Polling ou Manual)
   const checarStatusPagamento = async (id: string, simular = false) => {
     try {
       setVerificandoPagamento(true);
@@ -544,220 +548,93 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-blue-600 selection:text-white">
-      {/* BARRA SUPERIOR DE DESTAQUE INSTITUCIONAL */}
-      <div className="bg-slate-900 text-white text-xs sm:text-sm py-2 px-4 sm:px-8 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-          <div className="flex items-center gap-3 font-medium text-slate-300">
-            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Atendimento Nacional
-            </span>
-            <span className="hidden md:inline text-slate-600">•</span>
-            <span className="hidden md:inline">Clínica Credenciada em Medicina Ocupacional & Engenharia de Segurança</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20falar%20com%20um%20especialista%20da%20CET%20sobre%20Seguran%C3%A7a%20e%20Medicina%20do%20Trabalho."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-400 hover:text-emerald-300 transition flex items-center gap-1.5"
-            >
-              <span>📱 Plantão Técnico WhatsApp</span>
-            </a>
-            <span className="text-slate-700">|</span>
-            <Link href="/ficha" className="text-slate-300 hover:text-white transition">
-              Área da Empresa →
-            </Link>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+      {/* BARRA DE DESTAQUE SUPERIOR COM GRADIENTE FUTUREWAVE */}
+      <div className="h-1 bg-gradient-futurewave w-full" />
 
-      {/* CABEÇALHO PRINCIPAL EXPANDIDO */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 sm:h-22 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3.5 group">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo-cet.png"
-              alt="CET Clínica"
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-contain border border-slate-200 group-hover:scale-105 transition-transform"
-            />
-            <div className="leading-tight">
-              <span className="block text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                CET <span className="text-blue-600 font-bold text-lg sm:text-xl">CLÍNICA</span>
-              </span>
-              <span className="block text-xs sm:text-sm font-semibold text-slate-600">
-                Segurança & Medicina do Trabalho
-              </span>
-            </div>
-          </Link>
-
-          {/* Navegação Desktop */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-bold text-slate-600">
-            <a href="#diagnostico" className="hover:text-blue-600 transition">
-              Diagnóstico NR
-            </a>
-            <a href="#programas-obrigatorios" className="hover:text-blue-600 transition">
-              Programas (PGR/PCMSO)
-            </a>
-            <a href="#tabela-multas" className="hover:text-blue-600 transition">
-              Tabela de Multas
-            </a>
-            <a href="#como-funciona" className="hover:text-blue-600 transition">
-              Como Funciona
-            </a>
-            <a href="#faq" className="hover:text-blue-600 transition">
-              Dúvidas Frequentes
-            </a>
-          </nav>
-
-          {/* Botão de Ação Direta */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={rolarParaBusca}
-              className="hidden sm:inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-xl text-sm transition shadow-sm hover:shadow cursor-pointer"
-            >
-              <span>Consultar CNPJ Grátis</span>
-              <span className="text-blue-200">→</span>
-            </button>
-            <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20uma%20d%C3%BAvida%20sobre%20enquadramento%20de%20SST%20para%20minha%20empresa."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center p-3 sm:px-4 sm:py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs sm:text-sm font-bold transition"
-            >
-              <span className="hidden sm:inline">Falar com Especialista</span>
-              <span className="sm:hidden">WhatsApp</span>
-            </a>
+      {/* CABEÇALHO INSTITUCIONAL */}
+      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200 flex items-center justify-between px-4 sm:px-8">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-cet.png" alt="CET" className="w-9 h-9 rounded-md object-contain" />
+          <div className="leading-tight">
+            <span className="block text-sm font-bold text-slate-900">CET</span>
+            <span className="block text-xs text-slate-500">Segurança e Medicina do Trabalho</span>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION DE ALTO IMPACTO (EXPANSIVA E AUTORITÁRIA) */}
-      <section className="bg-gradient-to-b from-white via-slate-50 to-slate-100/70 border-b border-slate-200 py-12 sm:py-20 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-2xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-            <span>Medicina Ocupacional & Engenharia de Segurança Credenciada • Desde 2012</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
-            Diagnóstico de Conformidade em{' '}
-            <span className="text-blue-600 underline decoration-blue-200 decoration-wavy underline-offset-8">
-              Segurança e Medicina do Trabalho
-            </span>
+      {/* CONTEÚDO PRINCIPAL */}
+      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-4xl mx-auto w-full space-y-8">
+        {/* Título de Apresentação */}
+        <div className="text-center space-y-3">
+          <span className="inline-flex items-center gap-1.5 bg-soft-lavender text-royal border border-blue-200 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-azure animate-pulse" />
+            Consulta Oficial Gratuita
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Descubra o <span className="text-royal">Score SST</span> da sua Empresa
           </h1>
-
-          <p className="text-base sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed font-normal">
-            Verifique o enquadramento do <strong className="text-slate-800 font-semibold">Grau de Risco (NR-04)</strong> da sua empresa, a vigência dos programas obrigatórios (<strong className="text-slate-800 font-semibold">PGR e PCMSO</strong>), exames ocupacionais (<strong className="text-slate-800 font-semibold">ASO</strong>) e o envio dos eventos de SST ao <strong className="text-slate-800 font-semibold">eSocial</strong> perante as exigências do Ministério do Trabalho.
+          <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
+            Identifique o nível de risco ocupacional (NR-4) e pendências com as Normas Regulamentadoras da CLT e o eSocial.
           </p>
-
-          {/* 4 CARDS DE AUTORIDADE INSTITUCIONAL */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pt-6 text-left">
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <div className="text-2xl sm:text-3xl font-black text-blue-600">+1.200</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-800">Empresas Atendidas</div>
-              <div className="text-[11px] sm:text-xs text-slate-500">Comércio, Indústria e Serviços em todo o Brasil.</div>
-            </div>
-
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <div className="text-2xl sm:text-3xl font-black text-emerald-600">ART & CRM</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-800">Responsabilidade Técnica</div>
-              <div className="text-[11px] sm:text-xs text-slate-500">Médicos do Trabalho e Engenheiros de Segurança.</div>
-            </div>
-
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <div className="text-2xl sm:text-3xl font-black text-blue-600">100% eSocial</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-800">Transmissão Direta</div>
-              <div className="text-[11px] sm:text-xs text-slate-500">Eventos S-2210, S-2220 e S-2240 integrados.</div>
-            </div>
-
-            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
-              <div className="text-2xl sm:text-3xl font-black text-amber-600">Zero Multas</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-800">Blindagem Jurídica</div>
-              <div className="text-[11px] sm:text-xs text-slate-500">Proteção trabalhista conforme a Portaria MTP 672.</div>
-            </div>
-          </div>
         </div>
-      </section>
 
-      {/* ÁREA DE DIAGNÓSTICO INTERATIVO EXPANDIDA */}
-      <main id="diagnostico" className="flex-1 py-10 sm:py-16 px-4 sm:px-6 max-w-5xl mx-auto w-full space-y-10">
-        {/* CAIXA DE BUSCA DE EMPRESA */}
-        <div
-          ref={(el) => {
-            searchSectionRef.current = el;
-            dropdownRef.current = el;
-          }}
-          className="bg-white rounded-3xl p-6 sm:p-10 shadow-md border border-slate-200 space-y-6 relative"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-            <div>
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-blue-600 block mb-1">
-                Etapa 1 de 2 • Consulta Cadastral Oficial
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Consulte os Dados da sua Empresa
-              </h2>
-              <p className="text-sm sm:text-base text-slate-600 mt-1">
-                Localize sua empresa pelo nome ou CNPJ para identificar o CNAE e enquadramento de Grau de Risco (NR-04).
-              </p>
+        {/* ÁREA DE BUSCA INTELIGENTE: NOME OU CNPJ */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 relative" ref={dropdownRef}>
+          {/* SELETOR DE MODO: BUSCAR POR NOME OU DIGITAR CNPJ */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('nome');
+                  setBusca('');
+                  setSugestoes([]);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  modoBusca === 'nome'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🔍 Buscar pelo Nome da Empresa
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('cnpj');
+                  setBusca('');
+                  setSugestoes([]);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  modoBusca === 'cnpj'
+                    ? 'bg-white text-blue-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🏢 Digitar / Colar CNPJ
+              </button>
             </div>
 
-            <span className="text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full flex items-center gap-2 w-fit shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-              Base Oficial da Receita Federal
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 w-fit">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              Base Nacional Oficial (Receita Federal)
             </span>
           </div>
 
-          {/* SELETOR DE MODO: NOME OU CNPJ */}
-          <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
-            <button
-              type="button"
-              onClick={() => {
-                setModoBusca('nome');
-                setBusca('');
-                setSugestoes([]);
-              }}
-              className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                modoBusca === 'nome'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🔍 Buscar pelo Nome da Empresa
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setModoBusca('cnpj');
-                setBusca('');
-                setSugestoes([]);
-              }}
-              className={`px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                modoBusca === 'cnpj'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              🏢 Digitar / Colar CNPJ
-            </button>
-          </div>
-
-          {/* CAMPO DE ENTRADA EXPANDIDO */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* CAMPO DE ENTRADA */}
+          <div className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                 {buscando ? (
-                  <svg className="animate-spin h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : (
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 )}
@@ -769,6 +646,7 @@ export default function HomePage() {
                 onChange={(e) => {
                   const val = e.target.value;
                   if (modoBusca === 'cnpj') {
+                    // Máscara automática de CNPJ
                     const digitos = val.replace(/\D/g, '').slice(0, 14);
                     if (digitos.length <= 2) setBusca(digitos);
                     else if (digitos.length <= 5) setBusca(`${digitos.slice(0, 2)}.${digitos.slice(2)}`);
@@ -784,20 +662,20 @@ export default function HomePage() {
                 }}
                 placeholder={
                   modoBusca === 'nome'
-                    ? 'Digite a Razão Social ou Nome Fantasia da empresa...'
-                    : 'Cole ou digite os 14 números do CNPJ...'
+                    ? 'Digite o nome da sua empresa (ex: Padaria Central, Drogaria Pacheco)...'
+                    : 'Cole ou digite o CNPJ (ex: 12.345.678/0001-90)...'
                 }
-                className="w-full pl-13 pr-12 py-4 bg-slate-50 hover:bg-slate-100/60 focus:bg-white border-2 border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 rounded-2xl text-base sm:text-lg text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
+                className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
               />
 
               {busca && (
                 <button
                   type="button"
                   onClick={handleLimparBusca}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
                   title="Limpar campo"
                 >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -831,20 +709,20 @@ export default function HomePage() {
                   setBuscandoReceita(false);
                 }
               }}
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-extrabold rounded-2xl text-base transition shadow-sm hover:shadow shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+              className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold rounded-2xl text-sm transition shadow-sm hover:shadow shrink-0 flex items-center justify-center gap-2 cursor-pointer"
             >
               {buscando ? (
                 <>
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>Consultando...</span>
+                  <span>Buscando...</span>
                 </>
               ) : (
                 <>
-                  <span>{modoBusca === 'nome' ? 'Localizar Empresa' : 'Consultar CNPJ'}</span>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                  <span>{modoBusca === 'nome' ? 'Buscar Empresa' : 'Consultar CNPJ'}</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 </>
@@ -854,23 +732,59 @@ export default function HomePage() {
 
           {/* STATUS DE CONSULTA NA RECEITA FEDERAL */}
           {buscandoReceita && (
-            <div className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl text-sm font-semibold flex items-center gap-3 animate-fade-in">
-              <svg className="animate-spin h-5 w-5 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
+            <div className="mt-2.5 px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs font-medium flex items-center gap-2 animate-fade-in">
+              <svg className="animate-spin h-4 w-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>Consultando dados cadastrais, CNAE e enquadramento de Grau de Risco na Receita Federal do Brasil...</span>
+              <span>Consultando dados cadastrais, CNAE e Grau de Risco na Receita Federal do Brasil...</span>
             </div>
           )}
 
+          {/* LINKS DE ALTERNÂNCIA E AJUDA */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500">
+            {modoBusca === 'nome' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('cnpj');
+                  setBusca('');
+                }}
+                className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2 text-left"
+              >
+                Não encontrou pelo nome? Digite o CNPJ diretamente aqui →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setModoBusca('nome');
+                  setBusca('');
+                }}
+                className="text-blue-600 hover:text-blue-800 font-semibold underline underline-offset-2 text-left"
+              >
+                Prefere buscar pelo nome fantasia da empresa? Clique aqui →
+              </button>
+            )}
+
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent('consultar cnpj ' + (busca || 'minha empresa'))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-400 hover:text-slate-600 hover:underline inline-flex items-center gap-1 shrink-0"
+            >
+              Consultar no Google ↗
+            </a>
+          </div>
+
           {/* DROPDOWN DE SUGESTÕES */}
           {mostrarDropdown && (
-            <div className="absolute left-6 right-6 top-[220px] z-30 bg-white rounded-2xl border-2 border-slate-300 shadow-2xl overflow-hidden max-h-96 overflow-y-auto animate-fade-in divide-y divide-slate-100">
+            <div className="absolute left-6 right-6 top-[138px] z-20 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-h-80 overflow-y-auto animate-fade-in divide-y divide-slate-100">
               {sugestoes.length > 0 ? (
                 <>
-                  <div className="px-5 py-3 bg-slate-50 text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                  <div className="px-4 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                     <span>{sugestoes.length} {sugestoes.length === 1 ? 'Empresa encontrada' : 'Empresas encontradas'}</span>
-                    <span className="text-slate-400 font-normal">Clique para vincular e iniciar diagnóstico</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Clique para vincular e gerar score</span>
                   </div>
 
                   {sugestoes.map((emp, index) => (
@@ -878,37 +792,42 @@ export default function HomePage() {
                       key={index}
                       type="button"
                       onClick={() => handleSelecionarEmpresa(emp)}
-                      className="w-full px-5 py-4 text-left hover:bg-blue-50/80 transition-colors flex items-start justify-between gap-4 group cursor-pointer"
+                      className="w-full px-4 py-3 text-left hover:bg-blue-50/80 transition-colors flex items-start justify-between gap-3 group cursor-pointer"
                     >
-                      <div className="space-y-1 min-w-0">
+                      <div className="space-y-0.5 min-w-0">
                         <div className="flex items-center gap-2">
-                          <div className="font-bold text-base text-slate-900 group-hover:text-blue-700 truncate">
+                          <div className="font-bold text-sm text-slate-900 group-hover:text-blue-700 truncate">
                             {emp.razao_social}
                           </div>
                           {emp.origem === 'receita_federal' && (
-                            <span className="shrink-0 px-2.5 py-0.5 text-xs font-bold bg-emerald-100 text-emerald-800 rounded-md">
+                            <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded-md">
                               Receita Federal
+                            </span>
+                          )}
+                          {emp.origem === 'local' && (
+                            <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded-md">
+                              Base Integrada
                             </span>
                           )}
                         </div>
 
                         {emp.nome_fantasia && emp.nome_fantasia !== emp.razao_social && (
-                          <div className="text-sm text-slate-600 font-medium">
-                            Nome Fantasia: {emp.nome_fantasia}
+                          <div className="text-xs text-slate-500 font-medium">
+                            Nome fantasia: {emp.nome_fantasia}
                           </div>
                         )}
                         {emp.cnae_descricao && (
-                          <div className="text-xs text-slate-500 truncate">
-                            Atividade: {emp.cnae_descricao}
+                          <div className="text-[11px] text-slate-400 truncate">
+                            {emp.cnae_descricao}
                           </div>
                         )}
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="inline-block px-3 py-1 rounded-lg bg-slate-100 group-hover:bg-blue-100 text-xs font-mono font-bold text-slate-800 group-hover:text-blue-900">
+                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100 text-[11px] font-mono font-semibold text-slate-700 group-hover:text-blue-800">
                           {emp.cnpj}
                         </span>
-                        <div className="text-xs text-slate-500 mt-1">
+                        <div className="text-[11px] text-slate-400 mt-0.5">
                           {emp.cidade} - {emp.uf}
                         </div>
                       </div>
@@ -916,14 +835,14 @@ export default function HomePage() {
                   ))}
                 </>
               ) : !buscando && busca.trim().length >= 3 ? (
-                <div className="p-6 text-center space-y-4">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto text-xl">
+                <div className="p-5 text-center space-y-3">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto text-base">
                     🔍
                   </div>
                   {modoBusca === 'nome' ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-slate-700 font-medium">
-                        Não encontramos resultados rápidos pelo nome <strong>&quot;{busca}&quot;</strong>.
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-600 font-medium">
+                        Não encontramos empresas pelo termo <strong>&quot;{busca}&quot;</strong> na amostragem rápida.
                       </p>
                       <button
                         type="button"
@@ -933,16 +852,16 @@ export default function HomePage() {
                           setSugestoes([]);
                           setMostrarDropdown(false);
                         }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition shadow-sm cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
                       >
                         <span>🏢 Digitar ou Colar CNPJ Diretamente (100% Preciso)</span>
                         <span>→</span>
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-slate-700 font-medium">
-                        CNPJ: <strong className="font-mono text-base">{busca}</strong>
+                    <div className="space-y-2">
+                      <p className="text-xs text-slate-600 font-medium">
+                        CNPJ: <strong className="font-mono">{busca}</strong>
                       </p>
                       <button
                         type="button"
@@ -957,7 +876,7 @@ export default function HomePage() {
                           });
                           setMostrarDropdown(false);
                         }}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition shadow-sm cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
                       >
                         <span>✓ Continuar com este CNPJ e Avançar</span>
                         <span>→</span>
@@ -969,43 +888,40 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* CARD DA EMPRESA SELECIONADA */}
+          {/* CARD DA EMPRESA VINCULADA */}
           {empresaSelecionada && (
-            <div className="p-6 bg-blue-50/90 rounded-3xl border-2 border-blue-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
-              <div className="space-y-2">
+            <div className="mt-5 p-4 bg-blue-50/80 rounded-2xl border border-blue-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold text-blue-800 uppercase tracking-wider bg-white px-3 py-1 rounded-full border border-blue-200">
-                    ✓ Empresa Selecionada
+                  <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-white px-2 py-0.5 rounded border border-blue-200">
+                    ✓ Empresa Vinculada
                   </span>
                   {empresaSelecionada.origem === 'receita_federal' && (
-                    <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                       🟢 Base Oficial da Receita Federal
                     </span>
                   )}
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                <h3 className="text-base font-bold text-slate-900">
                   {empresaSelecionada.razao_social}
                 </h3>
-
                 {empresaSelecionada.nome_fantasia && empresaSelecionada.nome_fantasia !== empresaSelecionada.razao_social && (
-                  <p className="text-sm text-slate-700 font-semibold">
+                  <p className="text-xs text-slate-600 font-medium">
                     Nome Fantasia: {empresaSelecionada.nome_fantasia}
                   </p>
                 )}
-
-                <div className="text-sm text-slate-600 flex flex-wrap gap-x-6 gap-y-1.5 pt-1">
-                  <span>CNPJ: <strong className="font-mono text-slate-900 font-bold">{empresaSelecionada.cnpj}</strong></span>
-                  <span>Cidade: <strong className="text-slate-900">{empresaSelecionada.cidade} - {empresaSelecionada.uf}</strong></span>
+                <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                  <span>CNPJ: <strong className="font-mono text-slate-800">{empresaSelecionada.cnpj}</strong></span>
+                  <span>Localização: <strong>{empresaSelecionada.cidade} - {empresaSelecionada.uf}</strong></span>
                   {empresaSelecionada.cnae_descricao && (
-                    <span className="w-full text-xs sm:text-sm text-slate-700">
-                      CNAE / Atividade: <strong className="text-slate-900">{empresaSelecionada.cnae_descricao}</strong>
-                    </span>
+                    <span className="w-full sm:w-auto truncate">Atividade: <strong>{empresaSelecionada.cnae_descricao}</strong></span>
+                  )}
+                  {empresaSelecionada.porte && (
+                    <span>Porte: <strong>{empresaSelecionada.porte}</strong></span>
                   )}
                   {empresaSelecionada.grau_risco && (
-                    <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 font-bold px-2.5 py-0.5 rounded-lg text-xs">
-                      ⚠️ NR-04: Grau de Risco {empresaSelecionada.grau_risco}
-                    </span>
+                    <span>Risco NR-4: <strong>Grau {empresaSelecionada.grau_risco}</strong></span>
                   )}
                 </div>
               </div>
@@ -1013,54 +929,56 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleLimparBusca}
-                className="text-sm text-blue-700 hover:text-blue-900 font-bold underline underline-offset-4 shrink-0 py-2 px-3 bg-white hover:bg-slate-50 rounded-xl border border-blue-200 cursor-pointer"
+                className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-2 shrink-0 py-1"
               >
-                Trocar Empresa
+                Trocar empresa
               </button>
             </div>
           )}
         </div>
 
-        {/* FORMULÁRIO DE AVALIAÇÃO DOS PROGRAMAS SST & CONTATO */}
+        {/* FORMULÁRIO DE PERGUNTAS ESTRATÉGICAS & DADOS DE CONTATO (PREENCHIDOS ANTES DO SCORE) */}
         {empresaSelecionada && (mostrarFormulario || scoreCalculado === null) && (
           <div
             ref={formRef}
-            className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl space-y-8 animate-fade-in"
+            className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xl space-y-6 animate-fade-in"
           >
-            <div className="border-b border-slate-200 pb-6 space-y-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-100 text-blue-900 text-xs sm:text-sm font-bold uppercase tracking-wider">
-                <span>Etapa 2 de 2</span>
+            {/* Cabeçalho do formulário */}
+            <div className="border-b border-slate-100 pb-5 space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider">
+                <span>Passo Obrigatório</span>
                 <span>•</span>
-                <span>Questionário dos Programas de SST & Responsável</span>
+                <span>Questionário dos Programas SST & Contato</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Diagnóstico de Conformidade das Normas Regulamentadoras
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Diagnóstico de Conformidade & Riscos SST
               </h3>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-3xl">
-                Para calcular com precisão o <strong className="text-slate-900">Score SST</strong> de <span className="font-bold text-slate-900">{empresaSelecionada.razao_social}</span>, informe seus dados de contato e a situação real dos programas exigidos pelo Ministério do Trabalho e eSocial.
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Para calcular com precisão o <strong>Score SST</strong> de <span className="font-semibold text-slate-900">{empresaSelecionada.razao_social}</span>, informe seus dados de contato e a situação real dos programas obrigatórios perante o Ministério do Trabalho e eSocial.
               </p>
             </div>
 
             {erroFormulario && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-red-50 border-2 border-red-200 text-red-900 text-sm font-bold flex items-center gap-3 animate-fade-in">
-                <span className="text-red-600 text-xl shrink-0">⚠️</span>
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-semibold flex items-center gap-2 animate-fade-in">
+                <span className="text-red-600 text-base">⚠️</span>
                 <span>{erroFormulario}</span>
               </div>
             )}
 
-            <form onSubmit={handleCalcularScore} className="space-y-8">
-              {/* BLOCO 1: DADOS DO RESPONSÁVEL */}
+            <form onSubmit={handleCalcularScore} className="space-y-6">
+              {/* BLOCO 1: DADOS DE CONTATO DO RESPONSÁVEL */}
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-black flex items-center justify-center">1</span>
-                  <h4 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                     Dados do Responsável pelo Diagnóstico
                   </h4>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Nome */}
                   <div>
-                    <label className="block text-sm font-bold text-slate-800 mb-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       Nome Completo: <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1068,15 +986,16 @@ export default function HomePage() {
                       required
                       value={nomeLead}
                       onChange={(e) => setNomeLead(e.target.value)}
-                      placeholder="Ex: Carlos Eduardo de Oliveira"
-                      className="w-full h-14 px-4 rounded-xl border border-slate-300 text-base focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                      placeholder="Ex: João da Silva"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition"
                     />
                   </div>
 
+                  {/* WhatsApp */}
                   <div>
-                    <label className="block text-sm font-bold text-slate-800 mb-2 flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
                       <span>WhatsApp com DDD: <span className="text-red-500">*</span></span>
-                      <span className="text-xs text-emerald-700 font-semibold">📱 Envio Oficial</span>
+                      <span className="text-[10px] text-emerald-600 font-semibold">📱 Envio do Laudo</span>
                     </label>
                     <input
                       type="tel"
@@ -1085,12 +1004,13 @@ export default function HomePage() {
                       onChange={(e) => setWhatsappLead(formatarTelefoneInput(e.target.value))}
                       placeholder="(11) 98765-4321"
                       maxLength={15}
-                      className="w-full h-14 px-4 rounded-xl border border-slate-300 text-base font-mono focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition font-mono"
                     />
                   </div>
 
+                  {/* E-mail */}
                   <div>
-                    <label className="block text-sm font-bold text-slate-800 mb-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       E-mail Corporativo: <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1099,36 +1019,36 @@ export default function HomePage() {
                       value={emailLead}
                       onChange={(e) => setEmailLead(e.target.value)}
                       placeholder="contato@empresa.com.br"
-                      className="w-full h-14 px-4 rounded-xl border border-slate-300 text-base focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50 focus:bg-white transition"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* BLOCO 2: PROGRAMAS OBRIGATÓRIOS DE SST */}
-              <div className="space-y-6 pt-6 border-t border-slate-200">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-black flex items-center justify-center">2</span>
-                  <h4 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-wide">
-                    Programas Ocupacionais Obrigatórios (Portaria MTP 672 / CLT)
+              {/* BLOCO 2: PROGRAMAS DE SST OBRIGATÓRIOS */}
+              <div className="space-y-5 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Programas & Exigências Ocupacionais (NRs e eSocial)
                   </h4>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* PGR */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">📄</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Pergunta 1: PGR */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📄</span>
                       <div>
-                        <span className="block text-sm sm:text-base font-black text-slate-900">
+                        <span className="block text-xs font-bold text-slate-800">
                           PGR — Programa de Gerenciamento de Riscos (NR-01)
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-600">
-                          Mapeamento de riscos físicos, químicos, biológicos e ergonômicos com Plano de Ação.
+                        <span className="text-[11px] text-slate-500">
+                          Identificação de riscos operacionais e plano de prevenção.
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 pt-2">
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       {[
                         { id: 'vigente', label: 'Possui Vigente' },
                         { id: 'vencido', label: 'Possui Vencido' },
@@ -1139,10 +1059,10 @@ export default function HomePage() {
                           key={op.id}
                           type="button"
                           onClick={() => setTemPgr(op.id as any)}
-                          className={`p-3 text-xs sm:text-sm font-bold rounded-xl border transition text-left cursor-pointer ${
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
                             temPgr === op.id
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                           }`}
                         >
                           {temPgr === op.id ? '✓ ' : ''}{op.label}
@@ -1151,20 +1071,20 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* PCMSO */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">🩺</span>
+                  {/* Pergunta 2: PCMSO */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">🩺</span>
                       <div>
-                        <span className="block text-sm sm:text-base font-black text-slate-900">
+                        <span className="block text-xs font-bold text-slate-800">
                           PCMSO — Controle Médico de Saúde Ocupacional (NR-07)
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-600">
-                          Planejamento dos exames clínicos e complementares coordenado por Médico do Trabalho.
+                        <span className="text-[11px] text-slate-500">
+                          Planejamento de exames coordenado por médico do trabalho.
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 pt-2">
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       {[
                         { id: 'vigente', label: 'Possui Vigente' },
                         { id: 'vencido', label: 'Possui Vencido' },
@@ -1175,10 +1095,10 @@ export default function HomePage() {
                           key={op.id}
                           type="button"
                           onClick={() => setTemPcmso(op.id as any)}
-                          className={`p-3 text-xs sm:text-sm font-bold rounded-xl border transition text-left cursor-pointer ${
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
                             temPcmso === op.id
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                           }`}
                         >
                           {temPcmso === op.id ? '✓ ' : ''}{op.label}
@@ -1187,20 +1107,20 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* ASO */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">📋</span>
+                  {/* Pergunta 3: Exames Ocupacionais / ASO */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📋</span>
                       <div>
-                        <span className="block text-sm sm:text-base font-black text-slate-900">
+                        <span className="block text-xs font-bold text-slate-800">
                           Exames Médicos Ocupacionais (ASO)
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-600">
-                          Atestados Admissionais, Periódicos e Demissionais dos colaboradores CLT.
+                        <span className="text-[11px] text-slate-500">
+                          Exames admissionais, periódicos e demissionais dos colaboradores.
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                       {[
                         { id: 'em_dia', label: 'Todos em Dia' },
                         { id: 'parcial', label: 'Exames em Atraso' },
@@ -1210,10 +1130,10 @@ export default function HomePage() {
                           key={op.id}
                           type="button"
                           onClick={() => setTemAso(op.id as any)}
-                          className={`p-3 text-xs sm:text-sm font-bold rounded-xl border transition text-center cursor-pointer ${
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
                             temAso === op.id
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                           }`}
                         >
                           {temAso === op.id ? '✓ ' : ''}{op.label}
@@ -1222,20 +1142,20 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* eSocial SST */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">📡</span>
+                  {/* Pergunta 4: Transmissão ao eSocial */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">📡</span>
                       <div>
-                        <span className="block text-sm sm:text-base font-black text-slate-900">
+                        <span className="block text-xs font-bold text-slate-800">
                           Eventos de SST no eSocial (S-2210, S-2220, S-2240)
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-600">
-                          Comunicação obrigatória de acidentes, exames médicos e agentes nocivos para o PPP Digital.
+                        <span className="text-[11px] text-slate-500">
+                          Comunicação de acidentes, monitoramento e agentes nocivos.
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                       {[
                         { id: 'transmite', label: 'Transmite em Dia' },
                         { id: 'pendente', label: 'Pendente / Dúvida' },
@@ -1245,10 +1165,10 @@ export default function HomePage() {
                           key={op.id}
                           type="button"
                           onClick={() => setEnviaEsocial(op.id as any)}
-                          className={`p-3 text-xs sm:text-sm font-bold rounded-xl border transition text-center cursor-pointer ${
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
                             enviaEsocial === op.id
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                           }`}
                         >
                           {enviaEsocial === op.id ? '✓ ' : ''}{op.label}
@@ -1257,20 +1177,20 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* LTCAT */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">⚖️</span>
+                  {/* Pergunta 5: LTCAT */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">⚖️</span>
                       <div>
-                        <span className="block text-sm sm:text-base font-black text-slate-900">
+                        <span className="block text-xs font-bold text-slate-800">
                           LTCAT / Laudo de Insalubridade e Periculosidade
                         </span>
-                        <span className="text-xs sm:text-sm text-slate-600">
-                          Laudo previdenciário para fins de aposentadoria especial e adicionais da CLT.
+                        <span className="text-[11px] text-slate-500">
+                          Laudo para previdência social, PPP e adicionais trabalhistas.
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 pt-2">
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       {[
                         { id: 'vigente', label: 'Possui Emitido' },
                         { id: 'vencido', label: 'Desatualizado' },
@@ -1281,10 +1201,10 @@ export default function HomePage() {
                           key={op.id}
                           type="button"
                           onClick={() => setTemLtcat(op.id as any)}
-                          className={`p-3 text-xs sm:text-sm font-bold rounded-xl border transition text-left cursor-pointer ${
+                          className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-left cursor-pointer ${
                             temLtcat === op.id
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50/30'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
                           }`}
                         >
                           {temLtcat === op.id ? '✓ ' : ''}{op.label}
@@ -1293,13 +1213,13 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* Quantidade de Colaboradores e Histórico */}
-                  <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-slate-50/70 space-y-4">
+                  {/* Pergunta 6 & 7: Equipe e Histórico */}
+                  <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3.5">
                     <div>
-                      <div className="text-sm font-bold text-slate-900 mb-2">
-                        👥 Quantidade de Colaboradores CLT:
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
+                        <span>👥 Nº Estimado de Colaboradores CLT / Ativos:</span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                         {[
                           { id: '1_5', label: '1 a 5' },
                           { id: '6_20', label: '6 a 20' },
@@ -1310,9 +1230,9 @@ export default function HomePage() {
                             key={op.id}
                             type="button"
                             onClick={() => setQtdColaboradores(op.id as any)}
-                            className={`p-2.5 text-xs sm:text-sm font-bold rounded-xl border transition text-center cursor-pointer ${
+                            className={`px-2 py-1.5 text-xs font-semibold rounded-lg border transition text-center cursor-pointer ${
                               qtdColaboradores === op.id
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                ? 'bg-blue-600 text-white border-blue-600'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -1322,11 +1242,11 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-200">
-                      <div className="text-sm font-bold text-slate-900 mb-2">
-                        ⚠️ Notificação, fiscalização ou acidente nos últimos 12 meses?
+                    <div className="pt-2 border-t border-slate-200/60">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-1">
+                        <span>⚠️ Notificação, Fiscalização ou Acidente nos últimos 12 meses?</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
                         {[
                           { id: 'nao', label: 'Não, sem ocorrências' },
                           { id: 'sim', label: 'Sim, houve notificação' },
@@ -1335,9 +1255,9 @@ export default function HomePage() {
                             key={op.id}
                             type="button"
                             onClick={() => setTeveAcidenteOuFiscalizacao(op.id as any)}
-                            className={`p-2.5 text-xs sm:text-sm font-bold rounded-xl border transition text-center cursor-pointer ${
+                            className={`px-3 py-2 text-xs font-semibold rounded-xl border transition text-center cursor-pointer ${
                               teveAcidenteOuFiscalizacao === op.id
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                ? 'bg-blue-600 text-white border-blue-600'
                                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -1350,16 +1270,16 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* BOTÃO PRINCIPAL DE CÁLCULO EXPANDIDO */}
-              <div className="pt-4">
+              {/* BOTÃO PRINCIPAL DE CÁLCULO */}
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={calculandoScore}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-extrabold py-5 px-8 rounded-2xl text-lg sm:text-xl transition shadow-xl hover:shadow-2xl flex items-center justify-center gap-3 cursor-pointer group"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-extrabold py-4 px-6 rounded-2xl text-base sm:text-lg transition shadow-lg hover:shadow-xl flex items-center justify-center gap-3 cursor-pointer group"
                 >
                   {calculandoScore ? (
                     <>
-                      <svg className="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -1367,22 +1287,22 @@ export default function HomePage() {
                     </>
                   ) : (
                     <>
-                      <span>Calcular Score SST da Minha Empresa</span>
-                      <span className="text-emerald-200 group-hover:translate-x-1.5 transition-transform">→</span>
+                      <span>⚡ Calcular Score SST da Minha Empresa</span>
+                      <span className="text-emerald-200 group-hover:translate-x-1 transition-transform">→</span>
                     </>
                   )}
                 </button>
-                <p className="text-xs sm:text-sm text-center text-slate-500 mt-3 font-medium">
-                  🔒 Seus dados estão seguros e protegidos pela LGPD. O cálculo é imediato, pericial e confidencial.
+                <p className="text-[11px] text-center text-slate-400 mt-2">
+                  🔒 Seus dados estão seguros e protegidos pela LGPD. O cálculo é imediato e confidencial.
                 </p>
               </div>
             </form>
           </div>
         )}
 
-        {/* ÁREA DO VELOCÍMETRO / MEDIDOR DE SCORE SST */}
+        {/* ÁREA DO VELOCÍMETRO / MEDIDOR DE SCORE SST (SÓ APARECE APÓS PREENCHER O QUESTIONÁRIO E CONTATO) */}
         {scoreCalculado !== null && empresaSelecionada && (
-          <div ref={scoreRef} className="space-y-8 animate-fade-in pt-4">
+          <div ref={scoreRef} className="space-y-6 animate-fade-in pt-2">
             <SstScoreGauge
               score={scoreCalculado}
               empresaNome={empresaSelecionada.razao_social}
@@ -1397,21 +1317,18 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* EXEMPLOS CASO NENHUMA EMPRESA TENHA SIDO PESQUISADA */}
+        {/* SE NÃO PESQUISOU NADA AINDA: EXEMPLOS E APRESENTAÇÃO */}
         {!empresaSelecionada && (
-          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wider">
-                Exemplos de empresas para simulação imediata:
-              </h3>
-              <span className="text-xs text-slate-500 hidden sm:inline">Clique para testar</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 space-y-4">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+              Empresas em destaque para consulta imediata:
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { nome: 'Metalúrgica Aliança & Soldas Ltda', cnpj: '12.345.678/0001-90', cidade: 'São Paulo - SP', ramo: 'Metalurgia / Indústria' },
                 { nome: 'Construtora Horizonte Forte Ltda', cnpj: '23.456.789/0001-01', cidade: 'Curitiba - PR', ramo: 'Construção Civil' },
-                { nome: 'Transportadora Rápido Brasil Ltda', cnpj: '34.567.890/0001-12', cidade: 'Campinas - SP', ramo: 'Logística e Transportes' },
-                { nome: 'Padaria & Restaurante Delícias do Trigo', cnpj: '56.789.012/0001-34', cidade: 'Santos - SP', ramo: 'Comércio / Alimentação' },
+                { nome: 'Transportadora Rápido Brasil Ltda', cnpj: '34.567.890/0001-12', cidade: 'Campinas - SP', ramo: 'Logística e Fretes' },
+                { nome: 'Padaria & Restaurante Delícias do Trigo', cnpj: '56.789.012/0001-34', cidade: 'Santos - SP', ramo: 'Alimentação' },
               ].map((item, idx) => (
                 <button
                   key={idx}
@@ -1426,17 +1343,17 @@ export default function HomePage() {
                       grau_risco: 3,
                     })
                   }
-                  className="p-4 rounded-2xl border-2 border-slate-200 hover:border-blue-600 hover:bg-blue-50/50 text-left transition flex items-center justify-between group cursor-pointer"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 text-left transition flex items-center justify-between group cursor-pointer"
                 >
-                  <div className="space-y-0.5">
-                    <div className="text-sm font-bold text-slate-900 group-hover:text-blue-700">
+                  <div>
+                    <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">
                       {item.nome}
                     </div>
-                    <div className="text-xs text-slate-500 font-mono">
+                    <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
                       {item.cnpj} • {item.cidade}
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                     Consultar →
                   </span>
                 </button>
@@ -1446,326 +1363,18 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* SEÇÃO RICA 1: OS 4 PROGRAMAS OBRIGATÓRIOS DA LEGISLAÇÃO BRASILEIRA */}
-      <section id="programas-obrigatorios" className="bg-white border-t border-slate-200 py-16 sm:py-24 px-4 sm:px-8">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <span className="text-xs sm:text-sm font-bold text-blue-700 uppercase tracking-widest bg-blue-50 px-4 py-1.5 rounded-full border border-blue-200">
-              Conformidade Legal Obrigatória
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Os 4 Pilares de SST Exigidos por Lei
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600">
-              Toda empresa brasileira com funcionários regidos pela CLT deve manter estes programas e laudos vigentes para evitar multas automáticas do eSocial.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-            {/* 1. PGR */}
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-4 hover:border-blue-300 transition">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl">
-                01
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                PGR — Programa de Gerenciamento de Riscos (NR-01)
-              </h3>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                Substituiu o antigo PPRA. O PGR é o documento mestre que contém o Inventário de Riscos (físicos, químicos, biológicos, ergonômicos e mecânicos) e o Plano de Ação para prevenção contínua no ambiente de trabalho.
-              </p>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 bg-white p-3 rounded-xl border border-slate-200">
-                ✓ Assinado por Engenheiro de Segurança do Trabalho com ART.
-              </div>
-            </div>
-
-            {/* 2. PCMSO */}
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-4 hover:border-blue-300 transition">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xl">
-                02
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                PCMSO — Controle Médico de Saúde Ocupacional (NR-07)
-              </h3>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                Elaborado em consonância com os riscos mapeados no PGR. O PCMSO estabelece o cronograma de exames clínicos, complementares e o monitoramento da saúde física e mental dos colaboradores.
-              </p>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 bg-white p-3 rounded-xl border border-slate-200">
-                ✓ Coordenado obrigatoriamente por Médico do Trabalho (com RQE).
-              </div>
-            </div>
-
-            {/* 3. ASO */}
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-4 hover:border-blue-300 transition">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-xl">
-                03
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                ASO — Atestado de Saúde Ocupacional
-              </h3>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                Atesta a aptidão médica do trabalhador para a sua função específica. É obrigatório em 5 momentos: Admissional, Periódico, Retorno ao Trabalho, Mudança de Riscos Ocupacionais e Demissional.
-              </p>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 bg-white p-3 rounded-xl border border-slate-200">
-                ✓ Emitido por Médico Examinador credenciado pela CET.
-              </div>
-            </div>
-
-            {/* 4. eSocial SST */}
-            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 space-y-4 hover:border-blue-300 transition">
-              <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black text-xl">
-                04
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                Eventos de SST no eSocial (S-2210, S-2220, S-2240)
-              </h3>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                Transmissão eletrônica mensal direta para a base do Governo Federal: Comunicação de Acidente de Trabalho (S-2210), Monitoramento da Saúde do Trabalhador (S-2220) e Condições Ambientais do Trabalho (S-2240) para o PPP Eletrônico.
-              </p>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 bg-white p-3 rounded-xl border border-slate-200">
-                ✓ Transmissão automatizada e protocolo oficial da Receita Federal.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SEÇÃO RICA 2: TABELA DE MULTAS OFICIAL (CLT / MTP) */}
-      <section id="tabela-multas" className="bg-slate-900 text-white py-16 sm:py-24 px-4 sm:px-8 border-b border-slate-800">
-        <div className="max-w-6xl mx-auto space-y-10">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <span className="text-xs sm:text-sm font-bold text-red-400 uppercase tracking-widest bg-red-950/80 border border-red-800 px-4 py-1.5 rounded-full">
-              Riscos Financeiros e Previdenciários
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-              Tabela Oficial de Multas & Penalidades (CLT / eSocial)
-            </h2>
-            <p className="text-base sm:text-lg text-slate-300 leading-relaxed">
-              O cruzamento de dados do eSocial com a Receita Federal é automatizado. O não envio dos eventos ou laudos desatualizados geram autos de infração sem necessidade de visita presencial.
-            </p>
-          </div>
-
-          <div className="overflow-x-auto bg-slate-950/60 rounded-3xl border border-slate-800 p-2 sm:p-4 shadow-2xl">
-            <table className="w-full text-left text-sm sm:text-base">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 text-xs sm:text-sm uppercase tracking-wider">
-                  <th className="py-4 px-4 sm:px-6">Infração Regulatória</th>
-                  <th className="py-4 px-4 sm:px-6">Base Legal</th>
-                  <th className="py-4 px-4 sm:px-6">Valor Estimado da Penalidade</th>
-                  <th className="py-4 px-4 sm:px-6">Impacto Jurídico</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-200 font-medium">
-                <tr className="hover:bg-slate-800/40 transition">
-                  <td className="py-4 px-4 sm:px-6 font-bold text-white">Falta de PGR (NR-01)</td>
-                  <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-400">Portaria MTP 672</td>
-                  <td className="py-4 px-4 sm:px-6 text-red-400 font-bold">R$ 1.201,36 a R$ 5.244,95</td>
-                  <td className="py-4 px-4 sm:px-6 text-xs text-slate-300">Autuação imediata pelo Ministério do Trabalho</td>
-                </tr>
-                <tr className="hover:bg-slate-800/40 transition">
-                  <td className="py-4 px-4 sm:px-6 font-bold text-white">Ausência de PCMSO (NR-07)</td>
-                  <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-400">CLT Art. 168</td>
-                  <td className="py-4 px-4 sm:px-6 text-red-400 font-bold">R$ 1.431,53 a R$ 4.298,07</td>
-                  <td className="py-4 px-4 sm:px-6 text-xs text-slate-300">Multa multiplicada por empregado desprotegido</td>
-                </tr>
-                <tr className="hover:bg-slate-800/40 transition">
-                  <td className="py-4 px-4 sm:px-6 font-bold text-white">Deixar de emitir ASO (Exames)</td>
-                  <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-400">CLT Art. 201</td>
-                  <td className="py-4 px-4 sm:px-6 text-red-400 font-bold">R$ 402,53 a R$ 4.025,33</td>
-                  <td className="py-4 px-4 sm:px-6 text-xs text-slate-300">Por exame não realizado ou fora do prazo</td>
-                </tr>
-                <tr className="hover:bg-slate-800/40 transition">
-                  <td className="py-4 px-4 sm:px-6 font-bold text-white">Não envio ao eSocial (S-2220 / S-2240)</td>
-                  <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-400">Lei 8.213/91 Art. 92</td>
-                  <td className="py-4 px-4 sm:px-6 text-red-400 font-bold">R$ 1.812,87 a R$ 40.253,00</td>
-                  <td className="py-4 px-4 sm:px-6 text-xs text-slate-300">Bloqueio de certidão e notificação da Receita Federal</td>
-                </tr>
-                <tr className="hover:bg-slate-800/40 transition">
-                  <td className="py-4 px-4 sm:px-6 font-bold text-white">Omissão na emissão da CAT (S-2210)</td>
-                  <td className="py-4 px-4 sm:px-6 font-mono text-xs text-slate-400">Lei 8.213/91 Art. 22</td>
-                  <td className="py-4 px-4 sm:px-6 text-red-400 font-bold">R$ 1.412,00 ao Teto do INSS</td>
-                  <td className="py-4 px-4 sm:px-6 text-xs text-slate-300">Multa dobra em caso de reincidência</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="bg-red-950/40 border border-red-800/80 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-1 text-center sm:text-left">
-              <h4 className="text-base font-bold text-red-300">Não espere a notificação da Receita Federal</h4>
-              <p className="text-xs sm:text-sm text-slate-400">Regularize os documentos e transmissões da sua empresa com a equipe pericial da CET.</p>
-            </div>
-            <button
-              type="button"
-              onClick={rolarParaBusca}
-              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-sm transition shrink-0 cursor-pointer"
-            >
-              Consultar Minha Regularidade Agora →
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* SEÇÃO RICA 3: COMO FUNCIONA A ASSESSORIA DA CET */}
-      <section id="como-funciona" className="bg-slate-50 py-16 sm:py-24 px-4 sm:px-8 border-b border-slate-200">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <span className="text-xs sm:text-sm font-bold text-blue-700 uppercase tracking-widest bg-blue-100 px-4 py-1.5 rounded-full">
-              Assessoria Especializada & Sem Burocracia
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Como a CET Regulariza a sua Empresa em 3 Passos
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600">
-              Cuidamos de 100% da parte burocrática, médica e regulatória para que você foque exclusivamente no crescimento do seu negócio.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-black mx-auto border border-blue-200">
-                1
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">Diagnóstico Cadastral</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Consultamos o enquadramento do seu CNPJ, CNAE e Grau de Risco na Receita Federal para apontar exatamente quais NRs se aplicam à sua empresa.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-black mx-auto border border-blue-200">
-                2
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">Elaboração Médica & ART</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Nossos Médicos do Trabalho e Engenheiros de Segurança emitem os laudos oficiais (PGR, PCMSO, LTCAT) e os ASOs conforme o cronograma.
-              </p>
-            </div>
-
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl font-black mx-auto border border-blue-200">
-                3
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">Transmissão eSocial</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Enviamos os eventos S-2210, S-2220 e S-2240 mensalmente para a plataforma oficial do Governo Federal com recibo protocolado.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SEÇÃO RICA 4: PERGUNTAS FREQUENTES (FAQ ACCORDION) */}
-      <section id="faq" className="bg-white py-16 sm:py-24 px-4 sm:px-8 border-b border-slate-200">
-        <div className="max-w-4xl mx-auto space-y-10">
-          <div className="text-center space-y-3">
-            <span className="text-xs sm:text-sm font-bold text-blue-700 uppercase tracking-widest bg-blue-50 px-4 py-1.5 rounded-full border border-blue-200">
-              Tire Suas Dúvidas
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Perguntas Frequentes de Empresários e Contadores
-            </h2>
-            <p className="text-base sm:text-lg text-slate-600">
-              Esclarecimentos técnicos da nossa equipe pericial sobre Segurança e Medicina do Trabalho.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {[
-              {
-                pergunta: 'Minha empresa tem apenas 1 ou 2 funcionários. Sou obrigado a ter PGR e PCMSO?',
-                resposta:
-                  'Sim. De acordo com a CLT e as Normas Regulamentadoras NR-01 e NR-07, qualquer empresa que possua ao menos um trabalhador com registro CLT é obrigada a elaborar o PGR e o PCMSO, além de realizar os exames admissionais, periódicos e demissionais (ASO). Algumas ME/EPP Grau de Risco 1 e 2 sem riscos físicos/químicos podem ter dispensa simplificada com declaração eletrônica, o que nosso diagnóstico apura.',
-              },
-              {
-                pergunta: 'O que acontece se a empresa não transmitir os eventos de SST para o eSocial?',
-                resposta:
-                  'A ausência de transmissão dos eventos S-2210, S-2220 e S-2240 gera autuações automáticas pela Receita Federal e pelo Ministério do Trabalho, com multas que variam de R$ 1.812,87 a mais de R$ 40.000,00 por trabalhador, além de impedir a emissão do PPP Eletrônico e certidões negativas de débito.',
-              },
-              {
-                pergunta: 'Qual a diferença entre o PGR e o antigo PPRA?',
-                resposta:
-                  'O PGR (NR-01) substituiu o PPRA em 2022 com um escopo muito mais abrangente. Enquanto o PPRA focava apenas em riscos ambientais (físicos, químicos e biológicos), o PGR obriga o mapeamento também de riscos ergonômicos e mecânicos/acidentes, além de exigir um plano de ação dinâmico e contínuo.',
-              },
-              {
-                pergunta: 'Como funciona o agendamento dos exames clínicos (ASO)?',
-                resposta:
-                  'A CET conta com rede credenciada própria e clínicas parceiras em todo o Brasil. Os exames clínicos e complementares (audiometria, acuidade visual, exames laboratoriais, etc.) são agendados rapidamente com emissão imediata do Atestado de Saúde Ocupacional assinado pelo médico examinador.',
-              },
-              {
-                pergunta: 'O MEI (Microempreendedor Individual) precisa de assessoria de SST?',
-                resposta:
-                  'O MEI sem empregados está dispensado de PGR e PCMSO. No entanto, se o MEI contratar um funcionário CLT, passa a ser obrigatório cumprir as exigências de exames ocupacionais (ASO) e envio dos eventos de SST ao eSocial.',
-              },
-              {
-                pergunta: 'Como recebo o laudo executivo e a Ficha Técnica após a contratação por R$ 19,90?',
-                resposta:
-                  'Assim que o pagamento via PIX ou Cartão for aprovado, seu token de acesso é gerado na hora e você é redirecionado para a Ficha Técnica. Além disso, nosso sistema envia o link direto para o seu WhatsApp e e-mail cadastrados para que você responda sem pressa e receba o parecer conclusivo.',
-              },
-            ].map((faq, idx) => (
-              <div
-                key={idx}
-                className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50 hover:bg-slate-50 transition"
-              >
-                <button
-                  type="button"
-                  onClick={() => setFaqAberto(faqAberto === idx ? null : idx)}
-                  className="w-full p-5 sm:p-6 text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-slate-900 cursor-pointer"
-                >
-                  <span>{faq.pergunta}</span>
-                  <span className="text-xl font-bold text-blue-600 shrink-0">
-                    {faqAberto === idx ? '−' : '+'}
-                  </span>
-                </button>
-                {faqAberto === idx && (
-                  <div className="px-5 sm:px-6 pb-6 text-sm sm:text-base text-slate-600 leading-relaxed border-t border-slate-200 pt-4 bg-white">
-                    {faq.resposta}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SEÇÃO RICA 5: ATENDIMENTO HUMANIZADO CET */}
-      <section id="contato" className="bg-gradient-to-br from-blue-900 via-slate-900 to-blue-950 text-white py-16 sm:py-20 px-4 sm:px-8">
-        <div className="max-w-5xl mx-auto rounded-3xl p-8 sm:p-12 border border-blue-800 bg-white/5 backdrop-blur-sm flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-3 text-center md:text-left">
-            <span className="text-xs sm:text-sm font-bold text-emerald-400 uppercase tracking-widest bg-emerald-950/80 border border-emerald-800 px-3 py-1 rounded-full">
-              Atendimento Especializado
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Prefere falar com um especialista agora?
-            </h3>
-            <p className="text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
-              Tire dúvidas sobre enquadramento de grau de risco da sua empresa, orçamentos para laudos em lote ou contratos corporativos diretamente no WhatsApp com nossos consultores técnicos.
-            </p>
-          </div>
-
-          <a
-            href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Acessei%20o%20portal%20da%20CET%20e%20gostaria%20de%20falar%20com%20um%20consultor%20t%C3%A9cnico%20sobre%20SST."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-8 py-5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-base sm:text-lg transition shadow-xl hover:shadow-2xl flex items-center justify-center gap-3 shrink-0"
-          >
-            <span>📱 Falar com Consultor no WhatsApp</span>
-            <span>→</span>
-          </a>
-        </div>
-      </section>
-
       {/* MODAL DE CHECKOUT TRANSPARENTE ASAAS - R$ 19,90 (PIX E CARTÃO) */}
       {modalCheckoutAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] overflow-y-auto">
             {/* Cabeçalho do Modal */}
-            <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-base">
+            <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-black text-sm">
                   ✓
                 </div>
                 <div>
-                  <h3 className="text-lg font-black tracking-tight">Diagnóstico Completo de SST</h3>
+                  <h3 className="text-base font-bold tracking-tight">Diagnóstico Completo SST</h3>
                   <p className="text-xs text-slate-400">Checkout Transparente Oficial Asaas • R$ 19,90</p>
                 </div>
               </div>
@@ -1776,50 +1385,52 @@ export default function HomePage() {
                   setModalCheckoutAberto(false);
                   if (pollingRef.current) clearInterval(pollingRef.current);
                 }}
-                className="p-2 text-slate-400 hover:text-white rounded-xl text-xl cursor-pointer"
+                className="p-1 text-slate-400 hover:text-white rounded-lg text-lg"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-6 sm:p-8 space-y-6">
+            <div className="p-6 space-y-4">
+              {/* Se o pagamento já foi confirmado */}
               {pagamentoConcluido ? (
-                <div className="text-center py-6 space-y-5 animate-fade-in">
-                  <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-4xl font-black shadow-inner">
+                <div className="text-center py-4 space-y-4 animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl font-black shadow-inner">
                     ✓
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-2xl font-black text-slate-900">
+                  <div className="space-y-1">
+                    <h4 className="text-xl font-extrabold text-slate-900">
                       Pagamento Aprovado com Sucesso!
                     </h4>
-                    <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
-                      Seu Diagnóstico Técnico de SST foi liberado. Acesse a <strong>Ficha Técnica</strong> da empresa para emissão do laudo conclusivo com as assinaturas periciais.
+                    <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+                      Seu Diagnóstico Completo de SST foi liberado. Responda às <strong>perguntas estratégicas</strong> da ficha técnica para emissão do laudo definitivo em PDF.
                     </p>
                   </div>
 
-                  <div className="pt-3">
+                  <div className="pt-2">
                     <Link
                       href={tokenFicha ? `/ficha/${tokenFicha}` : '/ficha'}
-                      className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 px-6 rounded-2xl text-base transition shadow-lg"
+                      className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition shadow-md"
                     >
-                      <span>Acessar Ficha Técnica & Concluir Diagnóstico</span>
+                      <span>Acessar Ficha & Concluir Meu Diagnóstico</span>
                       <span>→</span>
                     </Link>
                   </div>
                 </div>
               ) : !pixCopiaCola ? (
-                <form onSubmit={handleProcessarPagamento} className="space-y-5">
+                // FORMULÁRIO DE CHECKOUT (PIX OU CARTÃO)
+                <form onSubmit={handleProcessarPagamento} className="space-y-4">
                   {/* Seletor de Método de Pagamento */}
-                  <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl">
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
                     <button
                       type="button"
                       onClick={() => {
                         setMetodoCheckout('pix');
                         setErroCheckout('');
                       }}
-                      className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                         metodoCheckout === 'pix'
-                          ? 'bg-white text-emerald-700 shadow-sm'
+                          ? 'bg-white text-emerald-700 shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -1831,9 +1442,9 @@ export default function HomePage() {
                         setMetodoCheckout('cartao');
                         setErroCheckout('');
                       }}
-                      className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                         metodoCheckout === 'cartao'
-                          ? 'bg-white text-blue-700 shadow-sm'
+                          ? 'bg-white text-blue-700 shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -1842,32 +1453,33 @@ export default function HomePage() {
                   </div>
 
                   {/* Resumo da Empresa Selecionada */}
-                  <div className="bg-blue-50/90 rounded-2xl p-4 border border-blue-200 text-sm text-blue-900 flex justify-between items-center">
+                  <div className="bg-blue-50/80 rounded-2xl p-3 border border-blue-200/80 text-xs text-blue-900 flex justify-between items-center">
                     <div>
-                      <div className="font-bold text-base text-blue-950">
+                      <div className="font-bold text-sm text-blue-950">
                         {empresaSelecionada?.razao_social || 'Sua Empresa'}
                       </div>
-                      <div className="font-mono text-xs text-blue-800 mt-0.5">
+                      <div className="font-mono text-[11px] text-blue-800">
                         CNPJ: {empresaSelecionada?.cnpj}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs text-slate-500 uppercase block font-semibold">Valor Único</span>
-                      <span className="text-xl font-black text-emerald-700">R$ 19,90</span>
+                      <span className="text-[10px] text-slate-500 uppercase block font-semibold">Valor Único</span>
+                      <span className="text-base font-extrabold text-emerald-700">R$ 19,90</span>
                     </div>
                   </div>
 
+                  {/* Alerta de Erro se houver */}
                   {erroCheckout && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs sm:text-sm text-red-900 flex items-start gap-2.5">
-                      <span className="text-red-600 font-bold text-base shrink-0">⚠️</span>
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2">
+                      <span className="text-red-600 font-bold shrink-0">⚠️</span>
                       <p>{erroCheckout}</p>
                     </div>
                   )}
 
                   {/* DADOS DO RESPONSÁVEL */}
-                  <div className="space-y-3.5">
+                  <div className="space-y-3 pt-1">
                     <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
                         Seu Nome Completo:
                       </label>
                       <input
@@ -1875,14 +1487,14 @@ export default function HomePage() {
                         required
                         value={nomeLead}
                         onChange={(e) => setNomeLead(e.target.value)}
-                        placeholder="Ex: Carlos Eduardo de Oliveira"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                        placeholder="Ex: João da Silva"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           WhatsApp:
                         </label>
                         <input
@@ -1891,12 +1503,12 @@ export default function HomePage() {
                           value={whatsappLead}
                           onChange={(e) => setWhatsappLead(e.target.value)}
                           placeholder="(11) 98765-4321"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                           E-mail (opcional):
                         </label>
                         <input
@@ -1904,15 +1516,15 @@ export default function HomePage() {
                           value={emailLead}
                           onChange={(e) => setEmailLead(e.target.value)}
                           placeholder="contato@empresa.com.br"
-                          className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
                         <span>CPF ou CNPJ do Pagador:</span>
-                        <span className="text-xs text-emerald-700 font-bold">✓ Exigência Banco Central</span>
+                        <span className="text-[10px] text-emerald-600 font-bold">✓ Exigência Banco Central</span>
                       </label>
                       <input
                         type="text"
@@ -1921,24 +1533,24 @@ export default function HomePage() {
                         value={docPagador}
                         onChange={(e) => setDocPagador(formatarCpfCnpj(e.target.value))}
                         placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-600 focus:ring-4 focus:ring-blue-100 outline-hidden bg-slate-50 focus:bg-white transition"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden bg-slate-50/50"
                       />
-                      <p className="text-xs text-slate-400 mt-1">
-                        O Banco Central exige CPF ou CNPJ válido do pagador para registrar a cobrança oficial no Asaas.
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        O Banco Central exige CPF ou CNPJ válido do pagador para registrar a cobrança PIX oficial (Asaas Produção).
                       </p>
                     </div>
                   </div>
 
-                  {/* CARTÃO DE CRÉDITO */}
+                  {/* SE FOR CARTÃO DE CRÉDITO: CAMPOS DO CARTÃO TRANSPARENTE */}
                   {metodoCheckout === 'cartao' && (
-                    <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-fade-in">
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-fade-in">
                       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                         <span className="text-xs font-bold text-slate-800">Dados do Cartão de Crédito</span>
-                        <span className="text-xs text-slate-500">🔒 Ambiente Seguro Asaas</span>
+                        <span className="text-[10px] text-slate-500">🔒 Ambiente Seguro Asaas</span>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                           Número do Cartão:
                         </label>
                         <input
@@ -1948,12 +1560,12 @@ export default function HomePage() {
                           value={numeroCartao}
                           onChange={(e) => setNumeroCartao(formatarNumeroCartao(e.target.value))}
                           placeholder="0000 0000 0000 0000"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm font-mono tracking-wide focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono tracking-wide focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                           Nome Impresso no Cartão:
                         </label>
                         <input
@@ -1962,13 +1574,13 @@ export default function HomePage() {
                           value={nomeCartao}
                           onChange={(e) => setNomeCartao(e.target.value.toUpperCase())}
                           placeholder="NOME COMO NO CARTAO"
-                          className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm uppercase focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                          className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm uppercase focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                             Validade:
                           </label>
                           <input
@@ -1978,11 +1590,11 @@ export default function HomePage() {
                             value={validadeCartao}
                             onChange={(e) => setValidadeCartao(formatarValidade(e.target.value))}
                             placeholder="MM/AA"
-                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                             CVV:
                           </label>
                           <input
@@ -1992,14 +1604,14 @@ export default function HomePage() {
                             value={cvvCartao}
                             onChange={(e) => setCvvCartao(e.target.value.replace(/\D/g, ''))}
                             placeholder="123"
-                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm text-center font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                             CPF do Titular:
                           </label>
                           <input
@@ -2009,11 +1621,11 @@ export default function HomePage() {
                             value={cpfCartao}
                             onChange={(e) => setCpfCartao(formatarCpf(e.target.value))}
                             placeholder="000.000.000-00"
-                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                             CEP (opcional):
                           </label>
                           <input
@@ -2022,19 +1634,19 @@ export default function HomePage() {
                             value={cepCartao}
                             onChange={(e) => setCepCartao(e.target.value)}
                             placeholder="00000-000"
-                            className="w-full px-4 py-2.5 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-hidden"
+                            className="w-full px-3.5 py-2 bg-white rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-hidden"
                           />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* BOTÃO DE CHECKOUT */}
+                  {/* BOTÃO DE CONFIRMAÇÃO DO CHECKOUT */}
                   <div className="pt-2">
                     <button
                       type="submit"
                       disabled={gerandoCheckout}
-                      className={`w-full text-white font-extrabold py-4 px-6 rounded-2xl text-base transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
+                      className={`w-full text-white font-bold py-3.5 px-4 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
                         metodoCheckout === 'cartao'
                           ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
                           : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
@@ -2042,7 +1654,7 @@ export default function HomePage() {
                     >
                       {gerandoCheckout ? (
                         <>
-                          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -2062,55 +1674,60 @@ export default function HomePage() {
                   </div>
                 </form>
               ) : (
-                <div className="space-y-5 text-center animate-fade-in">
-                  <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-900 text-sm font-bold flex items-center justify-between">
-                    <span>Cobrança PIX Registrada no Banco Central</span>
-                    <span className="font-extrabold text-base">R$ 19,90</span>
+                // EXIBIÇÃO DO QR CODE E CHAVE PIX
+                <div className="space-y-4 text-center animate-fade-in">
+                  <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between">
+                    <span>Cobrança PIX Gerada com Sucesso</span>
+                    <span className="font-bold">R$ 19,90</span>
                   </div>
 
+                  {/* IMAGEM DO QR CODE */}
                   {pixQrCode && (
-                    <div className="flex flex-col items-center justify-center p-4 bg-white border-2 border-slate-200 rounded-3xl shadow-inner w-fit mx-auto">
+                    <div className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl shadow-inner w-fit mx-auto">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={pixQrCode}
                         alt="QR Code PIX"
-                        className="w-56 h-56 rounded-xl object-contain"
+                        className="w-48 h-48 rounded-lg object-contain"
                       />
-                      <span className="text-xs text-slate-500 mt-2 font-medium">
+                      <span className="text-[11px] text-slate-500 mt-2 font-medium">
                         Aponte a câmera do aplicativo do seu banco
                       </span>
                     </div>
                   )}
 
+                  {/* CHAVE COPIA E COLA */}
                   <div className="space-y-2 text-left">
-                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <label className="block text-xs font-bold text-slate-700 uppercase">
                       PIX Copia e Cola:
                     </label>
-                    <div className="p-3 bg-slate-100 rounded-xl font-mono text-xs text-slate-700 break-all select-all border border-slate-200 max-h-24 overflow-y-auto">
+                    <div className="p-2.5 bg-slate-100 rounded-xl font-mono text-[11px] text-slate-700 break-all select-all border border-slate-200 max-h-20 overflow-y-auto">
                       {pixCopiaCola}
                     </div>
                     <button
                       type="button"
                       onClick={copiarPix}
-                      className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      <span>{copiado ? '✓ Código Copiado para a Área de Transferência!' : '📋 Copiar Código PIX'}</span>
+                      <span>{copiado ? '✓ Código Copiado!' : '📋 Copiar Código PIX'}</span>
                     </button>
                   </div>
 
-                  <div className="p-3.5 bg-blue-50 rounded-2xl border border-blue-200 text-xs sm:text-sm text-blue-900 flex items-center justify-center gap-2 font-medium">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping" />
-                    <span>Aguardando confirmação bancária... A liberação é imediata.</span>
+                  {/* INDICADOR DE AGUARDANDO PAGAMENTO */}
+                  <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200/80 text-xs text-blue-900 flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                    <span>Aguardando pagamento... A liberação é automática.</span>
                   </div>
 
+                  {/* BOTÕES DE AÇÃO: VERIFICAR MANUALMENTE E SIMULAR (TESTES) */}
                   <div className="pt-2 flex flex-col gap-2">
                     <button
                       type="button"
                       disabled={verificandoPagamento}
                       onClick={() => pedidoId && checarStatusPagamento(pedidoId, false)}
-                      className="text-sm text-blue-700 hover:text-blue-900 font-bold py-1.5 underline underline-offset-4 cursor-pointer"
+                      className="text-xs text-blue-700 hover:text-blue-900 font-bold py-1.5 underline underline-offset-2"
                     >
-                      {verificandoPagamento ? 'Consultando no Asaas...' : 'Já paguei, verificar agora'}
+                      {verificandoPagamento ? 'Verificando no banco...' : 'Já paguei, verificar agora'}
                     </button>
 
                     <button
@@ -2120,7 +1737,7 @@ export default function HomePage() {
                         setPixQrCode('');
                         if (pollingRef.current) clearInterval(pollingRef.current);
                       }}
-                      className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1 cursor-pointer"
+                      className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
                     >
                       ← Trocar forma de pagamento
                     </button>
@@ -2132,67 +1749,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* RODAPÉ INSTITUCIONAL CLÍNICO EXPANDIDO */}
-      <footer className="mt-auto border-t border-slate-300 bg-white text-slate-600 pt-14 pb-8 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="space-y-3 md:col-span-1">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-cet.png" alt="CET" className="w-10 h-10 rounded-lg object-contain" />
-                <span className="text-xl font-black text-slate-900">CET CLÍNICA</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
-                Clínica Especializada no Trabalho Ltda. Assessoria completa em Medicina Ocupacional e Engenharia de Segurança em conformidade com as Normas Regulamentadoras da Portaria MTP 672.
-              </p>
-              <div className="text-xs text-slate-400 font-mono">
-                CNPJ Oficial: 14.281.828/0001-85
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Serviços Oficiais</h4>
-              <ul className="text-xs sm:text-sm space-y-1.5 text-slate-500">
-                <li>• PGR — NR-01 (Gerenciamento de Riscos)</li>
-                <li>• PCMSO — NR-07 (Controle Médico)</li>
-                <li>• ASO — Exames Ocupacionais Admissionais</li>
-                <li>• LTCAT — Laudo Previdenciário</li>
-                <li>• Transmissão de Eventos SST no eSocial</li>
-                <li>• Laudos de Insalubridade e Periculosidade</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Corpo Pericial</h4>
-              <ul className="text-xs sm:text-sm space-y-1.5 text-slate-500">
-                <li>• Responsabilidade Técnica Médica (CRM)</li>
-                <li>• Engenharia de Segurança do Trabalho (CREA)</li>
-                <li>• Emissão de ART para Laudos Ocupacionais</li>
-                <li>• Validade Jurídica em Todo o Território Nacional</li>
-                <li>• Envio dos eventos S-2210, S-2220 e S-2240</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Atendimento & Suporte</h4>
-              <div className="text-xs sm:text-sm space-y-1.5 text-slate-500">
-                <p>📍 São Paulo - SP | Atendimento em todo o Brasil</p>
-                <p>🕒 Seg a Sex das 08h às 18h</p>
-                <p>📞 Suporte Telefônico e WhatsApp</p>
-                <p className="pt-2">
-                  <Link href="/privacidade" className="text-blue-600 hover:underline font-semibold">
-                    Política de Privacidade & LGPD →
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center sm:text-left">
-            <p>© {new Date().getFullYear()} CET — Clínica Especializada no Trabalho. Todos os direitos reservados.</p>
-            <p>Em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018).</p>
-          </div>
-        </div>
+      {/* RODAPÉ INSTITUCIONAL */}
+      <footer className="mt-auto border-t border-slate-200 py-6 px-4 bg-white text-center text-xs text-slate-500">
+        <p>CET — Clínica Especializada no Trabalho • Segurança e Medicina Ocupacional</p>
+        <p className="mt-1 text-[11px] text-slate-400">Atendimento a empresas em conformidade com as Normas Regulamentadoras (NRs) e eSocial.</p>
       </footer>
     </div>
   );

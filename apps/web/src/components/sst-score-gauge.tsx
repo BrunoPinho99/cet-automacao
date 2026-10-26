@@ -62,21 +62,21 @@ export function SstScoreGauge({
   const indicadorY = cy + raio * Math.sin(anguloRad);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden max-w-4xl w-full mx-auto animate-fade-in">
-      {/* Cabeçalho do Score com Azul Clínico Noturno */}
-      <div className="p-8 sm:p-10 bg-slate-900 text-white text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-radial from-blue-600/20 via-transparent to-transparent pointer-events-none" />
+    <div className="bg-white rounded-3xl border border-slate-200/80 shadow-lg overflow-hidden max-w-2xl mx-auto animate-fade-in">
+      {/* Cabeçalho do Score com Gradiente Midnight Surge */}
+      <div className="p-6 sm:p-8 bg-gradient-midnight text-white text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-radial from-blue-500/20 via-transparent to-transparent pointer-events-none" />
 
         {empresaNome && (
-          <div className="mb-4">
-            <span className="text-xs sm:text-sm uppercase tracking-widest text-blue-300 font-bold bg-blue-950/80 border border-blue-800/80 px-3 py-1 rounded-full">
-              Diagnóstico de Regularidade SST
+          <div className="mb-2">
+            <span className="text-xs uppercase tracking-widest text-slate-400 font-semibold">
+              Diagnóstico Preliminar SST
             </span>
-            <h3 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight mt-2.5">
+            <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight mt-0.5">
               {empresaNome}
             </h3>
             {cnpj && (
-              <span className="text-sm text-slate-300 font-mono mt-1 block">
+              <span className="text-xs text-blue-300 font-mono">
                 CNPJ: {cnpj}
               </span>
             )}
@@ -169,19 +169,19 @@ export function SstScoreGauge({
       </div>
 
       {/* Barra de Gradiente Linear Complementar */}
-      <div className="p-6 sm:p-10 space-y-8">
+      <div className="p-6 sm:p-7 space-y-6">
         <div>
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-sm font-bold uppercase text-slate-600 tracking-wider">
-              Termômetro de Conformidade Regulatória
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase text-slate-500 tracking-wider">
+              Termômetro de Conformidade
             </span>
-            <span className={`text-xs sm:text-sm font-extrabold px-3 py-1 rounded-full border ${statusCor}`}>
+            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${statusCor}`}>
               {badgeTexto}
             </span>
           </div>
 
           {/* Barra contínua de 4 cores */}
-          <div className="relative h-5 w-full rounded-full overflow-hidden shadow-inner bg-slate-200">
+          <div className="relative h-4 w-full rounded-full overflow-hidden shadow-inner bg-slate-200">
             <div
               className="h-full w-full"
               style={{
@@ -190,39 +190,41 @@ export function SstScoreGauge({
             />
             {/* Indicador deslizante na barra */}
             <div
-              className="absolute top-0 bottom-0 w-3.5 bg-white border-2 border-slate-900 rounded-full shadow-md transform -translate-x-1/2 transition-all duration-500"
+              className="absolute top-0 bottom-0 w-3 bg-white border-2 border-slate-900 rounded-full shadow-md transform -translate-x-1/2 transition-all duration-500"
               style={{ left: `${valorScore}%` }}
               title={`Score: ${valorScore}/100`}
             />
           </div>
 
-          <div className="flex justify-between text-xs text-slate-500 mt-2 font-semibold">
-            <span>Risco Alto (Não Conforme)</span>
-            <span>Atenção (Incompleto)</span>
-            <span>Regular (Adequação)</span>
-            <span>Excelente (100% Conforme)</span>
+          <div className="flex justify-between text-[10px] text-slate-400 mt-1 font-medium">
+            <span>Risco Alto</span>
+            <span>Atenção</span>
+            <span>Regular</span>
+            <span>Conforme</span>
           </div>
         </div>
 
         {/* Caixa de Alerta Visual - Destaca que o Score está Baixo */}
         {valorScore < 60 && (
-          <div className="bg-red-50/90 border-2 border-red-200 rounded-2xl p-5 sm:p-6 flex items-start gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5 text-xl font-bold">
-              ⚠️
+          <div className="bg-red-50/90 border border-red-200/80 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 mt-0.5">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
-            <div className="space-y-1.5 flex-1">
-              <h4 className="text-base sm:text-lg font-bold text-red-950">
-                Atenção Imediata: Score em Nível de Risco Fiscal e Trabalhista
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-red-900">
+                Atenção: Score em nível de risco iminente
               </h4>
-              <p className="text-sm text-red-800 leading-relaxed">
+              <p className="text-xs text-red-700 leading-relaxed">
                 {mensagemAlerta}
               </p>
-              <div className="pt-2 text-xs font-bold text-red-900 flex flex-wrap gap-2">
+              <div className="pt-2 text-[11px] font-semibold text-red-800 flex flex-wrap gap-2">
                 {(pontosCriticos && pontosCriticos.length > 0
                   ? pontosCriticos
                   : ['Ausência de PGR / PCMSO', 'eSocial SST Não Transmitido', 'Risco de Fiscalização']
                 ).map((item, idx) => (
-                  <span key={idx} className="bg-white px-2.5 py-1 rounded-lg border border-red-200 shadow-2xs">
+                  <span key={idx} className="bg-white/80 px-2 py-0.5 rounded border border-red-200">
                     ⚠️ {item}
                   </span>
                 ))}
@@ -232,23 +234,23 @@ export function SstScoreGauge({
         )}
 
         {/* RESUMO DO DIAGNÓSTICO BASEADO NO QUESTIONÁRIO */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 mt-0.5 font-bold text-xl">
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start justify-between gap-3.5">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-lg">
               📋
             </div>
-            <div className="space-y-1.5">
-              <h4 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-                <span>Diagnóstico Apurado das Informações Declaradas</span>
-                <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
-                  Questionário Concluído
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-blue-900 flex items-center gap-2">
+                <span>Diagnóstico Apurado das Declarações</span>
+                <span className="text-[10px] font-semibold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full">
+                  Questionário SST Preenchido
                 </span>
               </h4>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Este score preliminar foi apurado com base no enquadramento fiscal do CNAE da empresa e nas informações de programas (PGR, PCMSO, ASO e eSocial) declaradas.
+              <p className="text-xs text-blue-800 leading-relaxed">
+                Este score preliminar foi apurado com base no enquadramento fiscal do CNAE e nas informações de programas (PGR, PCMSO, ASO e eSocial) declaradas no formulário.
               </p>
-              <p className="text-sm text-slate-900 leading-relaxed font-semibold">
-                ⚡ Próximo passo: Para receber o <strong>laudo técnico detalhado</strong> com valores de multas aplicáveis, plano de ação corretivo e protocolo de regularização com equipe médica e de engenharia, libere o relatório executivo abaixo.
+              <p className="text-xs text-blue-900 leading-relaxed font-semibold">
+                ⚡ Próximo passo: Para receber o <strong>laudo técnico detalhado</strong> com valores de multas aplicáveis, plano de ação corretivo e protocolo de regularização com ART/CREA, libere o relatório executivo abaixo.
               </p>
             </div>
           </div>
@@ -256,7 +258,7 @@ export function SstScoreGauge({
             <button
               type="button"
               onClick={onEditarRespostas}
-              className="shrink-0 text-sm text-blue-700 hover:text-blue-900 font-bold underline underline-offset-2 py-2 px-3.5 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 transition cursor-pointer"
+              className="shrink-0 text-xs text-blue-700 hover:text-blue-950 font-bold underline underline-offset-2 py-1 px-3 bg-white/70 hover:bg-white rounded-lg border border-blue-200 transition cursor-pointer"
             >
               ✏️ Editar Respostas
             </button>
@@ -264,44 +266,46 @@ export function SstScoreGauge({
         </div>
 
         {/* CARD CTA: GERAR DIAGNÓSTICO POR R$ 19,90 */}
-        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50/70 rounded-3xl p-6 sm:p-8 border-2 border-blue-500/40 shadow-sm relative">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-900 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider">
-                <span>Relatório Executivo Oficial + Ficha Técnica</span>
+        <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50/50 rounded-2xl p-5 sm:p-6 border-2 border-blue-600/30 shadow-xs relative">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider">
+                <span>Relatório Executivo Completo + Ficha Estratégica</span>
               </div>
-              <h4 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Receba o Laudo Executivo Completo da sua Empresa
+              <h4 className="text-lg font-bold text-slate-900 tracking-tight">
+                Receba o Diagnóstico Completo da sua Empresa
               </h4>
-              <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl">
-                Seus dados cadastrais já ficam vinculados. Acesse o questionário detalhado para emissão do parecer conclusivo com plano de adequação às NRs e eSocial.
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md">
+                Seus dados cadastrais já ficam vinculados. Acesse o questionário com as perguntas estratégicas de SST da sua empresa para emissão do laudo técnico individualizado.
               </p>
             </div>
 
-            <div className="text-left sm:text-right shrink-0 bg-white/80 p-4 rounded-2xl border border-blue-200">
+            <div className="text-left sm:text-right shrink-0">
               <div className="text-xs text-slate-400 line-through">
                 De R$ 99,00
               </div>
-              <div className="text-3xl sm:text-4xl font-black text-blue-700">
+              <div className="text-2xl sm:text-3xl font-black text-blue-700">
                 R$ 19,90
               </div>
-              <div className="text-xs text-slate-500 font-semibold mt-0.5">
+              <div className="text-[10px] text-slate-500 font-medium">
                 Taxa única no PIX ou Cartão
               </div>
             </div>
           </div>
 
+
+
           {/* Botão de Ação CTA */}
-          <div className="mt-6">
+          <div className="mt-5">
             {checkoutUrl ? (
               <a
                 href={checkoutUrl}
                 target={checkoutUrl.startsWith('#') ? undefined : '_blank'}
                 rel={checkoutUrl.startsWith('#') ? undefined : 'noopener noreferrer'}
-                className="w-full inline-flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-4 px-8 rounded-2xl text-base sm:text-lg transition-all shadow-md hover:shadow-lg text-center"
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base transition-all shadow-md hover:shadow-lg text-center"
               >
                 <span>Desbloquear Diagnóstico Completo por R$ 19,90</span>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </a>
@@ -309,10 +313,10 @@ export function SstScoreGauge({
               <button
                 type="button"
                 onClick={onContratarDiagnostico}
-                className="w-full inline-flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold py-4 px-8 rounded-2xl text-base sm:text-lg transition-all shadow-md hover:shadow-lg text-center cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 px-6 rounded-xl text-sm sm:text-base transition-all shadow-md hover:shadow-lg text-center cursor-pointer"
               >
                 <span>Gerar Diagnóstico Completo por Apenas R$ 19,90</span>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </button>

@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "CET — Clínica Especializada no Trabalho | Medicina Ocupacional & Segurança do Trabalho",
-  description: "Assessoria e diagnóstico de conformidade em Segurança e Medicina do Trabalho. PGR (NR-01), PCMSO (NR-07), Exames Ocupacionais (ASO) e Transmissão de Eventos SST para o eSocial.",
+  title: "CET — Painel de Atendimento",
+  description: "Painel de atendimento, clientes e diagnóstico de Segurança e Medicina do Trabalho da CET",
   icons: {
     icon: [
       { url: '/favicon.ico' },
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   appleWebApp: {
-    title: 'CET Clínica',
+    title: 'CET',
   },
 };
 
