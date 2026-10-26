@@ -36,7 +36,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const rawBody = await request.text();
+    console.log('[Instagram Webhook] Recebida chamada POST:', rawBody);
 
     // Validação de assinatura (apenas se houver um secret real configurado)
     if (INSTAGRAM_APP_SECRET && INSTAGRAM_APP_SECRET !== 'OBTER_NO_META_DEVELOPER_PORTAL') {
@@ -62,12 +62,12 @@ export async function POST(request: Request) {
 
     const payload = JSON.parse(rawBody);
 
-    if (payload.object === 'instagram' && payload.entry) {
+    if ((payload.object === 'instagram' || payload.object === 'page') && payload.entry) {
       for (const entry of payload.entry) {
         if (entry.messaging) {
           for (const event of entry.messaging) {
             const senderId = event.sender?.id;
-            const messageText = event.message?.text;
+            const messageText = event.message?.text || event.postback?.title || event.message?.quick_reply?.payload;
             const messageId = event.message?.mid;
             const pageId = event.recipient?.id || entry.id;
 
