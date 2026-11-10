@@ -1,14 +1,9 @@
 /**
  * Cliente de Integração com Google Gemini para o WhatsApp / Instagram da CET.
- * Utiliza o modelo gemini-flash-lite-latest com fallback dinâmico para gemini-3.5-flash-lite e gemini-flash-latest.
+ * A chave é lida somente no servidor e enviada pelo header x-goog-api-key.
  */
 
 import { PROMPT_SISTEMA_ASSISTENTE_CET } from './prompt-assistente-cet';
-
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY ||
-  process.env.GOOGLE_API_KEY ||
-  '';
 
 export interface MensagemHistorico {
   autor: 'usuario' | 'assistente';
@@ -23,10 +18,10 @@ export interface OpcoesGemini {
 }
 
 const MODELOS_CANDIDATOS = [
-  process.env.GEMINI_MODEL || 'gemini-flash-lite-latest',
-  'gemini-3.5-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.5-flash',
+  process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
 ];
 
 const RESPOSTA_FALLBACK_DIAGNOSTICO =
@@ -44,8 +39,7 @@ export async function gerarRespostaGeminiCET(
 ): Promise<string> {
   const apiKey =
     process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    GEMINI_API_KEY;
+    process.env.GOOGLE_API_KEY;
 
   if (!apiKey) {
     console.warn('[Gemini Client] GEMINI_API_KEY não configurada. Usando fallback de atendimento padrão.');
@@ -89,11 +83,14 @@ export async function gerarRespostaGeminiCET(
   // Tenta chamar cada modelo candidato em ordem com timeout resiliente
   for (const model of MODELOS_CANDIDATOS) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           system_instruction: {
             parts: [{ text: systemPrompt }],
@@ -109,7 +106,7 @@ export async function gerarRespostaGeminiCET(
       });
 
       if (!res.ok) {
-        const erroData = await res.text();
+        const erroData = (await res.text()).slice(0, 500);
         console.warn(`[Gemini API] Modelo ${model} retornou ${res.status}: ${erroData}`);
         continue; // Tenta o próximo modelo
       }

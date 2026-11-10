@@ -238,13 +238,11 @@ export async function processarMensagem(
     return;
   }
 
-  // 8. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
-  // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST, números 1 a 6 ou já tiver lead.
+  // Mensagens textuais podem iniciar uma conversa natural com a IA.
+  // Conteúdos sem texto (imagem, áudio ou evento sem transcrição) aguardam um fluxo específico.
   if (ctx.estado === 'inicio') {
-    const jaTemContato = !!(ctx.contato_id || ctx.lead_id || lead);
-    const ativou = verificarGatilhoAtivacao(conteudo);
-    if (!ativou && !jaTemContato) {
-      console.log(`[Orquestrador] Mensagem de ${telefone} ignorada (não ativou gatilho de atendimento): "${conteudo}"`);
+    if (!conteudo || !conteudo.trim()) {
+      console.log(`[Orquestrador] Mensagem sem texto de ${telefone} aguardando fluxo de mídia/transcrição.`);
       return;
     }
   }
@@ -928,4 +926,3 @@ function atualizarSessao(telefone: string, ctx: ContextoConversa): void {
   ctx.ultima_interacao = new Date();
   sessoes.set(telefone, ctx);
 }
-
