@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CET — Painel de Atendimento",
-  description: "Painel de atendimento, clientes e diagnóstico de Segurança e Medicina do Trabalho da CET",
+  title: "CET — Diagnóstico de SST",
+  description: "Descubra o que sua empresa precisa para ficar em dia com Segurança e Medicina do Trabalho.",
   icons: {
     icon: [
       { url: '/favicon.ico' },
