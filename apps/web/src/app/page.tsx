@@ -547,198 +547,25 @@ export default function HomePage() {
     }
   };
 
-  const rolarParaDiagnostico = () => {
-    document.getElementById('diagnostico')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   return (
-    <div className="cet-landing min-h-screen bg-white text-slate-800 flex flex-col font-sans">
-      <div className="cet-topline h-1 w-full" />
+    <div className="cet-direct-page min-h-screen bg-white text-slate-800 flex flex-col">
+      {/* BARRA DE DESTAQUE SUPERIOR COM GRADIENTE FUTUREWAVE */}
+      <div className="h-1 bg-gradient-futurewave w-full" />
 
-      <header className="cet-landing-nav sticky top-0 z-30 h-20 bg-white/85 backdrop-blur-xl border-b border-slate-200/70 flex items-center justify-between px-5 sm:px-10 lg:px-16">
+      {/* CABEÇALHO INSTITUCIONAL */}
+      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-8">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-cet.png" alt="CET" className="w-10 h-10 rounded-xl object-contain" />
+          <img src="/logo-cet.png" alt="CET" className="w-9 h-9 rounded-md object-contain" />
           <div className="leading-tight">
-            <span className="block text-base font-bold text-slate-900">CET</span>
+            <span className="block text-sm font-bold text-slate-900">CET</span>
             <span className="block text-xs text-slate-500">Segurança e Medicina do Trabalho</span>
           </div>
         </div>
-        <nav className="hidden md:flex items-center gap-7 text-sm font-semibold text-slate-500">
-          <a href="#como-funciona" className="hover:text-slate-950 transition-colors">Como funciona</a>
-          <a href="#solucoes" className="hover:text-slate-950 transition-colors">Soluções</a>
-          <a href="#duvidas" className="hover:text-slate-950 transition-colors">Dúvidas</a>
-        </nav>
-        <button type="button" onClick={rolarParaDiagnostico} className="cet-pill-button cet-pill-button-dark">
-          Começar diagnóstico <span>↗</span>
-        </button>
       </header>
 
-      <section className="cet-hero relative overflow-hidden px-5 sm:px-10 lg:px-16 pt-16 sm:pt-24 pb-16 sm:pb-24">
-        <div className="cet-orb cet-orb-one" />
-        <div className="cet-orb cet-orb-two" />
-        <div className="relative max-w-7xl mx-auto grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-20 items-center">
-          <div className="cet-reveal">
-            <span className="cet-eyebrow"><span className="cet-eyebrow-dot" /> SST inteligente para empresas reais</span>
-            <h1 className="cet-hero-title mt-7">
-              Clareza para cuidar da sua equipe. <em>Confiança para crescer.</em>
-            </h1>
-            <p className="mt-7 max-w-xl text-lg sm:text-xl leading-relaxed text-slate-500">
-              Descubra em poucos minutos o que sua empresa precisa para ficar em dia com as normas de Segurança e Medicina do Trabalho.
-            </p>
-            <div className="mt-9 flex flex-col sm:flex-row gap-3">
-              <button type="button" onClick={rolarParaDiagnostico} className="cet-pill-button cet-pill-button-blue">
-                Fazer diagnóstico gratuito <span>→</span>
-              </button>
-              <a href="#como-funciona" className="cet-pill-button cet-pill-button-outline">
-                Entender como funciona
-              </a>
-            </div>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs font-semibold text-slate-400">
-              <span>✓ Sem compromisso</span>
-              <span>✓ Dados protegidos pela LGPD</span>
-              <span>✓ Resultado em minutos</span>
-            </div>
-          </div>
-
-          <div className="cet-hero-visual cet-reveal cet-reveal-delay relative">
-            <div className="cet-visual-glow" />
-            <div className="cet-visual-card">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-[.18em] text-slate-400">Visão de conformidade</span>
-                <span className="cet-status-chip"><span /> Atualizado agora</span>
-              </div>
-              <div className="mt-12 flex items-end justify-between gap-5">
-                <div>
-                  <p className="text-sm font-semibold text-slate-400">Score SST estimado</p>
-                  <p className="mt-2 text-7xl font-semibold tracking-[-.08em] text-slate-950">82<span className="text-3xl text-slate-300">/100</span></p>
-                </div>
-                <div className="cet-mini-ring"><span>Bom</span></div>
-              </div>
-              <div className="mt-10 space-y-3">
-                {[
-                  ['PGR e PCMSO', 'Em análise', 'blue'],
-                  ['Exames ocupacionais', 'Atenção', 'yellow'],
-                  ['eSocial SST', 'Mapeado', 'green'],
-                ].map(([label, status, color]) => (
-                  <div key={label} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                    <span className="text-sm font-semibold text-slate-700">{label}</span>
-                    <span className={`cet-dot-label ${color}`}><i />{status}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="cet-visual-footer mt-8">
-                <span>Diagnóstico personalizado</span><span>3 min</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="cet-proof-strip px-5 sm:px-10 lg:px-16">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-5 py-8">
-          {[
-            ['01', 'Mapeie seus riscos', 'Entenda o cenário real da sua operação.'],
-            ['02', 'Priorize o essencial', 'Saiba o que resolver primeiro.'],
-            ['03', 'Proteja sua equipe', 'Prevenção que vira rotina.'],
-            ['04', 'Cresça com segurança', 'Decisões mais tranquilas para sua empresa.'],
-          ].map(([number, title, copy]) => (
-            <div key={number} className="cet-proof-item">
-              <span>{number}</span>
-              <div><strong>{title}</strong><p>{copy}</p></div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="como-funciona" className="cet-section px-5 sm:px-10 lg:px-16">
-        <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl cet-reveal">
-            <span className="cet-section-kicker">Um caminho mais simples</span>
-            <h2 className="cet-section-title">Do “não sei por onde começar” para um plano claro.</h2>
-            <p className="cet-section-copy">A CET transforma as exigências de SST em próximos passos objetivos, com linguagem humana e orientação técnica.</p>
-          </div>
-          <div className="mt-14 grid md:grid-cols-3 gap-5">
-            {[
-              ['01', 'Conte sobre sua empresa', 'Busque pelo nome ou CNPJ e responda algumas perguntas rápidas sobre a sua rotina.'],
-              ['02', 'Receba seu panorama', 'Nosso diagnóstico organiza os pontos fortes, as pendências e os riscos que merecem atenção.'],
-              ['03', 'Saiba como agir', 'Você recebe clareza para decidir os próximos passos com a equipe certa ao seu lado.'],
-            ].map(([number, title, copy]) => (
-              <article key={number} className="cet-step-card">
-                <span className="cet-step-number">{number}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-                <span className="cet-card-arrow">↗</span>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="solucoes" className="cet-dark-section px-5 sm:px-10 lg:px-16">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-[.8fr_1.2fr] gap-12 items-start">
-          <div className="cet-reveal">
-            <span className="cet-section-kicker cet-section-kicker-light">O que a CET enxerga</span>
-            <h2 className="cet-section-title text-white">SST não precisa ser uma caixa-preta.</h2>
-            <p className="mt-6 text-lg leading-relaxed text-white/60">Identificamos o que impacta sua empresa hoje — dos documentos obrigatórios aos exames, eSocial e riscos da operação.</p>
-            <button type="button" onClick={rolarParaDiagnostico} className="cet-pill-button cet-pill-button-white mt-9">
-              Ver meu panorama <span>→</span>
-            </button>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              ['PGR', 'Riscos ocupacionais e plano de prevenção.'],
-              ['PCMSO', 'Saúde ocupacional acompanhada de verdade.'],
-              ['ASO', 'Exames certos no momento certo.'],
-              ['eSocial SST', 'Eventos transmitidos com segurança.'],
-            ].map(([title, copy], index) => (
-              <div key={title} className={`cet-solution-card ${index === 0 ? 'cet-solution-card-accent' : ''}`}>
-                <span className="text-xs font-bold tracking-[.18em] text-white/40">0{index + 1}</span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-                <span className="cet-card-arrow">↗</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="duvidas" className="cet-section cet-section-tight px-5 sm:px-10 lg:px-16">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-[.9fr_1.1fr] gap-12 items-start">
-          <div>
-            <span className="cet-section-kicker">Perguntas comuns</span>
-            <h2 className="cet-section-title">Uma boa decisão começa com uma boa pergunta.</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              ['O diagnóstico é gratuito?', 'Sim. O primeiro panorama é gratuito e serve para você entender o nível de conformidade da sua empresa.'],
-              ['Preciso saber meu CNPJ?', 'Não necessariamente. Você pode buscar pelo nome da empresa e confirmar os dados antes de começar.'],
-              ['A CET atende empresas pequenas?', 'Sim. O diagnóstico se adapta ao porte, ao ramo de atividade e à realidade da sua operação.'],
-            ].map(([question, answer]) => (
-              <details key={question} className="cet-faq">
-                <summary>{question}<span>+</span></summary>
-                <p>{answer}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="cet-cta-band mx-5 sm:mx-10 lg:mx-16 mb-16">
-        <div className="max-w-7xl mx-auto cet-cta-inner">
-          <div>
-            <span className="cet-section-kicker cet-section-kicker-light">Comece agora</span>
-            <h2>O próximo passo da sua empresa pode ser simples.</h2>
-            <p>Faça seu diagnóstico e descubra onde sua operação pode ficar mais segura.</p>
-          </div>
-          <button type="button" onClick={rolarParaDiagnostico} className="cet-pill-button cet-pill-button-white">
-            Fazer diagnóstico <span>↗</span>
-          </button>
-        </div>
-      </section>
-
-      {/* DIAGNÓSTICO INTERATIVO EXISTENTE */}
-      <main id="diagnostico" className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-5xl mx-auto w-full space-y-8 scroll-mt-24">
+      {/* CONTEÚDO PRINCIPAL */}
+      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-5xl mx-auto w-full space-y-8">
         {/* Título de Apresentação */}
         <div className="text-center space-y-4 rounded-3xl bg-ink-deep text-white px-6 py-10 sm:px-12 sm:py-14 shadow-lg overflow-hidden relative">
           <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/30 blur-3xl" />
