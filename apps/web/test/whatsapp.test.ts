@@ -1,9 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET, POST } from '../src/app/api/whatsapp/route';
+import { processarMensagem } from '../src/lib/orquestrador-whatsapp';
+import { prisma } from '@cet/db';
 import crypto from 'crypto';
 
 const VERIFY_TOKEN = 'cet_seguranca_2026';
 const APP_SECRET = 'my_test_secret';
+
+// Mock do prisma
+vi.mock('@cet/db', () => ({
+  prisma: {
+    mensagem: {
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findUnique: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'msg-mock' }),
+    },
+  },
+}));
 
 // Mock do orquestrador — não testa lógica de banco aqui
 vi.mock('../src/lib/orquestrador-whatsapp', () => ({
@@ -194,6 +207,225 @@ describe('WhatsApp Webhook (refatorado)', () => {
 
       const response = await POST(request);
       expect(response.status).toBe(200);
+    });
+
+    describe('Evolution API', () => {
+      it('deve processar mensagem de texto (messages.upsert) com sender limpo e pushName', async () => {
+        const payload = {
+          event: 'messages.upsert',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              remoteJid: '5563999998888:1@s.whatsapp.net',
+              fromMe: false,
+              id: 'evo.wamid.123',
+            },
+            pushName: 'Carlos Silva',
+            message: {
+              conversation: 'Olá, preciso de PGR',
+            },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+        expect(processarMensagem).toHaveBeenCalledWith(
+          '5563999998888',
+          'evo.wamid.123',
+          'text',
+          'Olá, preciso de PGR',
+          undefined,
+          'Carlos Silva',
+        );
+      });
+
+      it('deve aceitar evento em MAIÚSCULAS (MESSAGES_UPSERT)', async () => {
+        const payload = {
+          event: 'MESSAGES_UPSERT',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              remoteJid: '5563999997777@s.whatsapp.net',
+              fromMe: false,
+              id: 'evo.wamid.upper',
+            },
+            message: {
+              extendedTextMessage: { text: 'Quero um diagnóstico' },
+            },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+        expect(processarMensagem).toHaveBeenCalledWith(
+          '5563999997777',
+          'evo.wamid.upper',
+          'text',
+          'Quero um diagnóstico',
+          undefined,
+          undefined,
+        );
+      });
+
+      it('deve processar resposta de botões interativos da Evolution API', async () => {
+        const payload = {
+          event: 'messages.upsert',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              remoteJid: '5563999996666@s.whatsapp.net',
+              fromMe: false,
+              id: 'evo.button.1',
+            },
+            message: {
+              buttonsResponseMessage: {
+                selectedButtonId: '1',
+                selectedDisplayText: '1 - Regularidade',
+              },
+            },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+        expect(processarMensagem).toHaveBeenCalledWith(
+          '5563999996666',
+          'evo.button.1',
+          'button',
+          '1 - Regularidade',
+          '1',
+          undefined,
+        );
+      });
+
+      it('deve ignorar mensagens do próprio bot (fromMe = true)', async () => {
+        const payload = {
+          event: 'messages.upsert',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              remoteJid: '5563999995555@s.whatsapp.net',
+              fromMe: true,
+              id: 'evo.bot.1',
+            },
+            message: { conversation: 'Mensagem do bot' },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+      });
+
+      it('deve ignorar mensagens de grupos (@g.us)', async () => {
+        const payload = {
+          event: 'messages.upsert',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              remoteJid: '120363023456789@g.us',
+              fromMe: false,
+              id: 'evo.group.1',
+            },
+            message: { conversation: 'Mensagem no grupo' },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+      });
+
+      it('deve extrair o número real do remetente em modo LID (remoteJidAlt)', async () => {
+        const payload = {
+          event: 'MESSAGES_UPSERT',
+          instance: 'cet_automacao',
+          data: {
+            key: {
+              id: '3AC2C54DEE865041AC56',
+              fromMe: false,
+              remoteJid: '97070807564411@lid',
+              remoteJidAlt: '556191126429@s.whatsapp.net',
+              addressingMode: 'lid',
+            },
+            pushName: 'Fabyana Camargos',
+            message: {
+              conversation: 'Oi piranha',
+            },
+          },
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+        expect(processarMensagem).toHaveBeenCalledWith(
+          '556191126429',
+          '3AC2C54DEE865041AC56',
+          'text',
+          'Oi piranha',
+          undefined,
+          'Fabyana Camargos',
+        );
+      });
+
+      it('deve atualizar status de mensagens com messages.update / MESSAGES_UPDATE', async () => {
+        const payload = {
+          event: 'MESSAGES_UPDATE',
+          instance: 'cet_automacao',
+          data: [
+            {
+              key: { id: 'wamid.update1', remoteJid: '5563999998888@s.whatsapp.net' },
+              update: { status: 'READ' },
+            },
+          ],
+        };
+
+        const request = new Request('http://localhost/api/whatsapp', {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload),
+        });
+
+        const response = await POST(request);
+        expect(response.status).toBe(200);
+        expect(prisma.mensagem.updateMany).toHaveBeenCalledWith({
+          where: { wamid: 'wamid.update1' },
+          data: { status: 'lida' },
+        });
+      });
     });
   });
 });

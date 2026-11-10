@@ -6,7 +6,7 @@ const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || '';
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || '';
 const GRAPH_API_VERSION = 'v21.0';
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || '';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://2.31.30.193:8080';
 const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || 'cet_automacao';
 const API_KEY = process.env.EVOLUTION_API_KEY || 'cet_api_key_secreta_2026';
 
@@ -36,6 +36,7 @@ export async function enviarMensagemWhatsApp(numeroDestino: string, texto: strin
         type: 'text',
         text: { preview_url: false, body: texto },
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     const data = await response.json();
@@ -69,6 +70,7 @@ export async function enviarMensagemWhatsApp(numeroDestino: string, texto: strin
         text: texto,
         delay: delayMs,
       }),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {

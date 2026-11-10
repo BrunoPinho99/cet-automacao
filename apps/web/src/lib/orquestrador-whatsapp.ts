@@ -34,6 +34,38 @@ import { gerarRespostaGeminiCET } from './gemini-client';
 const sessoes = new Map<string, ContextoConversa & { intencaoPendente?: string }>();
 
 /**
+ * Reseta o contexto de sessão em memória para um telefone.
+ * Usado quando um atendente devolve a conversa para o robô.
+ */
+export function resetarSessao(telefone: string): void {
+  sessoes.delete(telefone);
+}
+
+/**
+ * Envia uma mensagem e registra no banco de dados com direção 'saida'.
+ */
+async function responderEGravar(
+  telefone: string,
+  ctx: ContextoConversa,
+  texto: string,
+): Promise<void> {
+  const res = await enviarTexto(telefone, texto);
+  if (ctx.lead_id) {
+    await prisma.mensagem.create({
+      data: {
+        lead_id: ctx.lead_id,
+        direcao: 'saida',
+        canal: 'whatsapp',
+        wamid: res.wamid,
+        conteudo: texto,
+        status: res.sucesso ? 'enviada' : 'falha',
+        erro: res.erro,
+      },
+    }).catch(err => console.error('[Orquestrador] Erro ao gravar mensagem de saída:', err));
+  }
+}
+
+/**
  * Ponto de entrada: processa uma mensagem recebida do WhatsApp.
  */
 export async function processarMensagem(
@@ -42,6 +74,7 @@ export async function processarMensagem(
   tipo: 'text' | 'interactive' | 'button',
   conteudo: string,
   interactiveId?: string,
+  pushName?: string,
 ): Promise<void> {
   const telefone = normalizarTelefone(from);
 
@@ -58,10 +91,14 @@ export async function processarMensagem(
   // 3. Obter ou criar contexto de sessão (cache em memória ultra-rápido)
   const ctx = await obterSessao(telefone);
 
-  // 4. Localizar ou registrar lead para auditoria (evita query duplicada se já estiver em sessão)
+  if (pushName && !ctx.nome && pushName.trim().length >= 2) {
+    ctx.nome = pushName.trim();
+  }
+
+  // 4. Localizar ou registrar Contato e Lead para garantir rastreabilidade total no CRM
   let lead = null;
-  if (!ctx.contato_id) {
-    const contato = await prisma.contato.findUnique({
+  if (!ctx.contato_id || !ctx.lead_id) {
+    let contato = await prisma.contato.findUnique({
       where: { telefone_e164: telefone },
       include: {
         leads: {
@@ -72,38 +109,93 @@ export async function processarMensagem(
       },
     });
 
-    if (contato && contato.leads.length > 0) {
-      lead = contato.leads[0];
-      ctx.contato_id = contato.id;
-      ctx.lead_id = lead.id;
-      if (contato.nome && !ctx.nome) {
-        ctx.nome = contato.nome;
-      }
+    if (!contato) {
+      contato = await prisma.contato.create({
+        data: {
+          nome: ctx.nome || pushName || 'Cliente WhatsApp',
+          telefone_e164: telefone,
+          canal_preferido: 'whatsapp',
+        },
+        include: {
+          leads: {
+            orderBy: { criado_em: 'desc' },
+            take: 1,
+            include: { atendente: true },
+          },
+        },
+      });
+    } else if (!contato.nome && (ctx.nome || pushName)) {
+      await prisma.contato.update({
+        where: { id: contato.id },
+        data: { nome: ctx.nome || pushName },
+      }).catch(() => {});
     }
+
+    ctx.contato_id = contato.id;
+    if (contato.nome && !ctx.nome) {
+      ctx.nome = contato.nome;
+    }
+
+    if (contato.leads.length > 0) {
+      lead = contato.leads[0];
+      ctx.lead_id = lead.id;
+    } else {
+      const protocolo = gerarProtocolo();
+      lead = await prisma.lead.create({
+        data: {
+          contato_id: contato.id,
+          canal: 'whatsapp',
+          protocolo,
+          primeira_intencao: 'Atendimento WhatsApp',
+        },
+        include: { atendente: true },
+      });
+      ctx.lead_id = lead.id;
+    }
+  } else {
+    lead = await prisma.lead.findUnique({
+      where: { id: ctx.lead_id },
+      include: { atendente: true },
+    });
   }
 
-  // Se houver lead identificado, salvar a mensagem de entrada em background (não bloqueia resposta)
+  // 5. Salvar mensagem de entrada IMEDIATAMENTE (deduplicação por wamid persistida)
   if (ctx.lead_id) {
-    prisma.mensagem.create({
+    await prisma.mensagem.create({
       data: {
         lead_id: ctx.lead_id,
         direcao: 'entrada',
         canal: 'whatsapp',
         wamid,
-        conteudo,
+        conteudo: conteudo || (interactiveId ? `[Opção: ${interactiveId}]` : ''),
         status: 'recebida',
       },
     }).catch(err => console.error('[Orquestrador] Erro ao gravar mensagem:', err));
   }
 
-  // 5. REGRA DE SILÊNCIO: Se já houver atendente humano assumido OU a sessão estiver em transbordo
-  // O robô NUNCA deve responder para não interferir na conversa humana.
-  if (ctx.estado === 'transbordo' || lead?.atendente_id) {
-    console.log(`[Orquestrador] ${telefone} está sob atendimento humano / transbordo — robô em silêncio.`);
+  // 6. REGRA DE SILÊNCIO: Se houver atendente humano ativo
+  if (lead?.atendente_id) {
+    console.log(`[Orquestrador] ${telefone} está sob atendimento humano (${lead.atendente_id}) — robô em silêncio.`);
     return;
   }
 
-  // 6. FAST-TRACK DE GATILHO OFICIAL: "quero receber um diagnostico da minha empresa"
+  // Se a sessão estava em transbordo, verificar se o cliente solicitou retorno ao menu
+  if (ctx.estado === 'transbordo') {
+    const querRetomar =
+      verificarTriggerDiagnostico(conteudo) ||
+      ['menu', 'iniciar', 'reiniciar', 'voltar', 'oi', 'ola', 'olá'].includes(conteudo.trim().toLowerCase()) ||
+      /^[1-6]$/.test(conteudo.trim());
+
+    if (querRetomar) {
+      console.log(`[Orquestrador] ${telefone} retornando ao menu a partir do transbordo.`);
+      ctx.estado = 'inicio';
+    } else {
+      console.log(`[Orquestrador] ${telefone} está em transbordo — mensagem arquivada para a equipe.`);
+      return;
+    }
+  }
+
+  // 7. FAST-TRACK DE GATILHO OFICIAL: "quero receber um diagnostico da minha empresa"
   // Intercepta imediatamente em QUALQUER momento com resposta instantânea e mínima latência
   if (conteudo && verificarTriggerDiagnostico(conteudo)) {
     const intencaoTitulo = 'Diagnóstico Completo da Empresa';
@@ -125,12 +217,12 @@ export async function processarMensagem(
       ctx.estado = 'nome';
       ctx.tentativas_invalidas = 0;
       atualizarSessao(telefone, ctx);
-      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
+      await responderEGravar(telefone, ctx, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
     }
     return;
   }
 
-  // 7. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
+  // 8. GATILHO DE ATIVAÇÃO: Evita conversas aleatórias, spam, stickers ou mensagens avulsas.
   // Se o estado for 'inicio', só responde se o usuário enviar saudações, termos SST, números 1 a 6 ou já tiver lead.
   if (ctx.estado === 'inicio') {
     const jaTemContato = !!(ctx.contato_id || ctx.lead_id || lead);
@@ -141,7 +233,7 @@ export async function processarMensagem(
     }
   }
 
-  // 8. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação e SLA de 10 min)
+  // 9. Verificar Gatilhos Críticos - Rota A (Interrupção imediata da automação e SLA de 10 min)
   const gatilhoRotaA = verificarGatilhoRotaA({ texto: conteudo });
   if (gatilhoRotaA.ativa) {
     console.log(`[Orquestrador] Gatilho Rota A acionado para ${telefone}: ${gatilhoRotaA.motivo}`);
@@ -195,7 +287,7 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
   if (ctx.ficha_token) {
     const link = linkCurtoFicha(ctx.ficha_token);
     const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
-    await enviarTexto(telefone, msg);
+    await responderEGravar(telefone, ctx, msg);
     ctx.estado = 'ficha_criada';
     atualizarSessao(telefone, ctx);
     return;
@@ -230,7 +322,7 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
         const link = linkCurtoFicha(ficha.token_retomada);
         const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
 
-        await enviarTexto(telefone, msg);
+        await responderEGravar(telefone, ctx, msg);
         ctx.ficha_token = ficha.token_retomada;
         ctx.estado = 'ficha_criada';
         atualizarSessao(telefone, ctx);
@@ -260,12 +352,12 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
       ctx.estado = 'nome';
       ctx.tentativas_invalidas = 0;
       atualizarSessao(telefone, ctx);
-      await enviarTexto(telefone, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
+      await responderEGravar(telefone, ctx, MENSAGENS.RESPOSTA_TRIGGER_DIAGNOSTICO);
     }
     return;
   }
 
-  // 2. Se o usuário já iniciou com uma dúvida específica em texto livre (não apenas saudação simples)
+  // 4. Se o usuário já iniciou com uma dúvida específica em texto livre (não apenas saudação simples)
   const ehSaudacaoSimples = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'opa', 'ola!', 'oi!'].includes(conteudo?.trim().toLowerCase() || '');
   if (conteudo && !ehSaudacaoSimples && conteudo.trim().length > 5 && !/^[1-6]$/.test(conteudo.trim())) {
     try {
@@ -273,7 +365,7 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
         nomeCliente: ctx.nome,
       });
       if (respostaIA) {
-        await enviarTexto(telefone, respostaIA);
+        await responderEGravar(telefone, ctx, respostaIA);
         ctx.estado = 'menu';
         ctx.tentativas_invalidas = 0;
         atualizarSessao(telefone, ctx);
@@ -284,8 +376,8 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
     }
   }
 
-  // 3. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
-  await enviarTexto(telefone, MENSAGENS.ABERTURA_OBRIGATORIA);
+  // 5. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
+  await responderEGravar(telefone, ctx, MENSAGENS.ABERTURA_OBRIGATORIA);
 
   ctx.estado = 'menu';
   ctx.tentativas_invalidas = 0;
@@ -348,7 +440,7 @@ async function tratarConsentimento(
       }).catch(err => console.error('[LGPD] Erro ao salvar consentimento:', err));
     }
 
-    await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
+    await responderEGravar(telefone, ctx, MENSAGENS.MENU_TRIAGEM);
     ctx.estado = 'menu';
     ctx.tentativas_invalidas = 0;
     atualizarSessao(telefone, ctx);
@@ -359,7 +451,7 @@ async function tratarConsentimento(
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
       await iniciarTransbordo(telefone, ctx);
     } else {
-      await enviarTexto(telefone, MENSAGENS.ERRO_OPCAO);
+      await responderEGravar(telefone, ctx, MENSAGENS.ERRO_OPCAO);
     }
     atualizarSessao(telefone, ctx);
   }
@@ -397,12 +489,13 @@ async function tratarMenu(
     } else {
       (ctx as any).intencaoPendente = intencaoTitulo;
       ctx.estado = 'nome';
-      await enviarTexto(telefone, MENSAGENS.PEDIR_NOME);
+      await responderEGravar(telefone, ctx, MENSAGENS.PEDIR_NOME);
       atualizarSessao(telefone, ctx);
     }
   } else if (opcao5) {
-    await enviarTexto(
+    await responderEGravar(
       telefone,
+      ctx,
       'Perfeito! Que bom falar com você novamente. Vou encaminhar seu atendimento para a nossa equipe de suporte e relacionamento com clientes da CET! 🤝',
     );
     await iniciarTransbordo(telefone, ctx);
@@ -412,7 +505,7 @@ async function tratarMenu(
     // Se a pessoa apenas enviou uma saudação comum de novo, envia o menu sem erro
     const saudacao = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'opa'].includes(norm);
     if (saudacao) {
-      await enviarTexto(telefone, MENSAGENS.MENU_TRIAGEM);
+      await responderEGravar(telefone, ctx, MENSAGENS.MENU_TRIAGEM);
       return;
     }
 
@@ -431,7 +524,7 @@ async function tratarMenu(
       });
 
       if (respostaIA) {
-        await enviarTexto(telefone, respostaIA);
+        await responderEGravar(telefone, ctx, respostaIA);
         ctx.tentativas_invalidas = 0;
         atualizarSessao(telefone, ctx);
         return;
@@ -444,7 +537,7 @@ async function tratarMenu(
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
       await iniciarTransbordo(telefone, ctx);
     } else {
-      await enviarTexto(telefone, MENSAGENS.ERRO_OPCAO);
+      await responderEGravar(telefone, ctx, MENSAGENS.ERRO_OPCAO);
     }
     atualizarSessao(telefone, ctx);
   }
@@ -461,7 +554,7 @@ async function tratarNome(
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
       await iniciarTransbordo(telefone, ctx);
     } else {
-      await enviarTexto(telefone, 'Por favor, informe seu *nome completo* para prosseguirmos: 😊');
+      await responderEGravar(telefone, ctx, 'Por favor, informe seu *nome completo* para prosseguirmos: 😊');
     }
     atualizarSessao(telefone, ctx);
     return;
@@ -527,53 +620,67 @@ async function criarLeadEFicha(
     ctx.contato_id = contato.id;
   }
 
-  // Criação atômica do Lead e Ficha em uma única consulta ao banco
-  const lead = await prisma.lead.create({
-    data: {
-      contato_id: contatoId,
-      canal: 'whatsapp',
-      primeira_intencao: intencao,
-      protocolo,
-      fichas: {
-        create: {
-          status: 'iniciada',
-          bloco_atual: 1,
-          respostas: {},
+  let lead = ctx.lead_id
+    ? await prisma.lead.findUnique({ where: { id: ctx.lead_id }, include: { fichas: true } })
+    : null;
+
+  if (!lead) {
+    lead = await prisma.lead.create({
+      data: {
+        contato_id: contatoId,
+        canal: 'whatsapp',
+        primeira_intencao: intencao,
+        protocolo,
+        fichas: {
+          create: {
+            status: 'iniciada',
+            bloco_atual: 1,
+            respostas: {},
+          },
         },
       },
-    },
-    include: {
-      fichas: true,
-    },
-  });
+      include: {
+        fichas: true,
+      },
+    });
+  } else {
+    await prisma.lead
+      .update({
+        where: { id: lead.id },
+        data: { primeira_intencao: intencao },
+      })
+      .catch(() => {});
+  }
 
-  const ficha = lead.fichas[0];
+  const leadId = lead?.id || ctx.lead_id || 'lead-temp';
+  let ficha = lead?.fichas?.[0];
+  if (!ficha) {
+    ficha = await prisma.ficha.create({
+      data: {
+        lead_id: leadId,
+        status: 'iniciada',
+        bloco_atual: 1,
+        respostas: {},
+      },
+    });
+  }
 
-  ctx.lead_id = lead.id;
-  ctx.ficha_token = ficha.token_retomada;
+  const tokenRetomada = ficha?.token_retomada || 'token-fallback';
+  ctx.lead_id = leadId;
+  ctx.ficha_token = tokenRetomada;
   ctx.estado = 'ficha_criada';
   ctx.tentativas_invalidas = 0;
   atualizarSessao(telefone, ctx);
 
-  const link = linkCurtoFicha(ficha.token_retomada);
+  const link = linkCurtoFicha(tokenRetomada);
 
-  // 3. Direcionamento para a Ficha Inteligente com tom acolhedor
+  // Direcionamento para a Ficha Inteligente com tom acolhedor
   const msg = MENSAGENS.FICHA_CRIADA
     .replace('{{nome}}', ctx.nome || 'cliente')
-    .replace('{{protocolo}}', protocolo)
+    .replace('{{protocolo}}', lead.protocolo || protocolo)
     .replace('{{link_ficha}}', link);
 
-  await enviarTexto(telefone, msg);
-
-  await prisma.mensagem.create({
-    data: {
-      lead_id: lead.id,
-      direcao: 'saida',
-      canal: 'whatsapp',
-      conteudo: msg,
-      status: 'enviada',
-    },
-  }).catch(() => {});
+  await responderEGravar(telefone, ctx, msg);
 }
 
 async function tratarIntencao(
@@ -594,20 +701,21 @@ async function tratarPosFicha(
   if (norm === '1' || norm.includes('continuar') || norm.includes('preenchimento') || norm.includes('formulario') || norm.includes('link')) {
     if (ctx.ficha_token) {
       const link = linkCurtoFicha(ctx.ficha_token);
-      await enviarTexto(telefone, `Aqui está o link para continuar seu preenchimento:\n👉 ${link}`);
+      await responderEGravar(telefone, ctx, `Aqui está o link para continuar seu preenchimento:\n👉 ${link}`);
     } else {
       await tratarInicio(telefone, ctx);
     }
   } else if (norm === '2' || norm === '6' || norm.includes('especialista') || norm.includes('falar com') || norm.includes('humano') || norm.includes('atendente') || norm.includes('consultor')) {
     await iniciarTransbordo(telefone, ctx);
   } else if (norm.includes('essencial') || norm.includes('completo')) {
-    await enviarTexto(
+    await responderEGravar(
       telefone,
+      ctx,
       'Perfeito! Gerando link seguro para o diagnóstico escolhido via Asaas (PIX ou Cartão)...',
     );
   } else {
     if (ctx.ficha_token) {
-      await enviarTexto(telefone, MENSAGENS.FICHA_INCOMPLETA);
+      await responderEGravar(telefone, ctx, MENSAGENS.FICHA_INCOMPLETA);
     } else {
       ctx.estado = 'inicio';
       await tratarInicio(telefone, ctx);
@@ -627,8 +735,19 @@ async function acionarRotaA(
   ctx.estado = 'transbordo';
   atualizarSessao(telefone, ctx);
 
+  if (ctx.lead_id) {
+    await prisma.lead
+      .update({
+        where: { id: ctx.lead_id },
+        data: {
+          primeira_intencao: `ROTA A URGENTE (SLA 10min): ${motivo || 'Gatilho Crítico'}`,
+        },
+      })
+      .catch(() => {});
+  }
+
   const msg = MENSAGENS.ROTA_A_TRANSBORDO.replace('{{protocolo}}', protocolo);
-  await enviarTexto(telefone, msg);
+  await responderEGravar(telefone, ctx, msg);
 
   console.warn(`[ROTA A - URGÊNCIA] Transferência imediata (SLA 10min) para ${telefone}. Protocolo: ${protocolo}. Motivo: ${motivo}`);
 }
@@ -641,9 +760,20 @@ async function iniciarTransbordo(telefone: string, ctx: ContextoConversa): Promi
   ctx.estado = 'transbordo';
   atualizarSessao(telefone, ctx);
 
+  if (ctx.lead_id) {
+    await prisma.lead
+      .update({
+        where: { id: ctx.lead_id },
+        data: {
+          primeira_intencao: 'Solicitação de Atendimento Humano (Transbordo)',
+        },
+      })
+      .catch(() => {});
+  }
+
   if (dentroDoHorarioComercial()) {
     const msg = MENSAGENS.TRANSBORDO_PADRAO.replace('{{protocolo}}', protocolo);
-    await enviarTexto(telefone, msg);
+    await responderEGravar(telefone, ctx, msg);
   } else {
     let msg: string = MENSAGENS.HORARIO_FORA;
     if (ctx.ficha_token) {
@@ -652,7 +782,7 @@ async function iniciarTransbordo(telefone: string, ctx: ContextoConversa): Promi
     } else {
       msg = msg.replace('\n👉 {{link_ficha}}', '');
     }
-    await enviarTexto(telefone, msg);
+    await responderEGravar(telefone, ctx, msg);
   }
 
   console.log(`[Transbordo Humano] ${telefone} | Nome: ${ctx.nome || 'N/A'} | Protocolo: ${protocolo}`);
@@ -712,8 +842,12 @@ async function obterSessao(telefone: string): Promise<ContextoConversa & { inten
         }
       }
 
+      if (lead.atendente_id) {
+        nova.estado = 'transbordo';
+      }
+
       // Se a última mensagem de saída foi de pergunta de nome ou menu
-      const ultimaMsgSaida = lead.mensagens.find((m) => m.direcao === 'saida');
+      const ultimaMsgSaida = lead.mensagens?.find((m) => m.direcao === 'saida');
       if (ultimaMsgSaida) {
         const txt = ultimaMsgSaida.conteudo || '';
         if (txt.includes('qual é o seu *nome completo*') || txt.includes('nome completo')) {

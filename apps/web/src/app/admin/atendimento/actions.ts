@@ -2,6 +2,7 @@
 
 import { prisma } from '@cet/db';
 import { enviarMensagem } from '@/lib/mensageria';
+import { resetarSessao } from '@/lib/orquestrador-whatsapp';
 import { revalidatePath } from 'next/cache';
 import { registrarAuditoria } from '@/lib/auditoria';
 import { randomUUID } from 'crypto';
@@ -39,7 +40,10 @@ export async function assumirAtendimento(leadId: string) {
 
 export async function devolverParaRobo(leadId: string) {
   const usuarioId = await getUsuarioLogado();
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    include: { contato: true },
+  });
   
   if (!lead) throw new Error('Lead não encontrado');
 
@@ -47,6 +51,10 @@ export async function devolverParaRobo(leadId: string) {
     where: { id: leadId },
     data: { atendente_id: null }
   });
+
+  if (lead.contato?.telefone_e164) {
+    resetarSessao(lead.contato.telefone_e164);
+  }
 
   await registrarAuditoria({
     entidade: 'Lead',

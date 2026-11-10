@@ -16,6 +16,7 @@ export async function GET() {
     const stateRes = await fetch(`${EVOLUTION_API_URL}/instance/connectionState/${INSTANCE_NAME}`, {
       headers: { apikey: API_KEY },
       cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
     });
 
     let state = 'disconnected';
@@ -35,6 +36,7 @@ export async function GET() {
       const connectRes = await fetch(`${EVOLUTION_API_URL}/instance/connect/${INSTANCE_NAME}`, {
         headers: { apikey: API_KEY },
         cache: 'no-store',
+        signal: AbortSignal.timeout(8000),
       });
 
       if (connectRes.ok) {
@@ -58,6 +60,7 @@ export async function GET() {
               integration: 'WHATSAPP-BAILEYS',
               qrcode: true,
             }),
+            signal: AbortSignal.timeout(8000),
           });
 
           if (createRes.ok) {
@@ -103,6 +106,7 @@ export async function POST(req: Request) {
       const res = await fetch(`${EVOLUTION_API_URL}/instance/restart/${INSTANCE_NAME}`, {
         method: 'PUT',
         headers: { apikey: API_KEY },
+        signal: AbortSignal.timeout(8000),
       });
       return NextResponse.json({ success: res.ok });
     }
@@ -111,6 +115,7 @@ export async function POST(req: Request) {
       const res = await fetch(`${EVOLUTION_API_URL}/instance/logout/${INSTANCE_NAME}`, {
         method: 'DELETE',
         headers: { apikey: API_KEY },
+        signal: AbortSignal.timeout(8000),
       });
       return NextResponse.json({ success: res.ok });
     }

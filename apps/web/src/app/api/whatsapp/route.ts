@@ -93,7 +93,8 @@ export async function POST(req: Request) {
               }
 
               if (sender && wamid) {
-                processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId).catch(err => {
+                const pushName = val.contacts?.[0]?.profile?.name;
+                processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName).catch(err => {
                   console.error('[Meta Webhook] Erro ao processar:', err);
                 });
               }
@@ -108,53 +109,98 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. FORMATO EVOLUTION API (messages.upsert)
-    if (body.event === 'messages.upsert' && body.data) {
-      const messageData = body.data;
+    // 2. FORMATO EVOLUTION API (messages.upsert e messages.update)
+    const rawEvent = typeof body.event === 'string' ? body.event : '';
+    const normEvent = rawEvent.toLowerCase().replace('_', '.');
 
-      // Ignora mensagens enviadas pelo próprio bot
-      if (messageData.key?.fromMe) {
-        return new Response(JSON.stringify({ status: 'ignored_from_me' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+    if ((normEvent === 'messages.update' || rawEvent === 'MESSAGES_UPDATE') && body.data) {
+      const updateList = Array.isArray(body.data) ? body.data : [body.data];
+      for (const item of updateList) {
+        const wamid = item.key?.id;
+        const rawStatus = item.update?.status;
+        let mappedStatus: string | undefined;
 
-      const remoteJid = messageData.key?.remoteJid || '';
-
-      // Ignora mensagens de grupos (@g.us) ou transmissões/status (@broadcast)
-      if (remoteJid.includes('@g.us') || remoteJid.includes('@broadcast')) {
-        return new Response(JSON.stringify({ status: 'ignored_group_or_broadcast' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const sender = remoteJid.replace('@s.whatsapp.net', '');
-      const messageText =
-        messageData.message?.conversation ||
-        messageData.message?.extendedTextMessage?.text ||
-        '';
-      const wamid = messageData.key?.id;
-
-      if (sender && wamid) {
-        let tipoMensagem: 'text' | 'interactive' | 'button' = 'text';
-        let interactiveId: string | undefined;
-
-        if (messageData.message?.listResponseMessage) {
-          tipoMensagem = 'interactive';
-          interactiveId = messageData.message.listResponseMessage.singleSelectReply?.selectedRowId;
-        } else if (messageData.message?.buttonsResponseMessage) {
-          tipoMensagem = 'button';
-          interactiveId = messageData.message.buttonsResponseMessage.selectedButtonId;
-        } else if (messageData.message?.templateButtonReplyMessage) {
-          tipoMensagem = 'button';
-          interactiveId = messageData.message.templateButtonReplyMessage.selectedId;
+        if (rawStatus === 2 || rawStatus === 'SENT' || rawStatus === 'sent') {
+          mappedStatus = 'enviada';
+        } else if (rawStatus === 3 || rawStatus === 'DELIVERY_ACK' || rawStatus === 'delivered') {
+          mappedStatus = 'entregue';
+        } else if (rawStatus === 4 || rawStatus === 'READ' || rawStatus === 'read') {
+          mappedStatus = 'lida';
         }
 
-        processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId).catch(err => {
-          console.error('[Evolution Webhook] Erro ao processar:', err);
-        });
+        if (wamid && mappedStatus) {
+          await prisma.mensagem
+            .updateMany({
+              where: { wamid },
+              data: { status: mappedStatus },
+            })
+            .catch(() => {});
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, event: 'status_updated' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if ((normEvent === 'messages.upsert' || rawEvent === 'MESSAGES_UPSERT') && body.data) {
+      const messageList = Array.isArray(body.data) ? body.data : [body.data];
+
+      for (const messageData of messageList) {
+        // Ignora mensagens enviadas pelo próprio bot
+        if (messageData.key?.fromMe) {
+          continue;
+        }
+
+        // Suporte para WhatsApp LID (Lightweight ID / Multi-Device):
+        // Quando addressingMode for "lid", o número real do telefone vem em remoteJidAlt
+        const altJid = messageData.key?.remoteJidAlt || messageData.sender || messageData.participant || '';
+        const primaryJid = messageData.key?.remoteJid || '';
+        const rawJid = (altJid && !altJid.includes('@lid')) ? altJid : primaryJid;
+
+        // Ignora mensagens de grupos (@g.us) ou transmissões/status (@broadcast)
+        if (!rawJid || rawJid.includes('@g.us') || rawJid.includes('@broadcast')) {
+          continue;
+        }
+
+        // Remove sufixo de servidor (@s.whatsapp.net / @lid) e sufixo de dispositivo multidevice (ex: :1)
+        const sender = rawJid.split('@')[0].split(':')[0];
+        const pushName = messageData.pushName || undefined;
+
+        let messageText =
+          messageData.message?.conversation ||
+          messageData.message?.extendedTextMessage?.text ||
+          messageData.message?.buttonsResponseMessage?.selectedDisplayText ||
+          messageData.message?.listResponseMessage?.title ||
+          messageData.message?.templateButtonReplyMessage?.selectedDisplayText ||
+          '';
+
+        const wamid = messageData.key?.id;
+
+        if (sender && wamid) {
+          let tipoMensagem: 'text' | 'interactive' | 'button' = 'text';
+          let interactiveId: string | undefined;
+
+          if (messageData.message?.listResponseMessage) {
+            tipoMensagem = 'interactive';
+            interactiveId = messageData.message.listResponseMessage.singleSelectReply?.selectedRowId;
+          } else if (messageData.message?.buttonsResponseMessage) {
+            tipoMensagem = 'button';
+            interactiveId = messageData.message.buttonsResponseMessage.selectedButtonId;
+          } else if (messageData.message?.templateButtonReplyMessage) {
+            tipoMensagem = 'button';
+            interactiveId = messageData.message.templateButtonReplyMessage.selectedId;
+          }
+
+          if (!messageText && interactiveId) {
+            messageText = interactiveId;
+          }
+
+          processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName).catch(err => {
+            console.error('[Evolution Webhook] Erro ao processar:', err);
+          });
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), {
