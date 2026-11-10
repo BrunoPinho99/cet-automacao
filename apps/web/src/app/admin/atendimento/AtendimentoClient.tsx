@@ -67,9 +67,30 @@ export default function AtendimentoClient({
   const [excluindoMensagem, setExcluindoMensagem] = useState<boolean>(false);
   const [showConfirmLimparHistorico, setShowConfirmLimparHistorico] = useState<boolean>(false);
   const [limpandoHistorico, setLimpandoHistorico] = useState<boolean>(false);
+  const [whatsappStatus, setWhatsappStatus] = useState<'loading' | 'open' | 'connecting' | 'close' | 'disconnected'>('loading');
+
+  const checarStatusWhatsapp = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/whatsapp', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.state) {
+          setWhatsappStatus(data.state);
+        }
+      }
+    } catch {
+      // silencioso
+    }
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    checarStatusWhatsapp();
+    const interval = setInterval(checarStatusWhatsapp, 8000);
+    return () => clearInterval(interval);
+  }, [checarStatusWhatsapp]);
 
   // Sincronização periódica (Live Polling a cada 3.5s)
   const sincronizarConversas = useCallback(async (silencioso = true) => {
@@ -263,13 +284,37 @@ export default function AtendimentoClient({
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-white border border-slate-200/90 rounded-t-xl shrink-0 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
+            {whatsappStatus === 'open' ? (
+              <span className="relative flex h-2.5 w-2.5" title="WhatsApp Conectado">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+            ) : whatsappStatus === 'connecting' ? (
+              <span className="relative flex h-2.5 w-2.5" title="Aguardando QR Code">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              </span>
+            ) : (
+              <span className="relative flex h-2.5 w-2.5" title="WhatsApp Desconectado">
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              </span>
+            )}
             <span className="font-semibold text-slate-900 text-xs sm:text-sm">
               Inbox de Atendimento WhatsApp
             </span>
+            {whatsappStatus === 'open' ? (
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                Conectado
+              </span>
+            ) : (
+              <Link
+                href="/admin/whatsapp"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5 transition"
+              >
+                <span>⚠️ Desconectado</span>
+                <span className="underline ml-0.5">Conectar WhatsApp</span>
+              </Link>
+            )}
           </div>
           <span className="text-slate-300 hidden sm:inline">|</span>
           <span className="text-slate-500 text-xs hidden sm:inline tabular-nums">
@@ -306,6 +351,25 @@ export default function AtendimentoClient({
           </button>
         </div>
       </div>
+
+      {/* Banner de Aviso de WhatsApp Desconectado */}
+      {whatsappStatus !== 'open' && whatsappStatus !== 'loading' && (
+        <div className="bg-amber-50/95 border-x border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs flex flex-wrap justify-between items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base shrink-0">⚠️</span>
+            <span className="font-medium text-amber-900">
+              O WhatsApp corporativo está <strong>desconectado</strong>. As mensagens dos clientes não serão recebidas e o atendente com I.A. não responderá até que o aparelho seja conectado.
+            </span>
+          </div>
+          <Link
+            href="/admin/whatsapp"
+            className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-2xs transition shrink-0"
+          >
+            <span>Escanear QR Code agora</span>
+            <span>➔</span>
+          </Link>
+        </div>
+      )}
 
       {/* Alerta de Feedback Amigável */}
       {alerta && (
@@ -472,9 +536,23 @@ export default function AtendimentoClient({
                     ? 'Nenhuma conversa ativa'
                     : 'Nenhum resultado para a busca'}
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5 max-w-[200px]">
-                  Novas mensagens do WhatsApp serão listadas aqui automaticamente.
-                </p>
+                {leadsList.length === 0 && whatsappStatus !== 'open' ? (
+                  <div className="mt-2 text-center max-w-[240px] space-y-2">
+                    <p className="text-[11px] text-slate-500">
+                      O WhatsApp está desconectado. Conecte o aparelho para receber mensagens e ativar o vendedor com I.A.
+                    </p>
+                    <Link
+                      href="/admin/whatsapp"
+                      className="inline-block px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition"
+                    >
+                      Conectar WhatsApp
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-[200px]">
+                    Novas mensagens do WhatsApp serão listadas aqui automaticamente.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -735,16 +813,33 @@ export default function AtendimentoClient({
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
-                <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+                {whatsappStatus === 'open' ? (
+                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                ) : (
+                  <span className="text-xl">📱</span>
+                )}
               </div>
               <p className="text-sm font-semibold text-slate-800">
-                Atendimento ao Cliente
+                {whatsappStatus !== 'open' && whatsappStatus !== 'loading'
+                  ? 'WhatsApp Desconectado'
+                  : 'Atendimento ao Cliente'}
               </p>
               <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                Selecione uma conversa na lista à esquerda para visualizar o histórico de mensagens e responder ao cliente.
+                {whatsappStatus !== 'open' && whatsappStatus !== 'loading'
+                  ? 'O número de WhatsApp da CET precisa estar conectado para que novas conversas cheguem e sejam atendidas automaticamente pela I.A.'
+                  : 'Selecione uma conversa na lista à esquerda para visualizar o histórico de mensagens e responder ao cliente.'}
               </p>
+              {whatsappStatus !== 'open' && whatsappStatus !== 'loading' && (
+                <Link
+                  href="/admin/whatsapp"
+                  className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-royal hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition"
+                >
+                  <span>Conectar WhatsApp Agora</span>
+                  <span>➔</span>
+                </Link>
+              )}
             </div>
           )}
         </div>
