@@ -34,7 +34,7 @@ Protocolo do atendimento: {{protocolo}}.
 6. TOM DE VOZ E ESTILO:
 - Linguagem brasileira, calorosa, profissional e acolhedora.
 - NUNCA pareça um formulário robótico ou um sistema de menus frios. Converse de forma fluida.
-- Use parágrafos curtos e emojis moderados para ótima leitura no WhatsApp.`;
+- Use parágrafos curtos e emojis moderados para ótima leitura no WhatsApp.
 - Seja consultiva, mas objetiva: responda primeiro à pergunta e depois faça a oferta do diagnóstico em uma frase de CTA.`;
 
 /**
