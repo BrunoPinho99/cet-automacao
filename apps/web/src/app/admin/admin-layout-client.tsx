@@ -91,10 +91,10 @@ const navSections = [
 
 function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   return (
-    <nav className="space-y-6">
+    <nav className="admin-nav space-y-6">
       {navSections.map((sec) => (
         <div key={sec.group}>
-          <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="admin-nav-group px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
             {sec.group}
           </div>
           <ul className="space-y-0.5">
@@ -105,9 +105,9 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                   <Link
                     href={item.href}
                     onClick={onNavigate}
-                    className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition-colors ${
+                    className={`admin-nav-link flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition-colors ${
                       isActive
-                        ? 'bg-soft-lavender text-royal font-semibold'
+                        ? 'admin-nav-link-active bg-soft-lavender text-royal font-semibold'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                   >
@@ -145,11 +145,11 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
     : 'AD';
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 flex flex-col">
+    <div className="admin-shell min-h-screen bg-white text-slate-800 flex flex-col">
       <OnboardingModal forceOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
       {/* CABEÇALHO CORPORATIVO */}
-      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
+      <header className="admin-header sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -164,9 +164,9 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
           <Link href="/admin" className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-cet.png" alt="CET" className="w-9 h-9 rounded-md object-contain" />
+            <img src="/logo-cet.png" alt="CET" className="w-10 h-10 rounded-xl object-contain" />
             <div className="leading-tight">
-              <span className="block text-sm font-semibold text-slate-900">CET</span>
+              <span className="block text-base font-semibold text-slate-900">CET</span>
               <span className="block text-xs text-slate-500">Segurança e Medicina do Trabalho</span>
             </div>
           </Link>
@@ -176,7 +176,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           <button
             type="button"
             onClick={() => setTutorialOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+            className="admin-header-action inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             title="Abrir guia rápido de uso do sistema"
           >
             <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -189,7 +189,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
             <div className="flex items-center gap-2.5 sm:gap-3">
               <div className="relative">
                 <div
-                  className="w-8 h-8 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center select-none"
+                  className="w-10 h-10 rounded-full bg-soft-lavender border border-blue-200 text-royal text-xs font-semibold flex items-center justify-center select-none"
                   title={`${session.email} (${session.role})`}
                 >
                   {initials}
@@ -200,7 +200,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
                 type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="border-2 border-slate-200 rounded-full px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="admin-header-action border-2 border-slate-200 rounded-full px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {loggingOut ? 'Saindo...' : 'Sair'}
               </button>
@@ -211,7 +211,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
 
       <div className="flex flex-1 min-h-0">
         {/* MENU LATERAL (DESKTOP) */}
-        <aside className="hidden lg:block w-64 xl:w-72 shrink-0 bg-white border-r border-slate-200">
+        <aside className="admin-sidebar hidden lg:block w-64 xl:w-72 shrink-0 bg-white border-r border-slate-200">
           <div className="sticky top-16 p-4">
             <NavList pathname={pathname} />
           </div>
@@ -243,8 +243,8 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
         )}
 
         {/* CONTEÚDO PRINCIPAL COM FUNDO SLATE-50 */}
-        <main className="flex-1 min-w-0 bg-surface-soft">
-          <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</div>
+        <main className="admin-main flex-1 min-w-0 bg-surface-soft">
+          <div className="admin-content w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</div>
         </main>
       </div>
     </div>

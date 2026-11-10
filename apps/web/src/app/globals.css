@@ -336,3 +336,179 @@ select:focus {
     border-radius: 24px;
   }
 }
+
+/* Admin surfaces follow the Meta commerce geometry from DESIGN.md. */
+.admin-shell {
+  font-family: "Optimistic VF", Montserrat, Helvetica, Arial, "Noto Sans", sans-serif;
+}
+
+.admin-header {
+  height: 72px;
+  border-color: var(--hairline-soft);
+}
+
+.admin-sidebar {
+  width: 280px;
+  border-color: var(--hairline-soft);
+}
+
+.admin-content {
+  max-width: 1600px;
+  padding-top: 40px;
+  padding-bottom: 64px;
+}
+
+.admin-nav-link {
+  min-height: 44px;
+  border-radius: 100px;
+  font-size: 16px;
+  letter-spacing: -0.16px;
+}
+
+.admin-nav-link-active {
+  background: color-mix(in srgb, var(--primary) 12%, white) !important;
+}
+
+.admin-nav-group {
+  color: var(--stone);
+  letter-spacing: 0.08em;
+}
+
+.admin-page {
+  color: var(--ink);
+}
+
+.admin-page-title {
+  font-size: clamp(36px, 3.2vw, 48px);
+  line-height: 1.17;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-feature-settings: "ss01", "ss02";
+}
+
+.admin-page-subtitle {
+  font-size: 18px;
+  line-height: 1.44;
+  color: var(--steel);
+}
+
+.admin-primary-button,
+.admin-secondary-button {
+  min-height: 44px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.43;
+  letter-spacing: -0.14px;
+}
+
+.admin-primary-button {
+  background: var(--primary) !important;
+}
+
+.admin-primary-button:hover {
+  background: var(--primary-deep) !important;
+}
+
+.admin-secondary-button {
+  border-width: 2px;
+  border-color: var(--ink-deep);
+  color: var(--ink-deep);
+}
+
+.admin-metric-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.admin-metric-card {
+  min-height: 192px;
+  padding: 32px;
+  border-radius: 32px;
+  box-shadow: none;
+}
+
+.admin-metric-card-total,
+.admin-metric-card-large,
+.admin-metric-card-medium {
+  grid-column: span 2;
+}
+
+.admin-metric-card-small,
+.admin-metric-card-payments {
+  grid-column: span 3;
+}
+
+.admin-metric-card-large {
+  background: color-mix(in srgb, var(--primary) 5%, white) !important;
+  border-color: color-mix(in srgb, var(--primary) 24%, white) !important;
+}
+
+.admin-metric-card-small {
+  background: color-mix(in srgb, var(--success) 6%, white) !important;
+  border-color: color-mix(in srgb, var(--success) 35%, white) !important;
+}
+
+.admin-metric-card-payments {
+  border-color: color-mix(in srgb, var(--success) 35%, white) !important;
+}
+
+.admin-filter-panel,
+.admin-table-card {
+  border-radius: 24px;
+  border-color: var(--hairline-soft);
+  box-shadow: none;
+}
+
+.admin-filter-panel input,
+.admin-filter-panel select {
+  min-height: 44px;
+  border-radius: 16px;
+}
+
+.admin-table-card thead {
+  background: var(--surface-soft);
+}
+
+.admin-table-card tbody tr {
+  min-height: 76px;
+}
+
+@media (max-width: 1279px) {
+  .admin-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-metric-card-total,
+  .admin-metric-card-large,
+  .admin-metric-card-medium,
+  .admin-metric-card-small,
+  .admin-metric-card-payments {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-content {
+    padding-top: 24px;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-metric-card-total,
+  .admin-metric-card-large,
+  .admin-metric-card-medium,
+  .admin-metric-card-small,
+  .admin-metric-card-payments {
+    grid-column: span 1;
+  }
+
+  .admin-metric-card {
+    min-height: 160px;
+    padding: 24px;
+    border-radius: 24px;
+  }
+}

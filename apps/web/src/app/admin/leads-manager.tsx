@@ -349,7 +349,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6 w-full max-w-full">
+    <div className="admin-page space-y-5 sm:space-y-6 w-full max-w-full">
       {/* Toast Feedback */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 animate-fade-in max-w-md">
@@ -359,7 +359,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
       )}
 
       {/* Header com Ação Principal — SaaS 2026 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1">
+      <div className="admin-page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-1">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -370,10 +370,10 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
               {leads.length} cadastros no sistema
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+          <h1 className="admin-page-title text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
             Clientes e Triagem SST
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+          <p className="admin-page-subtitle mt-1 text-xs sm:text-sm text-slate-500">
             Acompanhe o porte das empresas, dados de contato e status de pagamento em tempo real.
           </p>
         </div>
@@ -382,7 +382,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
             type="button"
             onClick={refreshLeads}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-white px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition"
+            className="admin-secondary-button inline-flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-300 transition"
           >
             <svg
               className={`w-4 h-4 text-slate-500 ${loading ? 'animate-spin' : ''}`}
@@ -397,7 +397,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs shadow-blue-500/20 hover:bg-blue-700 transition"
+            className="admin-primary-button inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs shadow-blue-500/20 hover:bg-blue-700 transition"
           >
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M12 4v16m8-8H4" />
@@ -408,9 +408,9 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
       </div>
 
       {/* Cards de Métricas SaaS 2026: Branco, Azul e Verde */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3.5">
+      <div className="admin-metric-grid grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {/* Card 1: Total */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 transition">
+        <div className="admin-metric-card admin-metric-card-total rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
               Total de Empresas
@@ -430,7 +430,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
         </div>
 
         {/* Card 2: Grande Porte */}
-        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/40 p-4 sm:p-4.5 shadow-2xs hover:border-blue-300 transition">
+        <div className="admin-metric-card admin-metric-card-large rounded-2xl border border-blue-200/80 bg-blue-50/40 p-4 sm:p-4.5 shadow-2xs hover:border-blue-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">
               Grande Porte
@@ -450,7 +450,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
         </div>
 
         {/* Card 3: Médio Porte */}
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 transition">
+        <div className="admin-metric-card admin-metric-card-medium rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
               Médio Porte
@@ -470,7 +470,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
         </div>
 
         {/* Card 4: Pequeno Porte */}
-        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-4 sm:p-4.5 shadow-2xs hover:border-emerald-300 transition">
+        <div className="admin-metric-card admin-metric-card-small rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-4 sm:p-4.5 shadow-2xs hover:border-emerald-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">
               Pequeno Porte
@@ -490,7 +490,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
         </div>
 
         {/* Card 5: Pagos */}
-        <div className="col-span-2 sm:col-span-1 xl:col-span-1 rounded-2xl border border-emerald-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-emerald-300 transition">
+        <div className="admin-metric-card admin-metric-card-payments col-span-2 sm:col-span-1 xl:col-span-3 rounded-2xl border border-emerald-200/80 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-emerald-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">
               Pagamentos
@@ -509,7 +509,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
       </div>
 
       {/* Barra de Filtros e Busca SaaS 2026 */}
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between rounded-2xl bg-white p-3.5 sm:p-4 border border-slate-200/80 shadow-2xs">
+      <div className="admin-filter-panel flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between rounded-2xl bg-white p-3.5 sm:p-4 border border-slate-200/80 shadow-2xs">
         <div className="relative flex-1 max-w-full lg:max-w-md">
           <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-400">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -568,7 +568,7 @@ export function LeadsManager({ initialLeads }: LeadsManagerProps) {
       </div>
 
       {/* Tabela de Leads SaaS 2026 */}
-      <div className="w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
+      <div className="admin-table-card w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xs">
         <div className="w-full overflow-x-auto">
           <table className="w-full min-w-[860px] divide-y divide-slate-100 text-left text-sm">
             <thead className="bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
