@@ -6,6 +6,7 @@ const { mockPrisma, mockEnviarTexto } = vi.hoisted(() => ({
   mockPrisma: {
     mensagem: {
       findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
       updateMany: vi.fn(),
     },
@@ -62,6 +63,7 @@ describe('Orquestrador WhatsApp', () => {
     resetarSessao(TELEFONE);
     mockEnviarTexto.mockResolvedValue({ sucesso: true, wamid: 'out.wamid.123' });
     mockPrisma.mensagem.findUnique.mockResolvedValue(null);
+    mockPrisma.mensagem.findMany.mockResolvedValue([]);
     mockPrisma.mensagem.create.mockResolvedValue({ id: 'msg-1' });
     mockPrisma.consentimento.create.mockResolvedValue({ id: 'cons-1' });
     mockPrisma.lead.update.mockResolvedValue({ id: 'lead-upd' });
@@ -83,7 +85,7 @@ describe('Orquestrador WhatsApp', () => {
     expect(mockPrisma.mensagem.create).not.toHaveBeenCalled();
   });
 
-  it('deve cadastrar contato e lead para novo usuário e responder com o menu de abertura', async () => {
+  it('deve cadastrar contato e lead para novo usuário e responder com a inteligência artificial da CET', async () => {
     mockPrisma.contato.findUnique.mockResolvedValueOnce(null);
     mockPrisma.contato.create.mockResolvedValueOnce({
       id: 'contato-novo-1',
@@ -117,14 +119,14 @@ describe('Orquestrador WhatsApp', () => {
       }),
     );
 
-    // Garante que a mensagem de abertura oficial foi enviada e gravada como saída
-    expect(mockEnviarTexto).toHaveBeenCalledWith(E164, MENSAGENS.ABERTURA_OBRIGATORIA);
+    // Garante que a resposta da IA de vendas foi enviada e gravada como saída
+    expect(mockEnviarTexto).toHaveBeenCalledWith(E164, 'Resposta de IA da CET');
     expect(mockPrisma.mensagem.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           lead_id: 'lead-novo-1',
           direcao: 'saida',
-          conteudo: MENSAGENS.ABERTURA_OBRIGATORIA,
+          conteudo: 'Resposta de IA da CET',
         }),
       }),
     );
@@ -225,6 +227,38 @@ describe('Orquestrador WhatsApp', () => {
 
     // Robô NÃO envia nenhuma mensagem para não interferir no atendimento humano
     expect(mockEnviarTexto).not.toHaveBeenCalled();
+  });
+
+  it('deve responder com IA e oferecer o diagnóstico quando o usuário fizer perguntas livres', async () => {
+    mockPrisma.contato.findUnique.mockResolvedValueOnce({
+      id: 'contato-duvida-1',
+      nome: 'Lucas Silva',
+      telefone_e164: E164,
+      leads: [{ id: 'lead-duvida-1', protocolo: 'CET-2026-777888', atendente_id: null, fichas: [] }],
+    });
+    mockPrisma.lead.findUnique.mockResolvedValue({
+      id: 'lead-duvida-1',
+      protocolo: 'CET-2026-777888',
+      fichas: [],
+    });
+    mockPrisma.mensagem.findMany.mockResolvedValueOnce([
+      { direcao: 'entrada', conteudo: 'Olá', wamid: 'w1' },
+      { direcao: 'saida', conteudo: 'Olá! Seja bem-vindo à CET...', wamid: 'w2' },
+    ]);
+
+    await processarMensagem(TELEFONE, 'wamid.duvida.1', 'text', 'Quanto custa para fazer o PGR e PCMSO da minha loja?');
+
+    // Deve responder usando a IA da CET
+    expect(mockEnviarTexto).toHaveBeenCalledWith(E164, 'Resposta de IA da CET');
+    expect(mockPrisma.mensagem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lead_id: 'lead-duvida-1',
+          direcao: 'saida',
+          conteudo: 'Resposta de IA da CET',
+        }),
+      }),
+    );
   });
 
   it('deve transferir para especialista (transbordo) quando usuário digitar opção 6', async () => {

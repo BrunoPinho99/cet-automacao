@@ -104,7 +104,7 @@ export async function processarMensagem(
         leads: {
           orderBy: { criado_em: 'desc' },
           take: 1,
-          include: { atendente: true },
+          include: { atendente: true, fichas: true },
         },
       },
     });
@@ -120,7 +120,7 @@ export async function processarMensagem(
           leads: {
             orderBy: { criado_em: 'desc' },
             take: 1,
-            include: { atendente: true },
+            include: { atendente: true, fichas: true },
           },
         },
       });
@@ -139,6 +139,9 @@ export async function processarMensagem(
     if (contato.leads.length > 0) {
       lead = contato.leads[0];
       ctx.lead_id = lead.id;
+      if (lead.fichas && lead.fichas.length > 0) {
+        ctx.ficha_token = lead.fichas[0].token_retomada;
+      }
     } else {
       const protocolo = gerarProtocolo();
       lead = await prisma.lead.create({
@@ -146,17 +149,30 @@ export async function processarMensagem(
           contato_id: contato.id,
           canal: 'whatsapp',
           protocolo,
-          primeira_intencao: 'Atendimento WhatsApp',
+          primeira_intencao: 'Atendimento WhatsApp (Diagnóstico IA)',
+          fichas: {
+            create: {
+              status: 'iniciada',
+              bloco_atual: 1,
+              respostas: {},
+            },
+          },
         },
-        include: { atendente: true },
+        include: { atendente: true, fichas: true },
       });
       ctx.lead_id = lead.id;
+      if (lead.fichas && lead.fichas.length > 0) {
+        ctx.ficha_token = lead.fichas[0].token_retomada;
+      }
     }
   } else {
     lead = await prisma.lead.findUnique({
       where: { id: ctx.lead_id },
-      include: { atendente: true },
+      include: { atendente: true, fichas: true },
     });
+    if (lead?.fichas && lead.fichas.length > 0 && !ctx.ficha_token) {
+      ctx.ficha_token = lead.fichas[0].token_retomada;
+    }
   }
 
   // 5. Salvar mensagem de entrada IMEDIATAMENTE (deduplicação por wamid persistida)
@@ -283,55 +299,7 @@ export async function processarMensagem(
 // =============================================================================
 
 async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: string): Promise<void> {
-  // 1. Se já possui ficha em andamento no contexto da sessão, retoma imediatamente
-  if (ctx.ficha_token) {
-    const link = linkCurtoFicha(ctx.ficha_token);
-    const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
-    await responderEGravar(telefone, ctx, msg);
-    ctx.estado = 'ficha_criada';
-    atualizarSessao(telefone, ctx);
-    return;
-  }
-
-  // 2. Se ainda não possui dados em memória, consulta o banco
-  if (!ctx.contato_id) {
-    const contato = await prisma.contato.findUnique({
-      where: { telefone_e164: telefone },
-      include: {
-        leads: {
-          orderBy: { criado_em: 'desc' },
-          take: 1,
-          include: {
-            fichas: {
-              where: { status: { not: 'concluida' } },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
-    if (contato && contato.leads.length > 0) {
-      const lead = contato.leads[0];
-      ctx.contato_id = contato.id;
-      ctx.lead_id = lead.id;
-      ctx.nome = contato.nome;
-
-      if (lead.fichas.length > 0) {
-        const ficha = lead.fichas[0];
-        const link = linkCurtoFicha(ficha.token_retomada);
-        const msg = `${MENSAGENS.FICHA_INCOMPLETA}\n\nLink para continuar direto pelo celular:\n👉 ${link}`;
-
-        await responderEGravar(telefone, ctx, msg);
-        ctx.ficha_token = ficha.token_retomada;
-        ctx.estado = 'ficha_criada';
-        atualizarSessao(telefone, ctx);
-        return;
-      }
-    }
-  }
-
-  // 3. GATILHO OFICIAL PRIORITÁRIO: "quero receber um diagnostico da minha empresa"
+  // 1. GATILHO OFICIAL PRIORITÁRIO: "quero receber um diagnostico da minha empresa"
   if (conteudo && verificarTriggerDiagnostico(conteudo)) {
     const intencaoTitulo = 'Diagnóstico Completo da Empresa';
     if (ctx.contato_id) {
@@ -357,36 +325,67 @@ async function tratarInicio(telefone: string, ctx: ContextoConversa, conteudo?: 
     return;
   }
 
-  // 4. Se o usuário já iniciou com uma dúvida específica em texto livre (não apenas saudação simples)
-  const ehSaudacaoSimples = ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'opa', 'ola!', 'oi!'].includes(conteudo?.trim().toLowerCase() || '');
-  if (conteudo && !ehSaudacaoSimples && conteudo.trim().length > 5 && !/^[1-6]$/.test(conteudo.trim())) {
-    try {
-      const respostaIA = await gerarRespostaGeminiCET(conteudo, {
-        nomeCliente: ctx.nome,
-      });
-      if (respostaIA) {
-        await responderEGravar(telefone, ctx, respostaIA);
-        ctx.estado = 'menu';
-        ctx.tentativas_invalidas = 0;
-        atualizarSessao(telefone, ctx);
-        return;
-      }
-    } catch (err) {
-      console.error('[Orquestrador] Erro ao responder início com Gemini:', err);
-    }
+  // 2. Se o cliente pedir expressamente para falar com especialista / atendente humano
+  const normConteudo = (conteudo || '').trim().toLowerCase();
+  if (
+    normConteudo === '6' ||
+    normConteudo.includes('falar com especialista') ||
+    normConteudo.includes('falar com atendente') ||
+    normConteudo.includes('falar com consultor') ||
+    normConteudo.includes('atendente humano')
+  ) {
+    await iniciarTransbordo(telefone, ctx);
+    return;
   }
 
-  // 5. Mensagem de Abertura Humanizada com 6 opções numéricas e aviso LGPD
-  await responderEGravar(telefone, ctx, MENSAGENS.ABERTURA_OBRIGATORIA);
+  // 3. Conversação Inicial com Inteligência Artificial da CET (Vendedora do Diagnóstico)
+  try {
+    let protocolo: string | undefined;
+    if (ctx.lead_id) {
+      const leadDb = await prisma.lead.findUnique({ where: { id: ctx.lead_id } });
+      protocolo = leadDb?.protocolo;
+    }
 
+    const linkFicha = ctx.ficha_token ? linkCurtoFicha(ctx.ficha_token) : undefined;
+
+    const mensagensAnteriores = ctx.lead_id
+      ? await prisma.mensagem.findMany({
+          where: { lead_id: ctx.lead_id },
+          orderBy: { criado_em: 'asc' },
+          take: 10,
+        }).catch(() => [])
+      : [];
+
+    const historico = mensagensAnteriores
+      .filter((m) => m.conteudo !== conteudo)
+      .map((m) => ({
+        autor: m.direcao === 'entrada' ? ('usuario' as const) : ('assistente' as const),
+        texto: m.conteudo,
+      }));
+
+    const respostaIA = await gerarRespostaGeminiCET(conteudo || 'Olá', {
+      nomeCliente: ctx.nome && ctx.nome !== 'Cliente WhatsApp' ? ctx.nome : undefined,
+      protocolo,
+      linkFicha,
+      historico,
+    });
+
+    if (respostaIA) {
+      await responderEGravar(telefone, ctx, respostaIA);
+      ctx.estado = 'menu';
+      ctx.tentativas_invalidas = 0;
+      atualizarSessao(telefone, ctx);
+      return;
+    }
+  } catch (err) {
+    console.error('[Orquestrador] Erro ao responder início com Gemini:', err);
+  }
+
+  // 4. Fallback caso a IA não esteja disponível
+  await responderEGravar(telefone, ctx, MENSAGENS.ABERTURA_OBRIGATORIA);
   ctx.estado = 'menu';
   ctx.tentativas_invalidas = 0;
   atualizarSessao(telefone, ctx);
-
-  // Se o usuário já enviou diretamente um número de 1 a 6 de primeira
-  if (conteudo && /^[1-6]$/.test(conteudo.trim())) {
-    await tratarMenu(telefone, ctx, conteudo);
-  }
 }
 
 async function tratarConsentimento(
@@ -517,10 +516,28 @@ async function tratarMenu(
         protocolo = leadDb?.protocolo;
       }
 
+      const linkFicha = ctx.ficha_token ? linkCurtoFicha(ctx.ficha_token) : undefined;
+
+      const mensagensAnteriores = ctx.lead_id
+        ? await prisma.mensagem.findMany({
+            where: { lead_id: ctx.lead_id },
+            orderBy: { criado_em: 'asc' },
+            take: 10,
+          }).catch(() => [])
+        : [];
+
+      const historico = mensagensAnteriores
+        .filter((m) => m.conteudo !== resposta)
+        .map((m) => ({
+          autor: m.direcao === 'entrada' ? ('usuario' as const) : ('assistente' as const),
+          texto: m.conteudo,
+        }));
+
       const respostaIA = await gerarRespostaGeminiCET(resposta, {
-        nomeCliente: ctx.nome,
+        nomeCliente: ctx.nome && ctx.nome !== 'Cliente WhatsApp' ? ctx.nome : undefined,
         protocolo,
-        linkFicha: ctx.ficha_token ? linkCurtoFicha(ctx.ficha_token) : undefined,
+        linkFicha,
+        historico,
       });
 
       if (respostaIA) {
@@ -530,7 +547,7 @@ async function tratarMenu(
         return;
       }
     } catch (err) {
-      console.error('[Orquestrador] Erro ao consultar Gemini:', err);
+      console.error('[Orquestrador] Erro ao consultar Gemini em tratarMenu:', err);
     }
 
     ctx.tentativas_invalidas++;
@@ -549,6 +566,36 @@ async function tratarNome(
   nome: string,
 ): Promise<void> {
   const nomeFormatado = nome.trim();
+
+  // Se o usuário fez uma pergunta ou mandou uma dúvida ao invés de um nome
+  const parecePergunta =
+    nomeFormatado.includes('?') ||
+    nomeFormatado.split(' ').length > 5 ||
+    /quanto|qual|como|onde|porque|por que|quem|faz|preço|valor/i.test(nomeFormatado);
+
+  if (parecePergunta) {
+    try {
+      let protocolo: string | undefined;
+      if (ctx.lead_id) {
+        const leadDb = await prisma.lead.findUnique({ where: { id: ctx.lead_id } });
+        protocolo = leadDb?.protocolo;
+      }
+      const linkFicha = ctx.ficha_token ? linkCurtoFicha(ctx.ficha_token) : undefined;
+      const respostaIA = await gerarRespostaGeminiCET(nome, {
+        nomeCliente: ctx.nome && ctx.nome !== 'Cliente WhatsApp' ? ctx.nome : undefined,
+        protocolo,
+        linkFicha,
+      });
+      if (respostaIA) {
+        await responderEGravar(telefone, ctx, respostaIA);
+        atualizarSessao(telefone, ctx);
+        return;
+      }
+    } catch (err) {
+      console.error('[Orquestrador] Erro ao responder dúvida em tratarNome:', err);
+    }
+  }
+
   if (nomeFormatado.length < 2 || nomeFormatado.length > 100) {
     ctx.tentativas_invalidas++;
     if (ctx.tentativas_invalidas >= MAX_TENTATIVAS_INVALIDAS) {
