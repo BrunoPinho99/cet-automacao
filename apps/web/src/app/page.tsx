@@ -548,12 +548,12 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans">
       {/* BARRA DE DESTAQUE SUPERIOR COM GRADIENTE FUTUREWAVE */}
       <div className="h-1 bg-gradient-futurewave w-full" />
 
       {/* CABEÇALHO INSTITUCIONAL */}
-      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-xs border-b border-slate-200 flex items-center justify-between px-4 sm:px-8">
+      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-8">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-cet.png" alt="CET" className="w-9 h-9 rounded-md object-contain" />
@@ -565,17 +565,19 @@ export default function HomePage() {
       </header>
 
       {/* CONTEÚDO PRINCIPAL */}
-      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-4xl mx-auto w-full space-y-8">
+      <main className="flex-1 py-8 sm:py-12 px-4 sm:px-6 max-w-5xl mx-auto w-full space-y-8">
         {/* Título de Apresentação */}
-        <div className="text-center space-y-3">
-          <span className="inline-flex items-center gap-1.5 bg-soft-lavender text-royal border border-blue-200 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-2xs">
+        <div className="text-center space-y-4 rounded-3xl bg-ink-deep text-white px-6 py-10 sm:px-12 sm:py-14 shadow-lg overflow-hidden relative">
+          <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/30 blur-3xl" />
+          <div className="absolute -left-20 -bottom-28 h-48 w-48 rounded-full bg-primary-soft/20 blur-3xl" />
+          <span className="relative inline-flex items-center gap-1.5 bg-white/10 text-white border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
             <span className="w-2 h-2 rounded-full bg-azure animate-pulse" />
             Consulta Oficial Gratuita
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Descubra o <span className="text-royal">Score SST</span> da sua Empresa
+          <h1 className="relative text-3xl sm:text-5xl font-medium text-white tracking-tight leading-tight">
+            Descubra o <span className="text-primary-soft">Score SST</span> da sua Empresa
           </h1>
-          <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
+          <p className="relative text-sm sm:text-base text-white/75 max-w-2xl mx-auto leading-relaxed">
             Identifique o nível de risco ocupacional (NR-4) e pendências com as Normas Regulamentadoras da CLT e o eSocial.
           </p>
         </div>
@@ -584,7 +586,7 @@ export default function HomePage() {
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 relative" ref={dropdownRef}>
           {/* SELETOR DE MODO: BUSCAR POR NOME OU DIGITAR CNPJ */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+            <div className="flex items-center gap-2 bg-surface-soft p-1 rounded-full w-fit">
               <button
                 type="button"
                 onClick={() => {
@@ -592,7 +594,7 @@ export default function HomePage() {
                   setBusca('');
                   setSugestoes([]);
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all ${
                   modoBusca === 'nome'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -608,7 +610,7 @@ export default function HomePage() {
                   setBusca('');
                   setSugestoes([]);
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all ${
                   modoBusca === 'cnpj'
                     ? 'bg-white text-blue-700 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -665,7 +667,7 @@ export default function HomePage() {
                     ? 'Digite o nome da sua empresa (ex: Padaria Central, Drogaria Pacheco)...'
                     : 'Cole ou digite o CNPJ (ex: 12.345.678/0001-90)...'
                 }
-                className="w-full pl-11 pr-10 py-3.5 bg-slate-50 hover:bg-slate-50/80 focus:bg-white border border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 rounded-2xl text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
+                className="w-full pl-11 pr-10 py-3.5 bg-surface-soft hover:bg-white focus:bg-white border border-slate-300 rounded-full text-sm sm:text-base text-slate-900 transition-all outline-hidden font-medium placeholder:text-slate-400"
               />
 
               {busca && (
@@ -709,7 +711,7 @@ export default function HomePage() {
                   setBuscandoReceita(false);
                 }
               }}
-              className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 text-white font-bold rounded-2xl text-sm transition shadow-sm hover:shadow shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+              className="px-6 py-3.5 bg-black hover:bg-slate-800 active:bg-slate-700 disabled:opacity-50 text-white font-bold rounded-full text-sm transition shadow-sm hover:shadow shrink-0 flex items-center justify-center gap-2 cursor-pointer"
             >
               {buscando ? (
                 <>
@@ -1275,7 +1277,7 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={calculandoScore}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white font-extrabold py-4 px-6 rounded-2xl text-base sm:text-lg transition shadow-lg hover:shadow-xl flex items-center justify-center gap-3 cursor-pointer group"
+                  className="w-full bg-primary hover:bg-primary-deep disabled:opacity-50 text-white font-extrabold py-4 px-6 rounded-full text-base sm:text-lg transition shadow-lg hover:shadow-xl flex items-center justify-center gap-3 cursor-pointer group"
                 >
                   {calculandoScore ? (
                     <>

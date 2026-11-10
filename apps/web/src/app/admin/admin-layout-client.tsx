@@ -105,7 +105,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                   <Link
                     href={item.href}
                     onClick={onNavigate}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                    className={`flex items-center gap-3 rounded-full px-3 py-2.5 text-sm transition-colors ${
                       isActive
                         ? 'bg-soft-lavender text-royal font-semibold'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -145,11 +145,11 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
     : 'AD';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col">
       <OnboardingModal forceOpen={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
       {/* CABEÇALHO CORPORATIVO */}
-      <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
+      <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -176,7 +176,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
           <button
             type="button"
             onClick={() => setTutorialOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
             title="Abrir guia rápido de uso do sistema"
           >
             <svg className="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -200,7 +200,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
                 type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="border-2 border-slate-200 rounded-full px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {loggingOut ? 'Saindo...' : 'Sair'}
               </button>
@@ -243,7 +243,7 @@ export function AdminLayoutClient({ session, children }: AdminLayoutClientProps)
         )}
 
         {/* CONTEÚDO PRINCIPAL COM FUNDO SLATE-50 */}
-        <main className="flex-1 min-w-0 bg-slate-50">
+        <main className="flex-1 min-w-0 bg-surface-soft">
           <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</div>
         </main>
       </div>

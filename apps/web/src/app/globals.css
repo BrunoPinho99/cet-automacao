@@ -1,82 +1,52 @@
 @import "tailwindcss";
 
-/*
- * ==========================================================================
- * CET CLÍNICA — SISTEMA DE GESTÃO SST & ATENDIMENTO
- * DESIGN SYSTEM OFICIAL 2026: PALETA CORPORATIVA DE ALTA PRECISÃO
- * 01 Royal Blue:    #0056FF
- * 02 Azure Blue:    #2277FF
- * 03 Black:         #000000
- * 04 Soft Lavender: #E3E7FC
- * 05 White:         #FFFFFF
- * Gradient 1 (Futurewave):     linear-gradient(135deg, #2277FF 0%, #8FB9FF 100%)
- * Gradient 2 (Midnight Surge): linear-gradient(135deg, #04194D 0%, #013394 50%, #0056FF 100%)
- * ==========================================================================
- */
-
 :root {
-  --background: #f8fafc;
-  --foreground: #000000;
+  --background: #ffffff;
+  --foreground: #0a1317;
   --card: #ffffff;
-  --card-foreground: #000000;
-
-  /* Cores Nominais Oficiais */
-  --royal-blue: #0056FF;
-  --azure-blue: #2277FF;
-  --black: #000000;
-  --soft-lavender: #E3E7FC;
-  --white: #FFFFFF;
-  --midnight-surge: #04194D;
-  --futurewave-light: #8FB9FF;
-
-  --primary: #0056FF;
-  --primary-hover: #0045d9;
+  --card-foreground: #1c1e21;
+  --primary: #0064e0;
+  --primary-deep: #0457cb;
+  --primary-soft: #0091ff;
   --primary-foreground: #ffffff;
-  --secondary: #059669;
-  --secondary-hover: #047857;
-  --secondary-foreground: #ffffff;
-  --muted: #E3E7FC;
-  --muted-foreground: #475569;
-  --border: #e2e8f0;
-  --ring: #0056FF;
+  --ink-button: #000000;
+  --on-ink-button: #ffffff;
+  --canvas: #ffffff;
+  --surface-soft: #f1f4f7;
+  --ink-deep: #0a1317;
+  --ink: #1c1e21;
+  --charcoal: #444950;
+  --slate: #4b4c4f;
+  --steel: #5d6c7b;
+  --stone: #8595a4;
+  --hairline: #ced0d4;
+  --hairline-soft: #dee3e9;
+  --disabled-text: #bcc0c4;
+  --success: #31a24c;
+  --attention: #f2a918;
+  --warning: #f7b928;
+  --critical: #e41e3f;
+  --critical-strong: #f0284a;
+  --ring: #1876f2;
 }
 
 @theme {
-  /* Tokens Nominais */
-  --color-royal: #0056FF;
-  --color-royal-blue: #0056FF;
-  --color-azure: #2277FF;
-  --color-azure-blue: #2277FF;
-  --color-lavender: #E3E7FC;
-  --color-soft-lavender: #E3E7FC;
-  --color-midnight: #04194D;
-  --color-futurewave: #8FB9FF;
-
-  /* Escala Blue calibrada com 01 Royal Blue e 02 Azure Blue */
-  --color-blue-50: #f4f6fe;
-  --color-blue-100: #E3E7FC; /* 04 Soft Lavender */
-  --color-blue-200: #c9d5fc;
-  --color-blue-300: #9cbaff;
-  --color-blue-400: #5c93ff;
-  --color-blue-500: #2277FF; /* 02 Azure Blue */
-  --color-blue-600: #0056FF; /* 01 Royal Blue */
-  --color-blue-700: #0045d9;
-  --color-blue-800: #0036ab;
-  --color-blue-900: #04194D; /* Midnight Surge Base */
-  --color-blue-950: #020c24;
-
-  /* Escala Sky calibrada para componentes que utilizam sky-* */
-  --color-sky-50: #f4f6fe;
-  --color-sky-100: #E3E7FC; /* 04 Soft Lavender */
-  --color-sky-200: #c9d5fc;
-  --color-sky-300: #9cbaff;
-  --color-sky-400: #5c93ff;
-  --color-sky-500: #2277FF; /* 02 Azure Blue */
-  --color-sky-600: #0056FF; /* 01 Royal Blue */
-  --color-sky-700: #0045d9;
-  --color-sky-800: #0036ab;
-  --color-sky-900: #04194D;
-  --color-sky-950: #020c24;
+  --color-primary: #0064e0;
+  --color-primary-deep: #0457cb;
+  --color-primary-soft: #0091ff;
+  --color-ink: #1c1e21;
+  --color-ink-deep: #0a1317;
+  --color-surface-soft: #f1f4f7;
+  --color-hairline: #ced0d4;
+  --color-hairline-soft: #dee3e9;
+  --color-royal: #0064e0;
+  --color-royal-blue: #0064e0;
+  --color-azure: #0091ff;
+  --color-azure-blue: #0091ff;
+  --color-lavender: #f1f4f7;
+  --color-soft-lavender: #f1f4f7;
+  --color-midnight: #0a1317;
+  --color-futurewave: #0091ff;
 }
 
 html {
@@ -88,197 +58,281 @@ html {
 }
 
 body {
-  background-color: var(--background);
+  background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: -0.011em;
+  font-family: "Optimistic VF", Montserrat, Helvetica, Arial, "Noto Sans", sans-serif;
+  letter-spacing: -0.01em;
 }
 
-/* Utilitários dos Gradientes da Paleta */
-.bg-gradient-futurewave {
-  background: linear-gradient(135deg, #2277FF 0%, #8FB9FF 100%);
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-.bg-gradient-midnight {
-  background: linear-gradient(135deg, #04194D 0%, #013394 50%, #0056FF 100%);
+button {
+  cursor: pointer;
 }
 
-.bg-soft-lavender {
-  background-color: #E3E7FC;
+button:disabled {
+  cursor: not-allowed;
 }
 
-.text-royal {
-  color: #0056FF;
+input,
+textarea,
+select {
+  border-color: var(--hairline);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--canvas);
 }
 
-.text-azure {
-  color: #2277FF;
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--ring);
+  outline: 2px solid color-mix(in srgb, var(--ring) 18%, transparent);
+  outline-offset: 0;
 }
 
-.bg-royal {
-  background-color: #0056FF;
+/* Meta-compatible aliases used by existing screens. */
+.bg-royal,
+.bg-blue-600,
+.bg-blue-700,
+.bg-emerald-600 {
+  background-color: var(--primary) !important;
+}
+
+.hover\:bg-blue-700:hover,
+.hover\:bg-emerald-700:hover,
+.active\:bg-blue-800:active,
+.active\:bg-emerald-800:active {
+  background-color: var(--primary-deep) !important;
+}
+
+.bg-emerald-50 {
+  background-color: color-mix(in srgb, var(--success) 10%, white) !important;
+}
+
+.text-emerald-600,
+.text-emerald-700,
+.text-emerald-800 {
+  color: var(--success) !important;
 }
 
 .bg-azure {
-  background-color: #2277FF;
+  background-color: var(--primary-soft) !important;
 }
 
-.border-royal {
-  border-color: #0056FF;
+.bg-soft-lavender,
+.bg-slate-50,
+.bg-gray-50 {
+  background-color: var(--surface-soft) !important;
 }
 
-.border-azure {
-  border-color: #2277FF;
+.text-royal,
+.text-blue-600,
+.text-blue-700,
+.text-sky-600 {
+  color: var(--primary) !important;
 }
 
-.border-lavender {
-  border-color: #E3E7FC;
+.text-slate-900,
+.text-gray-900 {
+  color: var(--ink-deep) !important;
 }
 
-/* Micro-elevação SaaS 2026 */
-.saas-card {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+.text-slate-800,
+.text-slate-700,
+.text-gray-700 {
+  color: var(--ink) !important;
 }
 
+.text-slate-600,
+.text-slate-500,
+.text-gray-500 {
+  color: var(--steel) !important;
+}
+
+.text-slate-400,
+.text-gray-400 {
+  color: var(--stone) !important;
+}
+
+.border-slate-200,
+.border-gray-200,
+.border-slate-300 {
+  border-color: var(--hairline-soft) !important;
+}
+
+.border-blue-200,
+.border-blue-300 {
+  border-color: color-mix(in srgb, var(--primary) 25%, white) !important;
+}
+
+.rounded-md,
+.rounded-lg {
+  border-radius: 8px;
+}
+
+.rounded-xl {
+  border-radius: 16px;
+}
+
+.rounded-2xl {
+  border-radius: 24px;
+}
+
+.rounded-3xl {
+  border-radius: 32px;
+}
+
+.shadow-2xs,
+.shadow-sm {
+  box-shadow: 0 1px 4px rgba(20, 22, 26, 0.12);
+}
+
+.shadow-md,
+.shadow-lg {
+  box-shadow: 0 8px 24px rgba(20, 22, 26, 0.12);
+}
+
+.saas-card,
 .saas-card-interactive {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.saas-card-interactive:hover {
-  border-color: #2277FF;
-  box-shadow: 0 4px 14px -2px rgba(0, 86, 255, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  background: var(--canvas);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 24px;
+  box-shadow: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Botões Modernos SaaS na Paleta Oficial CET */
-.btn-saas-primary {
+.saas-card-interactive:hover {
+  border-color: var(--hairline);
+  box-shadow: 0 8px 24px rgba(20, 22, 26, 0.08);
+}
+
+.btn-saas-primary,
+.btn-saas-green {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: #0056FF;
-  border: 1px solid #0045d9;
-  border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 86, 255, 0.25);
-  transition: all 0.15s ease;
+  gap: 8px;
+  min-height: 44px;
+  padding: 14px 30px;
+  border: 0;
+  border-radius: 100px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.43;
+  letter-spacing: -0.14px;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
-.btn-saas-primary:hover:not(:disabled) {
-  background: #0045d9;
-  box-shadow: 0 2px 6px 0 rgba(0, 86, 255, 0.35);
-  transform: translateY(-0.5px);
+
+.btn-saas-primary:hover:not(:disabled),
+.btn-saas-green:hover:not(:disabled) {
+  background: var(--primary-deep);
 }
-.btn-saas-primary:active:not(:disabled) {
-  transform: translateY(0);
+
+.btn-saas-primary:active:not(:disabled),
+.btn-saas-green:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn-saas-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.9rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #334155;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
-  transition: all 0.15s ease;
-}
-.btn-saas-secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  color: #0f172a;
-  border-color: #94a3b8;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 28px;
+  border: 2px solid var(--ink-deep);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--ink-deep);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.43;
+  letter-spacing: -0.14px;
 }
 
-.btn-saas-green {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #ffffff;
-  background: #059669;
-  border: 1px solid #047857;
-  border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(5, 150, 105, 0.25);
-  transition: all 0.15s ease;
-}
-.btn-saas-green:hover:not(:disabled) {
-  background: #047857;
-  box-shadow: 0 2px 4px 0 rgba(5, 150, 105, 0.35);
+.badge-saas-blue,
+.badge-saas-green,
+.badge-saas-neutral {
+  border: 0;
+  border-radius: 100px;
+  padding: 4px 10px;
+  font-size: 12px;
+  line-height: 1.33;
+  font-weight: 700;
 }
 
-/* Badges e Pílulas SaaS */
 .badge-saas-blue {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #0056FF;
-  background: #E3E7FC;
-  border: 1px solid #c9d5fc;
-  border-radius: 9999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 14%, white);
 }
 
 .badge-saas-green {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 9999px;
+  color: white;
+  background: var(--success);
 }
 
 .badge-saas-neutral {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #475569;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 9999px;
+  color: var(--steel);
+  background: var(--surface-soft);
 }
 
-/* Custom Scrollbar Fina e Elegante */
+.bg-gradient-futurewave {
+  background: linear-gradient(135deg, #0064e0 0%, #0091ff 100%);
+}
+
+.bg-gradient-midnight {
+  background: linear-gradient(135deg, #0a1317 0%, #0457cb 100%);
+}
+
+.bg-soft-lavender {
+  background-color: var(--surface-soft);
+}
+
+.text-azure {
+  color: var(--primary-soft);
+}
+
+.border-royal,
+.border-azure {
+  border-color: var(--primary);
+}
+
+.border-lavender {
+  border-color: var(--hairline-soft);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--hairline);
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--stone);
 }
 
-/* Tabular Nums para métricas financeiras e números */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .rounded-3xl {
+    border-radius: 24px;
+  }
 }

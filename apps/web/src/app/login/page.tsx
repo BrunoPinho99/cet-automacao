@@ -38,9 +38,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-      <div className="w-full max-w-sm space-y-6 rounded-2xl bg-white p-8 border border-slate-200 shadow-2xs relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-futurewave" />
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-12">
+      <div className="w-full max-w-sm space-y-6 rounded-3xl bg-white p-8 border border-slate-200 shadow-md relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
         <div className="text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -66,7 +66,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-sm transition"
+                className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 placeholder-slate-400 text-sm transition"
                 placeholder="admin@cet.com.br"
               />
             </div>
@@ -84,7 +84,7 @@ export default function LoginPage() {
                   required
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 text-sm transition pr-10"
+                  className="block w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 placeholder-slate-400 text-sm transition pr-10"
                   placeholder="••••••••••••"
                 />
                 <button
@@ -108,7 +108,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center items-center gap-2 rounded-xl bg-royal px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-royal focus:ring-offset-2 disabled:opacity-60 transition shadow-2xs cursor-pointer"
+              className="flex w-full justify-center items-center gap-2 rounded-full bg-royal px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-royal focus:ring-offset-2 disabled:opacity-60 transition shadow-2xs cursor-pointer"
             >
               {loading ? (
                 <>
