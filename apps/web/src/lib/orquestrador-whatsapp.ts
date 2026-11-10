@@ -11,7 +11,7 @@
  * 5. Idempotência e rastreabilidade total de protocolos.
  */
 
-import { prisma } from './prisma';
+import { prisma } from '@cet/db';
 import { normalizarTelefone, gerarProtocolo } from './validacoes';
 import { enviarTexto, marcarComoLida } from './whatsapp-client';
 import {

@@ -94,9 +94,11 @@ export async function POST(req: Request) {
 
               if (sender && wamid) {
                 const pushName = val.contacts?.[0]?.profile?.name;
-                processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName).catch(err => {
+                try {
+                  await processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName);
+                } catch (err) {
                   console.error('[Meta Webhook] Erro ao processar:', err);
-                });
+                }
               }
             }
           }
@@ -197,9 +199,11 @@ export async function POST(req: Request) {
             messageText = interactiveId;
           }
 
-          processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName).catch(err => {
+          try {
+            await processarMensagem(sender, wamid, tipoMensagem, messageText, interactiveId, pushName);
+          } catch (err) {
             console.error('[Evolution Webhook] Erro ao processar:', err);
-          });
+          }
         }
       }
 
