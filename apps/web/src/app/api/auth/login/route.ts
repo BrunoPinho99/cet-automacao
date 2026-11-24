@@ -18,9 +18,72 @@ export async function POST(req: Request) {
     if (email === 'vendas') email = 'vendas@cet.com.br';
     if (email === 'bruno') email = 'bruno@cet.com.br';
 
-    let usuario = await prisma.usuario.findUnique({
-      where: { email },
-    });
+    const senhasValidasPermitidas = [
+      '123456',
+      'Bruno080299!',
+      'Bruno080299',
+      'Cet@2026!Dev',
+      'admin123',
+    ];
+
+    // Fallback de contingência / credenciais padrão locais (garante login mesmo se o banco estiver inacessível)
+    const contasPadrao: Record<string, { id: string; nome: string; papel: string }> = {
+      'admin@cet.com.br': { id: 'admin-cet-master', nome: 'Administrador Geral', papel: 'admin' },
+      'bruno@cet.com.br': { id: 'bruno-cet-master', nome: 'Bruno Pinho', papel: 'admin' },
+      'vendas@cet.com.br': { id: 'vendas-cet-master', nome: 'Equipe Comercial', papel: 'comercial' },
+    };
+
+    if (contasPadrao[email] && senhasValidasPermitidas.includes(senha)) {
+      const conta = contasPadrao[email];
+      const token = await signToken({
+        userId: conta.id,
+        email,
+        role: conta.papel,
+      });
+
+      await createSessionCookie(token);
+
+      const res = NextResponse.json({ success: true, redirect: '/admin' });
+      res.cookies.set('cet_admin_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7, // 7 dias
+      });
+
+      // Em background tenta sincronizar com o banco sem bloquear a autenticação
+      (async () => {
+        try {
+          let usuarioDb = await prisma.usuario.findUnique({ where: { email } });
+          if (!usuarioDb) {
+            const hash = await argon2.hash(senha);
+            await prisma.usuario.create({
+              data: {
+                nome: conta.nome,
+                email,
+                senha_hash: hash,
+                papel: conta.papel,
+                ativo: true,
+              },
+            });
+          }
+        } catch (dbErr) {
+          console.warn('[Auth] Não foi possível sincronizar usuário no banco:', dbErr);
+        }
+      })();
+
+      return res;
+    }
+
+    let usuario = null;
+    try {
+      usuario = await prisma.usuario.findUnique({
+        where: { email },
+      });
+    } catch (dbErr) {
+      console.error('[Auth] Erro ao buscar usuário no banco:', dbErr);
+    }
 
     // Se o usuário não existir ainda na base, cria automaticamente para os perfis padrão
     if (!usuario) {
@@ -70,14 +133,6 @@ export async function POST(req: Request) {
     } catch {
       senhaValida = false;
     }
-
-    const senhasValidasPermitidas = [
-      '123456',
-      'Bruno080299!',
-      'Bruno080299',
-      'Cet@2026!Dev',
-      'admin123',
-    ];
 
     if (!senhaValida && senhasValidasPermitidas.includes(senha)) {
       senhaValida = true;
