@@ -16,43 +16,53 @@ export default async function PaineisPage() {
     redirect('/admin/forbidden');
   }
 
-  // 1. Captação
-  const leadsPorCanal = await prisma.lead.groupBy({
-    by: ['canal'],
-    _count: { id: true },
-  });
+  let leadData: any[] = [];
+  let fichaData: any[] = [];
+  let rotaData: any[] = [];
+  let sstData: any[] = [];
+  let totalValor = 'R$ 0,00';
 
-  // 2. Diagnóstico
-  const fichasPorStatus = await prisma.ficha.groupBy({
-    by: ['status'],
-    _count: { id: true },
-  });
+  try {
+    // 1. Captação
+    const leadsPorCanal = await prisma.lead.groupBy({
+      by: ['canal'],
+      _count: { id: true },
+    });
 
-  // 3. Comercial
-  const rotas = await prisma.rota.groupBy({
-    by: ['rota_completa'],
-    _count: { id: true },
-  });
+    // 2. Diagnóstico
+    const fichasPorStatus = await prisma.ficha.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    });
 
-  const somaValores = await prisma.negocio.aggregate({
-    _sum: { valor_estimado: true },
-  });
+    // 3. Comercial
+    const rotas = await prisma.rota.groupBy({
+      by: ['rota_completa'],
+      _count: { id: true },
+    });
 
-  // 4. SST
-  const scoresSST = await prisma.scoreSST.groupBy({
-    by: ['classificacao'],
-    _count: { id: true },
-  });
+    const somaValores = await prisma.negocio.aggregate({
+      _sum: { valor_estimado: true },
+    });
 
-  // Process data for charts
-  const leadData = leadsPorCanal.map((l) => ({ name: l.canal === 'whatsapp' ? 'WhatsApp' : l.canal, value: l._count.id }));
-  const fichaData = fichasPorStatus.map((f) => ({ name: f.status, value: f._count.id }));
-  const rotaData = rotas.map((r) => ({ name: infoPorte(r.rota_completa).nome, value: r._count.id }));
-  const sstData = scoresSST.map((s) => ({ name: s.classificacao, value: s._count.id }));
+    // 4. SST
+    const scoresSST = await prisma.scoreSST.groupBy({
+      by: ['classificacao'],
+      _count: { id: true },
+    });
 
-  const totalValor = somaValores._sum.valor_estimado
-    ? (somaValores._sum.valor_estimado / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-    : 'R$ 0,00';
+    // Process data for charts
+    leadData = leadsPorCanal.map((l) => ({ name: l.canal === 'whatsapp' ? 'WhatsApp' : l.canal, value: l._count.id }));
+    fichaData = fichasPorStatus.map((f) => ({ name: f.status, value: f._count.id }));
+    rotaData = rotas.map((r) => ({ name: infoPorte(r.rota_completa).nome, value: r._count.id }));
+    sstData = scoresSST.map((s) => ({ name: s.classificacao, value: s._count.id }));
+
+    totalValor = somaValores._sum.valor_estimado
+      ? (somaValores._sum.valor_estimado / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      : 'R$ 0,00';
+  } catch (err) {
+    console.warn('[PaineisPage] Banco indisponível:', err);
+  }
 
   // Helper for Horizontal Bar Chart (Modern SaaS 2026, Tailwind based)
   const renderBar = (label: string, value: number, max: number, colorClass: string) => {

@@ -7,26 +7,31 @@ import { infoPorte } from '@/lib/porte';
 export default async function LeadDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const lead = await prisma.lead.findUnique({
-    where: { id },
-    include: {
-      empresa: true,
-      contato: true,
-      pedidos: {
-        orderBy: { criado_em: 'desc' },
-        take: 1,
-      },
-      fichas: {
-        orderBy: { criado_em: 'desc' },
-        take: 1,
-        include: {
-          score_sst: true,
-          score_comercial: true,
-          rota: true,
+  let lead = null;
+  try {
+    lead = await prisma.lead.findUnique({
+      where: { id },
+      include: {
+        empresa: true,
+        contato: true,
+        pedidos: {
+          orderBy: { criado_em: 'desc' },
+          take: 1,
+        },
+        fichas: {
+          orderBy: { criado_em: 'desc' },
+          take: 1,
+          include: {
+            score_sst: true,
+            score_comercial: true,
+            rota: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.warn('[LeadDetailsPage] Banco indisponível:', err);
+  }
 
   if (!lead) {
     notFound();

@@ -11,32 +11,37 @@ export default async function AtendimentoPage() {
   
   const usuarioLogadoId = session.userId || session.sub;
 
-  const leads = await prisma.lead.findMany({
-    where: {
-      mensagens: {
-        some: {} // Apenas leads com mensagens
+  let serializableLeads: any[] = [];
+  try {
+    const leads = await prisma.lead.findMany({
+      where: {
+        mensagens: {
+          some: {} // Apenas leads com mensagens
+        }
+      },
+      include: {
+        contato: true,
+        empresa: true,
+        mensagens: {
+          orderBy: { criado_em: 'asc' }
+        }
+      },
+      orderBy: {
+        atualizado_em: 'desc'
       }
-    },
-    include: {
-      contato: true,
-      empresa: true,
-      mensagens: {
-        orderBy: { criado_em: 'asc' }
-      }
-    },
-    orderBy: {
-      atualizado_em: 'desc'
-    }
-  });
+    });
 
-  // Serializa datas para passar de forma segura ao Client Component
-  const serializableLeads = leads.map(lead => ({
-    ...lead,
-    mensagens: lead.mensagens.map(msg => ({
-      ...msg,
-      criado_em: msg.criado_em.toISOString(),
-    }))
-  }));
+    // Serializa datas para passar de forma segura ao Client Component
+    serializableLeads = leads.map(lead => ({
+      ...lead,
+      mensagens: lead.mensagens.map(msg => ({
+        ...msg,
+        criado_em: msg.criado_em.toISOString(),
+      }))
+    }));
+  } catch (err) {
+    console.warn('[AtendimentoPage] Banco indisponível:', err);
+  }
 
   return (
     <div className="w-full h-full">
